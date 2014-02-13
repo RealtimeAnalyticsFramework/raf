@@ -1,0 +1,35 @@
+package idgs.client.pb;
+
+option java_outer_classname = "PbClientConfig";
+
+message Endpoint {
+  enum AddressFamily {
+    PAF_INET = 1; 
+    PAF_INET6 = 2;
+    PAF_UNIX = 3; // unix domain socket
+  }
+
+  optional AddressFamily af = 1 [default = PAF_INET];
+  required string address = 2 [default = "0.0.0.0"];
+  required string port = 3 [default = "4682"];  // INTC
+}
+
+message Module {
+  required string name = 1;
+  optional string descriptor_file = 2;
+  optional string config_file = 3;  
+}
+
+message ClientConfig {
+  repeated Endpoint server_addresses = 1;
+  required uint32 pool_size = 2 [default = 1];
+  optional uint32 thread_count = 3 [default = 1];
+  optional bool   async_client = 4 [default = true];
+  
+  repeated Module modules = 5;
+  
+  optional bool enable_connect_timeout = 6 [default = false];	// whether enable connect timeout check
+  optional uint32 connect_timeout = 7 [default = 30];  			// 30s
+  optional uint32 retry_times = 8 [default = 3]; 	   			// when connect timeout, retry times
+}
+

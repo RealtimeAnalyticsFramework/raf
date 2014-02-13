@@ -1,0 +1,106 @@
+//
+// user defined expression. 
+//
+package idgs.pb;
+
+option java_outer_classname = "PbExpr";
+
+enum ExpressionType {
+  // constant
+  CONST   	= 1; 
+  
+  // logical
+  AND    	= 10;
+  OR     	= 11;
+  NOT    	= 12;
+  
+  // comparison
+  EQ     	= 20;             // equal
+  NE     	= 21;             // not equal
+  LT     	= 22;             // less than
+  LE     	= 23;             // less equal
+  GT     	= 24;             // greater than
+  GE     	= 25;             // greater equal
+  BETWEEN   = 26;             // between and / not between and
+  
+  // branch
+  // Parameters: [cond1, value1, cond2, value2, ... , condN, valueN, default]
+  // logic:
+  // if(cond1) value1 
+  // else if(cond2) value2
+  // ...
+  // else default
+  IF        = 30;             
+  VSET      = 31;             // variable set            
+  VGET      = 32;             // variable get
+  
+  // string only: regular express match
+  LIKE   	= 40;            
+  SUBSTR   	= 41;            
+  
+  
+  // Arithmetic
+  ADD	    = 50;            
+  SUBTRACT	= 51;          
+  MULTIPLY 	= 52;         
+  DIVIDE    = 53;
+  MODULUS   = 54;
+  HASH      = 55;
+
+  // bitwise operations
+  BIT_AND   = 60;
+  BIT_OR    = 61;
+  BIT_NOT   = 62;
+  BIT_XOR   = 63;
+  
+  // field stractor
+  FIELD     = 70;
+  
+  // user defined function
+  UDF 	 	= 90;            // user defined function    
+};
+
+/// copied from google/protobuf/descriptor
+enum DataType {
+  // 0 is reserved for errors.
+  // Order is weird for historical reasons.
+  DOUBLE         = 1;
+  FLOAT          = 2;
+  INT64          = 3;     // Not ZigZag encoded.  Negative numbers
+                          // take 10 bytes.  Use SINT64 if negative
+                          // values are likely.
+  UINT64         = 4;
+  INT32          = 5;     // Not ZigZag encoded.  Negative numbers
+                          // take 10 bytes.  Use SINT32 if negative
+                          // values are likely.
+  // FIXED64        = 6;
+  // FIXED32        = 7;
+  BOOL           = 8;
+  STRING         = 9;
+  GROUP          = 10;    // Tag-delimited aggregate.
+  MESSAGE        = 11;    // Length-delimited aggregate.
+
+  // New in version 2.
+  BYTES          = 12;
+  UINT32         = 13;
+  ENUM           = 14;
+  // SFIXED32       = 15;
+  // SFIXED64       = 16;
+  // SINT32         = 17;  // Uses ZigZag encoding.
+  // SINT64         = 18;  // Uses ZigZag encoding.
+}
+
+message Expr {
+  /// @fixme change to string
+  required ExpressionType type 			= 1;
+  
+  // the following is only available for branch/inner node (logical, comparison or Arithmetic)
+  repeated Expr expression 	= 2;
+  
+  // the following is only available for leaf/outer node (constant value or path of field like "name"; "name.first")
+  optional DataType const_type 			= 3;
+  optional string value 				= 4;
+
+  // the following is only available for user defined functions
+  optional string udf 					= 5;
+}

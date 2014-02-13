@@ -1,0 +1,6 @@
+#get Customer(partition_table)
+store.service get {"store_name":"Customer"} key={"c_custkey":"234000"};
+store.service get {"store_name":"Customer"} key={"c_custkey":"234002"};
+store.service get {"store_name":"Customer"} key={"c_custkey":"234004"};
+store.service get {"store_name":"Customer"} key={"c_custkey":"234006"};
+store.service get {"store_name":"Customer"} key={"c_custkey":"234008"};

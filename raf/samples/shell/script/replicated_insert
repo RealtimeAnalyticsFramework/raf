@@ -1,0 +1,11 @@
+#insert Nation(replicated)
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"1"} value={"n_name":"Kate1","n_regionkey":"15","n_comment":"comment0"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"2"} value={"n_name":"Kate2","n_regionkey":"16","n_comment":"comment1"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"3"} value={"n_name":"Kate3","n_regionkey":"17","n_comment":"comment2"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"4"} value={"n_name":"Kate4","n_regionkey":"18","n_comment":"comment3"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"5"} value={"n_name":"Kate5","n_regionkey":"19","n_comment":"comment4"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"6"} value={"n_name":"Kate6","n_regionkey":"10","n_comment":"comment5"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"7"} value={"n_name":"Kate7","n_regionkey":"11","n_comment":"comment6"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"8"} value={"n_name":"Kate8","n_regionkey":"12","n_comment":"comment7"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"9"} value={"n_name":"Kate9","n_regionkey":"13","n_comment":"comment8"};
+store.service insert {"store_name":"Nation"} key={"n_nationkey":"10"} value={"n_name":"Kate10","n_regionkey":"14","n_comment":"comment9"};

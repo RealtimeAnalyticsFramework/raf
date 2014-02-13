@@ -1,0 +1,25 @@
+//
+//
+package idgs.tpc.pb;
+
+enum CrudType {
+  INSERT = 1;
+  UPDATE = 2;
+  DELETE = 3;
+}
+
+message RawlineCrudRequest {
+  required CrudType type = 1 [ default = INSERT];
+  required string store_name = 2;
+  repeated string lines = 3;
+  optional uint32 option = 4 [default = 0]; 
+}
+
+message RawlineCrudResponse {
+  // total lines received by this member
+  optional uint64 total_line_count = 1;
+  // total successfull response received by this member
+  optional uint64 total_resp_count = 2;
+  // total error response received by this member
+  optional uint64 total_error_resp_count = 3;
+}

@@ -1,0 +1,88 @@
+// $Header: /var/cvsroot/idgs/services/store/test/proto/ssb.proto,v 1.5 2013/11/07 07:42:29 tinglou Exp $
+
+package idgs.sample.ssb.pb;
+
+message LineOrderKey {
+  required uint64 lo_orderkey = 1;
+  required uint64 lo_linenumber = 2;
+}
+
+message LineOrder {
+  required uint64 lo_custkey = 1; 				// foreign key of table custom 
+  required uint64 lo_partkey = 2;				// foreign key of table part
+  required uint64 lo_suppkey = 3; 				// foreign key of table supplier
+  required uint64 lo_orderdate = 4; 				// foreign key of table date
+  optional string lo_orderpriority = 5;
+  optional string lo_shippriority = 6;
+  optional double lo_quantity = 7;
+  optional double lo_extendedprice = 8;
+  optional double lo_ordertotalprice = 9;
+  optional double lo_discount = 10;
+  optional double lo_revenue = 11;
+  optional double lo_supplycost = 12;
+  optional double lo_tax = 13;
+  required uint64 lo_commitdate = 14;			// foreign key of table date
+  optional string lo_shipmode = 15;
+}
+
+message PartKey {
+  required uint64 p_partkey = 1;     //primary key
+}
+message Part {
+  optional string p_name = 1;
+  optional string p_mfgr = 2;
+  optional string p_category = 3;
+  optional string p_brand = 4;
+  optional string p_color = 5;
+  optional string p_type = 6;
+  optional uint32 p_size = 7;
+  optional string p_container = 8;
+}
+
+message SupplierKey {
+  required uint64 s_suppkey = 1;     //primary key
+}
+message Supplier {
+  optional string s_name = 1;
+  optional string s_address = 2;
+  required string s_city= 3;
+  required string s_nation = 4;
+  required string s_region = 5;
+  optional string s_phone = 6;
+}
+
+message CustomerKey {
+  required uint64 c_custkey = 1;			//primary key
+}
+message Customer {
+  optional string c_name = 1;
+  optional string c_address = 2;
+  optional string c_city = 3;
+  optional string c_nation = 4;
+  optional string c_region = 5;
+  optional string c_phone = 6;
+  optional string c_mktsegment = 8;
+}
+
+message DateKey {
+  required uint64 d_datekey = 1;
+}
+
+message Date {
+  optional string d_date = 1;
+  optional string d_dateofweek = 2;
+  optional string d_month = 3;
+  optional uint32 d_year = 4;
+  optional uint32 d_yearmonthnum = 5;
+  optional string d_yearmonth = 6;
+  optional uint32 d_daynuminweek = 7;
+  optional uint32 d_daynuminmonth = 8;
+  optional uint32 d_daynuminyear = 9;
+  optional uint32 d_monthnuminyear = 10;
+  optional uint32 d_weeknuminyear = 11;
+  optional string d_sellingseason = 12;
+  optional uint32 d_lastdayinweekfl = 13;
+  optional uint32 d_lastdayinmonthfl = 14;
+  optional uint32 d_holidayfl = 15;
+  optional uint32 d_weekdayfl = 16;
+}

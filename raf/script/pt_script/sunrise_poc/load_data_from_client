@@ -1,0 +1,29 @@
+#!/bin/sh
+
+
+CLIENT_LIST="10.10.10.51"
+for client in $CLIENT_LIST
+do
+  echo "================== kill client in $client =============================="
+  sleep 2
+  ssh $client "killall -9 idgs-aio;killall -9 tail;killall -9 load;killall -9 source;killall -9 startup"
+  sleep 3
+done
+
+
+
+for client in $CLIENT_LIST
+do
+  echo "================== start client in $client =============================="
+  sleep 2
+  scp client-conf/client.conf $client:/home/idgs/poc/sunrise/conf/client.conf
+  scp client-conf/load.sh $client:/home/idgs/poc/sunrise/load.sh
+  ssh $client "source /etc/profile;cd /home/idgs;./poc/sunrise/load.sh;"
+  sleep 3
+done
+
+echo "==================== finish Sunrise test =================================="
+
+sleep 3
+
+

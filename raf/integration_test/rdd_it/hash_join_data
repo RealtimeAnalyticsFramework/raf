@@ -1,0 +1,7 @@
+store.service insert {"store_name":"Orders"} key={"o_orderkey":"100000"} value={"o_custkey":"234000","o_orderstatus":"2","o_totalprice":"200.55","o_orderdate":"2013-02-01"};
+store.service insert {"store_name":"Orders"} key={"o_orderkey":"100001"} value={"o_custkey":"234001","o_orderstatus":"2","o_totalprice":"201.55","o_orderdate":"2013-02-02"};
+store.service insert {"store_name":"Orders"} key={"o_orderkey":"100002"} value={"o_custkey":"234002","o_orderstatus":"2","o_totalprice":"202.55","o_orderdate":"2013-02-03"};
+store.service insert {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"1"} value={"l_partkey":"1","l_suppkey":"1","l_extendedprice":"203.55","l_discount":"0.01"};
+store.service insert {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"2"} value={"l_partkey":"2","l_suppkey":"2","l_extendedprice":"204.55","l_discount":"0.02"};
+store.service insert {"store_name":"LineItem"} key={"l_orderkey":"100002","l_linenumber":"1"} value={"l_partkey":"3","l_suppkey":"3","l_extendedprice":"205.55","l_discount":"0.03"};
+store.service insert {"store_name":"LineItem"} key={"l_orderkey":"100003","l_linenumber":"1"} value={"l_partkey":"4","l_suppkey":"4","l_extendedprice":"206.55","l_discount":"0.04"};

@@ -1,0 +1,61 @@
+package idgs.pb;
+import "idgs/pb/cluster_config.proto";
+
+option java_outer_classname = "PbClusterEvent";
+
+//======================================================================================
+//
+//  Event Definition for cluster
+//
+//======================================================================================
+
+
+// member status event
+message MemberStatusEvent {
+   required uint32 member_id = 1;
+   required MemberStatus status = 2;
+}
+
+// leader ==> members
+message DeltaMemberEvent{
+  
+  //position where member should be joined, member's position in membership table when leave 
+  required uint32 position = 1;
+  
+  //member
+  optional Member member = 2;
+}
+
+// leader ==> new member
+message WholeMembershipTableEvent {
+  required MembershipTable table = 1;
+}
+
+// leader ==> new member
+message WholePartitionEvent {
+  required PartitionTable table = 1;
+}
+
+// leader ==> members
+message DeltaPartitionEvent{
+  repeated DeltaPartitionItemEvent items = 1;
+}
+
+// part of DeltaPartitionEvent; leader ==> member
+message DeltaPartitionItemEvent{
+
+  // partition ID
+  required uint32 partitionId = 1;
+
+  // memeber position, 0 -- primary, 1~n -- backups
+  required uint32 position = 2;
+  
+  // current member id, index of membership table, -1 means invalid
+  required int32 currMemberId = 3;
+
+  // new member id, index of membership table, -1 means invalid
+  required int32 newMemberId = 4;
+  
+  required bool needMigrate = 5 [default = false];
+  
+}

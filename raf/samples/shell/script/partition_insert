@@ -1,0 +1,11 @@
+#insert Customer(partition_table)
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234000"} value={"c_name":"Tom0","c_nationkey":"10","c_phone":"13500000000"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234001"} value={"c_name":"Tom1","c_nationkey":"11","c_phone":"13500000001"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234002"} value={"c_name":"Tom2","c_nationkey":"12","c_phone":"13500000002"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234003"} value={"c_name":"Tom3","c_nationkey":"13","c_phone":"13500000003"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234004"} value={"c_name":"Tom4","c_nationkey":"14","c_phone":"13500000004"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234005"} value={"c_name":"Tom5","c_nationkey":"15","c_phone":"13500000005"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234006"} value={"c_name":"Tom6","c_nationkey":"16","c_phone":"13500000006"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234007"} value={"c_name":"Tom7","c_nationkey":"17","c_phone":"13500000007"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234008"} value={"c_name":"Tom8","c_nationkey":"18","c_phone":"13500000008"};
+store.service insert {"store_name":"Customer"} key={"c_custkey":"234009"} value={"c_name":"Tom9","c_nationkey":"19","c_phone":"13500000009"};

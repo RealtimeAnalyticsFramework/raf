@@ -1,0 +1,17 @@
+package idgs.rdd.pb;
+
+message RddNameKey {
+  required string rdd_name = 1;
+}
+
+message DependingRddInfo {
+  required string rdd_name = 1;
+  required int32 member_id = 2; 
+  required string actor_id = 3;
+}
+
+message RddName {
+  required int32 member_id = 1; 
+  required string actor_id = 2;
+  repeated DependingRddInfo depending_rdd_info = 3;
+}

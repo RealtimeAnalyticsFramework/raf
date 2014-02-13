@@ -1,0 +1,212 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>&lt;b&gt;Intel Data Grid Server Nightly Build&lt;/b&gt;&lt;br/&gt;&#xd;
+&#xd;
+&lt;p&gt;&#xd;
+  &amp;nbsp; &amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;a href=&apos;https://10.240.193.181/epe/wiki/project/bigdata/idgs&apos;&gt;&lt;img src=&quot;/jenkins/images/48x48/document.png&quot;&gt; Project Wiki&lt;/a&gt;&#xd;
+&lt;/p&gt;&#xd;
+</description>
+  <logRotator>
+    <daysToKeep>300</daysToKeep>
+    <numToKeep>5000</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>-1</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.buildcoin.plugins.jenkins.BuildcoinProperty plugin="buildcoin-plugin@1.4">
+      <buildcoinJobKey></buildcoinJobKey>
+      <buildcoinJobDisabled>false</buildcoinJobDisabled>
+    </com.buildcoin.plugins.jenkins.BuildcoinProperty>
+    <com.sonyericsson.jenkins.plugins.bfa.model.ScannerJobProperty plugin="build-failure-analyzer@1.4.0">
+      <doNotScan>false</doNotScan>
+    </com.sonyericsson.jenkins.plugins.bfa.model.ScannerJobProperty>
+    <org.jenkins.ci.plugins.html5__notifier.JobPropertyImpl plugin="html5-notifier-plugin@1.2">
+      <skip>false</skip>
+    </org.jenkins.ci.plugins.html5__notifier.JobPropertyImpl>
+    <hudson.plugins.throttleconcurrents.ThrottleJobProperty plugin="throttle-concurrents@1.7.2">
+      <maxConcurrentPerNode>1</maxConcurrentPerNode>
+      <maxConcurrentTotal>1</maxConcurrentTotal>
+      <categories>
+        <string>idgs</string>
+      </categories>
+      <throttleEnabled>true</throttleEnabled>
+      <throttleOption>category</throttleOption>
+    </hudson.plugins.throttleconcurrents.ThrottleJobProperty>
+  </properties>
+  <scm class="hudson.scm.CVSSCM" plugin="cvs@2.7">
+    <flatten>false</flatten>
+    <repositories>
+      <hudson.scm.CvsRepository>
+        <cvsRoot>/var/cvsroot</cvsRoot>
+        <repositoryItems>
+          <hudson.scm.CvsRepositoryItem>
+            <modules>
+              <hudson.scm.CvsModule>
+                <localName>idgs</localName>
+                <remoteName>idgs</remoteName>
+              </hudson.scm.CvsModule>
+            </modules>
+            <location class="hudson.scm.CvsRepositoryLocation$HeadRepositoryLocation">
+              <locationType>HEAD</locationType>
+              <useHeadIfNotFound>false</useHeadIfNotFound>
+            </location>
+          </hudson.scm.CvsRepositoryItem>
+        </repositoryItems>
+        <compressionLevel>-1</compressionLevel>
+        <excludedRegions>
+          <hudson.scm.ExcludedRegion>
+            <pattern></pattern>
+          </hudson.scm.ExcludedRegion>
+        </excludedRegions>
+        <passwordRequired>false</passwordRequired>
+      </hudson.scm.CvsRepository>
+    </repositories>
+    <canUseUpdate>false</canUseUpdate>
+    <skipChangeLog>false</skipChangeLog>
+    <pruneEmptyDirectories>true</pruneEmptyDirectories>
+    <disableCvsQuiet>false</disableCvsQuiet>
+    <cleanOnFailedUpdate>false</cleanOnFailedUpdate>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers class="vector">
+    <hudson.triggers.TimerTrigger>
+      <spec>30 23 * * *</spec>
+    </hudson.triggers.TimerTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>BUILD_DIR=$WORKSPACE/gcc_debug
+export BUILD_DIR
+
+if test ! -d &quot;$BUILD_DIR&quot;  ; then
+  mkdir $BUILD_DIR
+fi
+
+cd $BUILD_DIR
+/bin/bash $WORKSPACE/idgs/build/build.sh
+
+cd $WORKSPACE/idgs
+# API docs
+/bin/bash $WORKSPACE/idgs/build/gen-apidoc.sh
+# static check
+/bin/bash $WORKSPACE/idgs/build/check.sh
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.tasks.TasksPublisher plugin="tasks@4.35">
+      <healthy></healthy>
+      <unHealthy></unHealthy>
+      <thresholdLimit>low</thresholdLimit>
+      <pluginName>[TASKS] </pluginName>
+      <defaultEncoding></defaultEncoding>
+      <canRunOnFailed>false</canRunOnFailed>
+      <useStableBuildAsReference>false</useStableBuildAsReference>
+      <useDeltaValues>false</useDeltaValues>
+      <thresholds plugin="analysis-core@1.48">
+        <unstableTotalAll></unstableTotalAll>
+        <unstableTotalHigh></unstableTotalHigh>
+        <unstableTotalNormal></unstableTotalNormal>
+        <unstableTotalLow></unstableTotalLow>
+        <failedTotalAll></failedTotalAll>
+        <failedTotalHigh></failedTotalHigh>
+        <failedTotalNormal></failedTotalNormal>
+        <failedTotalLow></failedTotalLow>
+      </thresholds>
+      <shouldDetectModules>false</shouldDetectModules>
+      <dontComputeNew>true</dontComputeNew>
+      <doNotResolveRelativePaths>false</doNotResolveRelativePaths>
+      <high>fixme</high>
+      <normal>todo</normal>
+      <low>deprecated</low>
+      <ignoreCase>true</ignoreCase>
+      <pattern>**/*.cpp, **/*.h, **/*.proto, **/*.sh</pattern>
+      <excludePattern></excludePattern>
+    </hudson.plugins.tasks.TasksPublisher>
+    <hudson.plugins.cppncss.CppNCSSPublisher plugin="cppncss@1.1">
+      <reportFilenamePattern>**/cppncss.xml</reportFilenamePattern>
+      <functionCcnViolationThreshold>5</functionCcnViolationThreshold>
+      <functionNcssViolationThreshold>10</functionNcssViolationThreshold>
+      <targets/>
+    </hudson.plugins.cppncss.CppNCSSPublisher>
+    <hudson.plugins.doxygen.DoxygenArchiver plugin="doxygen@0.11">
+      <doxyfilePath>idgs/build/doxygen.conf</doxyfilePath>
+      <keepAll>false</keepAll>
+      <folderWhereYouRunDoxygen>idgs</folderWhereYouRunDoxygen>
+    </hudson.plugins.doxygen.DoxygenArchiver>
+    <hudson.tasks.Mailer plugin="mailer@1.4">
+      <recipients>ting.lou@intel.com hongbinx.zhang@intel.com xi.tang@intel.com deyinx.chen@intel.com jingfeix.ma@intel.com</recipients>
+      <dontNotifyEveryUnstableBuild>false</dontNotifyEveryUnstableBuild>
+      <sendToIndividuals>false</sendToIndividuals>
+    </hudson.tasks.Mailer>
+    <org.jenkinsci.plugins.cppcheck.CppcheckPublisher plugin="cppcheck@1.13">
+      <cppcheckConfig>
+        <pattern>idgs/cppcheck_result.xml</pattern>
+        <ignoreBlankFiles>false</ignoreBlankFiles>
+        <configSeverityEvaluation>
+          <threshold></threshold>
+          <newThreshold></newThreshold>
+          <failureThreshold></failureThreshold>
+          <newFailureThreshold></newFailureThreshold>
+          <healthy></healthy>
+          <unHealthy></unHealthy>
+          <severityError>true</severityError>
+          <severityWarning>true</severityWarning>
+          <severityStyle>true</severityStyle>
+          <severityPerformance>true</severityPerformance>
+          <severityInformation>true</severityInformation>
+        </configSeverityEvaluation>
+        <configGraph>
+          <xSize>500</xSize>
+          <ySize>200</ySize>
+          <displayAllErrors>true</displayAllErrors>
+          <displayErrorSeverity>false</displayErrorSeverity>
+          <displayWarningSeverity>false</displayWarningSeverity>
+          <displayStyleSeverity>false</displayStyleSeverity>
+          <displayPerformanceSeverity>false</displayPerformanceSeverity>
+          <displayInformationSeverity>false</displayInformationSeverity>
+        </configGraph>
+      </cppcheckConfig>
+    </org.jenkinsci.plugins.cppcheck.CppcheckPublisher>
+    <com.thalesgroup.hudson.plugins.cccc.CcccPublisher plugin="cccc@0.6">
+      <metricFilePath>idgs/.cccc/cccc.xml</metricFilePath>
+      <runOnFailedBuild>false</runOnFailedBuild>
+    </com.thalesgroup.hudson.plugins.cccc.CcccPublisher>
+    <htmlpublisher.HtmlPublisher plugin="htmlpublisher@1.2">
+      <reportTargets>
+        <htmlpublisher.HtmlPublisherTarget>
+          <reportName>CppNCSS Raw Report</reportName>
+          <reportDir>idgs</reportDir>
+          <reportFiles>cppncss_out.xml</reportFiles>
+          <keepAll>false</keepAll>
+          <wrapperName>htmlpublisher-wrapper.html</wrapperName>
+        </htmlpublisher.HtmlPublisherTarget>
+        <htmlpublisher.HtmlPublisherTarget>
+          <reportName>CCCC Raw Report</reportName>
+          <reportDir>idgs/.cccc</reportDir>
+          <reportFiles>cccc.html</reportFiles>
+          <keepAll>false</keepAll>
+          <wrapperName>htmlpublisher-wrapper.html</wrapperName>
+        </htmlpublisher.HtmlPublisherTarget>
+      </reportTargets>
+    </htmlpublisher.HtmlPublisher>
+    <hudson.plugins.sloccount.SloccountPublisher plugin="sloccount@1.8">
+      <pattern>idgs/sloccount.txt</pattern>
+      <encoding></encoding>
+    </hudson.plugins.sloccount.SloccountPublisher>
+    <hudson.plugins.doclinks.DocLinksPublisher plugin="doclinks@0.5">
+      <documents/>
+    </hudson.plugins.doclinks.DocLinksPublisher>
+  </publishers>
+  <buildWrappers>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.3.1">
+      <colorMapName>xterm</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+  </buildWrappers>
+</project>

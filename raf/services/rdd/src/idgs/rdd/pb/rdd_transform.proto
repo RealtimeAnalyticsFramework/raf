@@ -1,0 +1,49 @@
+//
+// RDD interface, defining message type in transform attachment 
+//
+package idgs.rdd.pb;
+
+option java_outer_classname = "PbRddTransform";
+
+
+//
+// join transform 
+//
+enum JoinType {
+  INNER_JOIN = 0;
+  LEFT_JOIN = 1;
+  OUTER_JOIN = 2;
+}
+
+message JoinField {
+  required string l_join_field = 1;						// join field of rdd 1
+  required string r_join_field = 2;						// join field of rdd 2
+}
+
+message JoinRequest {
+  required JoinType type = 1 [default = LEFT_JOIN];	    // type of join
+  repeated JoinField join_field = 2;					// fields joined on
+}
+
+//
+// reduce value transform 
+//
+enum ReduceType {
+  COUNT = 0;
+  SUM = 1;
+  MAX  = 2;
+  MIN = 3;
+  AVG = 4;
+  EXPR = 5; /// expression will not reduce value in actual, only calculate expression's value
+}
+message ReduceByKeyField {
+  required bool distinct = 1 [default = false];      /// whether distinct, like count(distinct field1), sum(distinct field2), avg(field3),...etc.
+  /// @fixme change to string
+  required ReduceType type = 2;                      /// max, min, count, avg, sum,...etc.
+  required string field_alias = 3; 				     /// reduce value on which field
+}
+
+message ReduceByKeyRequest {
+  repeated ReduceByKeyField fields = 1;
+}
+

@@ -1,0 +1,6 @@
+#get nation(replicated)
+store.service get {"store_name":"Nation"} key={"n_nationkey":"1"};
+store.service get {"store_name":"Nation"} key={"n_nationkey":"3"};
+store.service get {"store_name":"Nation"} key={"n_nationkey":"5"};
+store.service get {"store_name":"Nation"} key={"n_nationkey":"7"};
+store.service get {"store_name":"Nation"} key={"n_nationkey":"9"};

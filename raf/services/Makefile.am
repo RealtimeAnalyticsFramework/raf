@@ -1,0 +1,2 @@
+SUBDIRS = store rdd admin
+

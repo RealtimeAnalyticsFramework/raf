@@ -1,0 +1,183 @@
+package idgs.store.pb;
+
+option java_outer_classname = "PbStoreService";
+
+
+enum StoreRequestOption {
+  RETRIEVE_PREVIOUS     = 1;    // retrieve the previous value when update or delete
+  FORCE_OVERRIDE        = 2;    // ignore version conflict  
+  INSERT_IF_NOT_EXIST   = 4;    // update option: create the entry if the key doesn't exist   
+}
+
+enum StoreResultCode {
+  SRC_SUCCESS             = 0;
+  SRC_KEY_EXIST           = 1;
+  SRC_KEY_NOT_EXIST       = 2;
+  SRC_VERSION_CONFLICT    = 3;  
+  SRC_TABLE_NOT_EXIST     = 4;
+  SRC_DATA_NOT_FOUND      = 5;
+  SRC_PARTITION_NOT_FOUND = 6;  
+  SRC_PARTITION_NOT_READY = 7;
+  SRC_INVALID_KEY         = 8;  
+  SRC_INVALID_VALUE       = 9;  
+  SRC_INVALID_FILTER      = 10;
+  SRC_NOT_LOCAL_STORE     = 11;  
+  SRC_UNKNOWN_ERROR       = 12;
+}
+
+message InsertRequest {
+  required string store_name = 1;
+  optional uint32 options = 2;  
+  optional int32 partition_id = 3 [default = -1];
+}
+
+message InsertResponse {
+  // SRC_SUCCESS; SRC_KEY_EXIST; SRC_INVALID_KEY; SRC_INVALID_VALUE
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 version = 2;
+}
+
+message UpdateRequest {
+  required string store_name = 1;
+  optional uint32 version = 2;  
+  optional uint32 options = 3;  
+  optional int32 partition_id = 4 [default = -1];
+}
+
+message UpdateResponse {
+  // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY; SRC_INVALID_VALUE
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 version = 2;
+}
+
+message GetRequest {
+  required string store_name = 1;
+  optional uint32 options = 2;  
+  optional int32 partition_id = 3 [default = -1];
+}
+
+message GetResponse {
+  // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 version = 2;
+}
+
+message RemoveRequest {
+  required string store_name = 1;
+  optional uint32 options = 2;  
+  optional int32 partition_id = 3 [default = -1];
+}
+
+message RemoveResponse {
+  // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 version = 2;
+}
+
+message SizeRequest {
+  required string store_name = 1;
+  optional uint32 partition = 2;
+  optional uint32 options = 3;  
+}
+
+message SizeResponse {
+  // SRC_SUCCESS; 
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 partition = 2;
+  optional uint32 size = 3;
+}
+
+enum DataClearMode {
+  CLEAR_ALL = 1;
+  CLEAR_BY_STORE_NAME = 2;
+}
+
+message DataClearRequest {
+  required DataClearMode mode = 1 [default = CLEAR_BY_STORE_NAME];
+  optional uint32 partition = 2;
+  optional string store_name = 3;
+}
+
+message DataClearResponse {
+  required StoreResultCode result_code = 1;
+  optional uint32 partition = 2;
+}
+
+enum ExtractTarget {
+  KEY   = 1;
+  VALUE = 2;
+};
+
+message FieldExtractor {
+  required ExtractTarget target  = 1;
+  required string        path    = 2;         // e.g. "name"; "name.first" 
+}
+
+// used to index table
+message MultiFieldExtractor {
+  repeated FieldExtractor extractors = 1;
+}
+
+message PartialUpdateRequest {
+  required string store_name          = 1;
+  required FieldExtractor extractor   = 3;
+  optional uint32 version             = 5;
+  optional uint32 options             = 6;  
+}
+message PartialUpdateResponse {
+  required StoreResultCode result_code = 1;
+  optional uint32 version              = 2;
+}
+
+message PartialGetRequest {
+  required string store_name          = 1;
+  required FieldExtractor extractor   = 2;
+  optional uint32 version             = 3;
+  optional uint32 options             = 4;  
+}
+message PartialGetResponse {
+  required StoreResultCode result_code = 1;
+  optional uint32 version              = 2;
+}
+
+enum RepeatedFieldActionType {
+  POP_FRONT     = 1;
+  PUSH_FRONT    = 2;
+  POP_BACK      = 3;
+  PUSH_BACK     = 4;
+  GET_NO        = 5;
+  SET_NO        = 6;
+  DELETE_NO     = 7;
+}
+message RepeatedFieldActionRequest {
+  required string store_name           = 1;
+  required FieldExtractor extractor    = 2;
+  required RepeatedFieldActionType op  = 3;
+  optional uint32 index                = 4; 
+  optional uint32 version              = 5;
+  optional uint32 options              = 7;  
+}
+message RepeatedFieldActionResponse {
+  required StoreResultCode result_code = 1;
+  optional uint32 version              = 2;
+}
+
+message StoreListenerInfo {
+  required uint32 listener_index = 1;
+}
+
+//
+// service interface
+// just for reference
+//
+service StoreService {
+  rpc insert(InsertRequest) returns (InsertResponse);
+  rpc update(UpdateRequest) returns (UpdateResponse);
+  rpc get(GetRequest) returns (GetResponse);
+  rpc remove(RemoveRequest) returns (RemoveResponse);
+  rpc size(SizeRequest) returns (SizeResponse);
+  
+  rpc partialUpdate(PartialUpdateRequest) returns (PartialUpdateResponse);
+  rpc partialGet(PartialGetRequest) returns (PartialGetResponse);
+  rpc repeatedFiledAction(RepeatedFieldActionRequest) returns (RepeatedFieldActionResponse);
+}

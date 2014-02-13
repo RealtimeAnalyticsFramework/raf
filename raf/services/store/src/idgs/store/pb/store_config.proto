@@ -1,0 +1,56 @@
+package idgs.store.pb;
+
+import "idgs/pb/expr.proto";
+
+option java_outer_classname = "PbStoreConfig";
+
+message Param {
+  required string name = 1;  //listener param name	
+  required string value = 2; //listener param value
+}
+
+message ListenerConfig {
+  required string name = 1;  //listener name
+  required string type = 2;  //listener type
+	
+  repeated Param params = 3; //listener params
+}
+
+enum StoreType {
+  ORDERED = 0;
+  UNORDERED = 1;
+}
+
+enum PartitionType {
+  PARTITION_TABLE = 0;  REPLICATED = 1;
+  CONSISTENCE_HASH = 2;
+  CUSTOM = 3;
+}
+
+message StoreConfig {
+  required string name = 1;                      // Name of store
+  required StoreType store_type = 2;             // Ordered store allow query a range; unordered store may be a little faster O(1)
+  required PartitionType partition_type = 3;     // Partition type, which is independent of storeType; 
+  required string key_type = 4;                  // Message name in protobuf
+  required string value_type = 5;                // Message name in protobuf
+  required int32 backup_count = 6 [default=0];   // The count of backup node
+  optional idgs.pb.Expr partitioner = 7;         // partitioner, calculate hashcode based on part of key.
+  repeated ListenerConfig listener_configs = 8;  // All registered listeners, including indexes, backing stores and others;
+}
+
+enum ListernerProsessType {
+  WRITE_THROUGH = 1;
+  WRITE_BEHIND  = 2;
+}
+
+message StoreSchema {
+  required string schema_name        = 1;
+  repeated StoreConfig store_config  = 2;
+  optional string proto_filename     = 3;
+  optional string proto_content      = 4;
+  optional ListernerProsessType type = 5;
+}
+
+message DataStoreConfig {
+  repeated StoreSchema schemas = 1;
+}

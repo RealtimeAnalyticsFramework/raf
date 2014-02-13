@@ -1,0 +1,9 @@
+dos2unix cicheck.sh config.guess config.sub configure.ac depcomp install-sh ltmain.sh missing
+
+find . -name "*.sh" -exec dos2unix {} \;
+
+find . -name "*.am" -exec dos2unix {} \;
+
+find . -name "*.sh" -exec chmod a+x {} \;
+
+chmod a+x cicheck.sh config.guess config.sub configure.ac depcomp install-sh ltmain.sh missing

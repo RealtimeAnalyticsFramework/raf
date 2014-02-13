@@ -1,0 +1,13 @@
+//
+//
+package idgs.tpc.pb;
+
+message PartitionCountResult {
+  required int32 member_id = 1 [default = -1];
+  required uint32 partition_id = 2;
+  required uint64 size = 3 [default = 0];
+}
+
+message PartitionCountActionResult {
+  repeated PartitionCountResult partition_results = 1;
+}

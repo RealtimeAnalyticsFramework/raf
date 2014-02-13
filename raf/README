@@ -1,0 +1,30 @@
+Intel Distributed In-memory Computing Framework.
+
+1. Directories
+-------------- idgs: root
+ +------------ build: build, unit test, integration test, configuration for Jenkins and so on                                       
+ +------------ framework: core library
+   +---------- src: source codes
+   +---------- test: unit test
+   +---------- conf: config files
+ +------------ services: modules
+   +---------- store: in-memory store
+   +---------- rdd: clone of spark
+ +------------ samples: sample codes
+   +---------- shell: a simple shell
+   +---------- loadtpch: tool to load tpch data into in-memory store
+ +------------ integration-test: integration test
+   +---------- rpc_it: rpc it
+   +---------- cluster_it: cluster it
+   +---------- store_it: in-memory store it
+ +------------ thirdparites: third parties
+   +---------- tooling: tools
+   
+
+2. build
+  * aclocal
+  * automake
+  * autoconf
+  * .\configure
+  * make
+
