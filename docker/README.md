@@ -1,5 +1,4 @@
 ## Introduction
---------------------
 This is the guide for the user to build docker images of RAF. For the user who is the new to docker, please refer this [guide](https://docs.docker.com/userguide/).
 
 ##Build RAF base images
@@ -17,7 +16,6 @@ use the following step to download and build RAF
    proxy server name in the docker_base/Dockerfile if you use another proxy. 
 
 ##Buld RAF compile images
-----------
 After the base image is built, you can run ./build_raf_compiled_images to build the RAF compile images. This images will download
 the source code from [RAF Git](https://github.com/RealtimeAnalyticsFramework/raf.git) and build the RAF source code. After the image 
 has been built, you can use `docker images` command to see the `raf_compiled` images is in your image repository.
