@@ -9,7 +9,7 @@ To build the RAF base images, please run `./build_raf_base_images`
 
 After the base images is built, you can use `docker images` command to see the `raf_base` image. Now you can run a container 
 from `raf_base` images. In this container you can use any source version controll software to download the RAF code or you can
-use the following step to download and build RAF
+use next step to download and build RAF
 
  * Note: You must remove the proxy in the `docker_base/Dockerfile` if you don't use the proxy server or you must change the 
    proxy server name in the docker_base/Dockerfile if you use another proxy. 
