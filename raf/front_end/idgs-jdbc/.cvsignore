@@ -1,0 +1,5 @@
+target
+.settings
+metastore_db
+.classpath
+.project

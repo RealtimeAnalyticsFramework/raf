@@ -1,0 +1,61 @@
+//
+// Internal RDD interface, defining messages, 
+// # between RDD service and RDD actor
+// # between RDD service and RDD partition
+// # between RDD actor and RDD actor
+// # between RDD actor and RDD partition
+//
+package idgs.rdd.pb;
+
+import "idgs/rdd/pb/rdd_common.proto";
+import "idgs/pb/rpc_message.proto";
+
+option java_outer_classname = "PbRddInternal";
+
+// message for state of current rdd
+message RddStateTracing {
+  required string rdd_name        = 1;                     // name of rdd
+  required idgs.pb.ActorId rdd_id = 2;             // rdd id
+  required RddState state         = 3 [default = INIT];    // state of rdd
+}
+
+// common request with no input
+message RddRequest {
+  optional uint32 partition = 1;
+}
+
+// common response with result code
+message RddResponse {
+  required RddResultCode result_code = 1 [default = RRC_UNKOWN_ERROR];
+  optional uint32 partition          = 2;
+}
+
+message RddPartitionInfo {
+  required uint32 partition         = 1;    			// partition of store
+  required idgs.pb.ActorId actor_id = 2;				// actor id and member id of rdd parititon
+}
+
+// to get rdd and it's rdd partition actor
+// the message with operation "GET_PARTITION_ACTOR" send from depending rdd to current rdd
+message RddActorInfo {
+  required string rdd_name                = 1;
+  required idgs.pb.ActorId rdd_id         = 2;  						// current rdd id
+  required RddState state                 = 3 [default = INIT]; 		// state of rdd
+  repeated RddPartitionInfo rdd_partition = 4;							// partition actor of current rdd
+}
+
+message PersistInfo {
+  required string rdd_name            = 1;
+  required PersistType persist_type   = 2;
+}
+
+// response of rdd partition 
+// message "CREATE_RDD_PARTITION_RESPONSE" send from rdd service to rdd after create rdd partition
+message CreateRddPartitionResponse {
+  required RddResultCode result_code      = 1 [default = RRC_UNKOWN_ERROR];		// result code of create rdd partition
+  repeated RddPartitionInfo rdd_partition = 2;							        // actor id of partition 
+}
+
+message PartitionStoreOption {
+  optional bool unique = 1;
+}

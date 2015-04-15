@@ -1,0 +1,81 @@
+//
+// Attachment types of action 
+//
+package idgs.rdd.pb;
+
+import "idgs/pb/expr.proto";
+
+option java_outer_classname = "PbRddAction";
+
+
+message CountActionResult {
+  required uint64 size = 1;
+}
+
+message SumActionResult {
+  required double total = 1;
+}
+
+message AvgActionResult {
+  // @todo remove total
+  optional double total = 1;   // intermediate result
+  optional uint64 count = 2;   // intermediate result
+  optional double avg   = 3;   // the final result
+}
+
+message LookupActionResult {
+  repeated bytes values = 1;  // serialized to string type of 'sequence of value'
+}
+
+message KeyValuePair {
+  required bytes key    = 1;      // serialized to string type of 'key' 
+  required bytes value  = 2;	  // serialized to string type of 'value'
+}
+
+message KeyValuesPair {
+  required bytes key    = 1;      // serialized to string type of 'key' 
+  repeated bytes value  = 2;	  // repeated serialized to string type of 'value'
+}
+  
+message CollectActionResult {
+  repeated KeyValuesPair pair = 1;
+}
+
+message ExportParam {
+  required string name  = 1;
+  required string value = 2;
+}
+
+message ExportActionRequest {
+  required string type       = 1;	// type of export data
+  repeated ExportParam param = 2;	// parameters of export
+}
+
+message ExportActionResult {
+}
+
+message OrderField {
+  required idgs.pb.Expr expr           = 1;
+  optional string field_name           = 2;
+  optional idgs.pb.DataType field_type = 3;
+  required bool desc                   = 4 [default = false];
+}
+
+message TopNActionRequest {
+  optional uint64 top_N           = 1;
+  optional uint64 start           = 2;
+  repeated OrderField order_field = 3;
+}
+
+message TopNActionData {
+  message OrderPair {
+    required bytes key         = 1;
+    required KeyValuePair pair = 2;
+  }
+  required string key_name = 1;
+  repeated OrderPair data  = 2;
+}
+
+message TopNActionResult {
+  repeated KeyValuePair pair = 1;
+}

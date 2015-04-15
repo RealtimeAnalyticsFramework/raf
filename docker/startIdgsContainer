@@ -1,0 +1,29 @@
+#!/bin/bash
+
+echo "========================================="
+echo "start $2 on $3 based on image $1"
+
+env_file=$2
+
+out_port_str=idgs_member_port
+out_port=$(grep $out_port_str ${env_file}_env)
+out_port=${out_port##*=}
+
+inner_port_str=idgs_member_innerPort
+inner_port=$(grep $inner_port_str ${env_file}_env)
+inner_port=${inner_port##*=}
+
+
+echo idgs_member_port=$out_port
+echo idgs_member_innerPort=$inner_port
+
+num=${2##*idgs}
+m_port=$((5405+$num))
+echo multicast_port is mapping to $m_port
+
+container_id=$(docker run -p $out_port:$out_port -p $inner_port:$inner_port -p $m_port:5405 -w="/opt/raf" -d --name $2  --env-file="./"${2}"_env" $1  /etc/init.d/ssh start -D)
+echo "========================================="
+pipework br1 $container_id $3
+
+docker exec -it $container_id ./startRaf.sh
+

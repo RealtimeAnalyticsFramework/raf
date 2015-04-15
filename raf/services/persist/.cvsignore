@@ -1,0 +1,11 @@
+.libs
+.deps
+Hbase_types.lo
+Makefile
+Hbase_constants.lo
+libpersist2hbase.la
+hbase_client_pool.lo
+Hbase.lo
+Makefile.in
+libidgspersist2hbase.la
+libidgspersist.la

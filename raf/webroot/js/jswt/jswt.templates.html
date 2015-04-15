@@ -1,0 +1,80 @@
+<script id="headerTemplate" type="text/x-jsrender">
+<div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <div class="navbar-brand">{{>title}}</div>
+        </div>
+    </div>
+</div>
+</script>
+
+<script id="menuTemplate" type="text/x-jsrender">
+<ul class="main-navigation-menu">
+{{for menus}}
+    <li>
+        <a href="#"><i class="{{>icon_class}}"></i>
+            <span class="title"> {{>label}} </span>
+        </a>
+    </li>
+{{/for}}
+</ul>
+</script>
+
+<script id="tableTemplate" type="text/x-jsrender">
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover table-striped">
+            <thead>
+            <tr>
+            {{for headers}}
+                <th>{{>label}}</th>
+            {{/for}}
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</script>
+
+<script id="propertiesTemplate" type="text/x-jsrender">
+<div class="table-responsive">
+    <table class="table table-bordered table-striped">
+       <thead>
+        <tr>
+           <th>Name</th>
+           <th>Value</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+</script>
+
+<script id="panelTemplate" type="text/x-jsrender">
+<div class="panel panel-{{>style}}">
+   <div class="panel-heading">
+	 <i class="{{>icon_class}}"></i>
+	 {{>title}}
+	</div>
+	<div class="panel-body"></div>
+</div>
+</script>
+
+<script id="tabTemplate" type="text/x-jsrender">
+<ul id="{{if id}}{{>id}}{{/if}}" class="nav nav-tabs tab-bricky">
+    {{for tabs}}
+        <li class="{{if #index ==0}}active{{/if}}">
+            <a data-toggle="tab" href="#{{>id}}">
+                <i class="{{>icon_class}}"></i> {{>label}}
+            </a>
+        </li>
+    {{/for}}
+</ul>
+<div class="tab-content">
+    {{for tabs}}
+        <div id="{{>id}}" class="tab-pane {{if #index ==0}}active{{/if}}">
+        </div>
+     {{/for}}
+</div>
+</script>

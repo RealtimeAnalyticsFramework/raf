@@ -1,0 +1,6 @@
+cp /opt/apache-maven-3.2.5/conf/settings.xml ./docker_compile
+cd docker_compile
+docker build -t raf_compiled .
+rm -f settings.xml
+cd ..
+

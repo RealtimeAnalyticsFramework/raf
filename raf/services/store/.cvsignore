@@ -1,0 +1,10 @@
+Makefile
+Makefile.in
+.deps
+*.lo
+*.la
+.libs
+*.pb.cc
+*.pb.h
+ut_datastore
+*.loT

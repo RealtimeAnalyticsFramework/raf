@@ -1,0 +1,3 @@
+cd docker_base
+docker build -t raf_base .
+cd ..

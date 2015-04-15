@@ -1,0 +1,115 @@
+//
+// RDD interface, defining messages, 
+// # between client and RDD service
+// # between client and RDD actor
+//
+package idgs.rdd.pb;
+
+import "idgs/rdd/pb/rdd_common.proto";
+import "idgs/pb/expr.proto";
+import "idgs/pb/rpc_message.proto";
+
+option java_outer_classname = "PbRddService";
+
+// client ==> rdd service
+// operation: CREATE_STORE_DELEGATE_RDD
+// create delegate rdd
+message CreateDelegateRddRequest {
+  optional string schema_name = 1;
+  required string store_name  = 2;			// name of store
+  required string rdd_name    = 3;
+}
+
+// rdd service ==> client
+// operation: RDD_CREATE_RESPONSE
+// response of create delegate rdd
+message CreateDelegateRddResponse {
+  required RddResultCode result_code = 1 [default = RRC_UNKOWN_ERROR];     // result code of create store delegate rdd
+  optional idgs.pb.ActorId rdd_id    = 2;                                  // actor id and member id of store delegate rdd
+}
+
+message FieldNamePair {
+  required idgs.pb.Expr expr           = 1;
+  optional idgs.pb.DataType field_type = 2;
+  optional string field_alias          = 3;
+}
+
+// Either rdd_id or rdd_name should be presented 
+message InRddInfo {
+  optional idgs.pb.ActorId rdd_id   = 1; 
+  optional string rdd_name          = 2;
+  
+  repeated FieldNamePair out_fields = 3;
+  optional idgs.pb.Expr filter_expr = 4;
+  optional string param             = 5;                     // reserved for transformers.
+}
+
+message RddField {
+  required string field_name           = 1;
+  required idgs.pb.DataType field_type = 2;
+}
+
+// rdd_name should be presented 
+message OutRddInfo {
+  required string rdd_name          = 1; 
+  optional PersistType persist_type = 2;
+  optional bool reduce              = 3 [default = false];   // whether reduce the valuse by key, default is false which will save all values in an array.
+  
+  // reuse the prototype from in, and there must be only ONE in rdd, e.g. filter transform.
+  required string key_type_name     = 4;
+  repeated RddField key_fields      = 5;
+  required string value_type_name   = 6;
+  repeated RddField value_fields    = 7;
+  optional string proto_message     = 8;
+  optional bool input_sync          = 9 [default = true]; 
+}
+
+// client ==> rdd service
+// transform rdd
+message CreateRddRequest {
+  required string transformer_op_name = 1;
+  repeated InRddInfo in_rdd           = 2;
+  required OutRddInfo out_rdd         = 3;
+  optional bool repartition           = 4;
+}
+
+// rdd service ==> client
+// response of create rdd
+// message with operation "RDD_CREATE_RESPONSE" send from RDD_SERVICE_ACTOR to client
+message CreateRddResponse {
+  required RddResultCode result_code = 1 [default = RRC_UNKOWN_ERROR];			// result code of create store filter rdd
+  optional idgs.pb.ActorId rdd_id    = 2;										// actor id and member id of store filter rdd
+}
+
+// client ==> rdd service
+// destroy rdd
+message DestroyRddRequest {
+  required string rdd_name = 1;
+}
+
+// client ==> rdd actor, when destination is rdd actor.
+// client ==> rdd service, when destination is rdd service and rdd_name is specified
+// action request to count data 
+message ActionRequest {
+  required string action_id        = 1;          // action id generate by client
+  required string action_op_name   = 2;
+  optional string rdd_name         = 3;
+  optional idgs.pb.Expr filter     = 4;          // with filter expression
+  optional idgs.pb.Expr expression = 5;          // expression, such as sum(field), here field is a expression
+  optional string param            = 6;          // custom define param
+  optional uint64 limit            = 7;
+}
+
+// rdd actor ==> client
+//
+message ActionResponse {
+  required string action_id          = 1;
+  required RddResultCode result_code = 2 [default = RRC_UNKOWN_ERROR];
+  repeated bytes action_value        = 3;
+  optional uint32 partition          = 4;
+}
+
+message ListRddResponse {
+  repeated CreateDelegateRddRequest store_delegate = 1;
+  repeated CreateRddRequest         rdd            = 2;    
+}

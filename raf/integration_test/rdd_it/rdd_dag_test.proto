@@ -1,0 +1,26 @@
+package idgs.rdd.pb;
+
+message GroupLineitem {
+  required int64 l_orderkey = 1;
+}
+
+message ReduceLineitem {
+  required uint32 l_totalsize  = 1;
+  required double l_totalprice = 2;
+}
+
+message JoinOrdersLineitemKey {
+  required uint64 j_orderkey = 1;
+}
+
+message JoinOrdersLineitem {
+  optional string j_orderdate     = 1;
+  optional double j_extendedprice = 2;
+  optional double j_discount      = 3;
+}
+
+message UnionOrders {
+  optional string u_orderdate        = 1;
+  optional string u_orderstatus      = 2;
+  optional double u_ordertotalprice  = 3;
+}

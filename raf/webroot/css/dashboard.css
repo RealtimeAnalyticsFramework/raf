@@ -1,0 +1,25 @@
+tr.highlight > td {
+    background-color: #DFF0D8 !important
+}
+
+.tab-content .panel-body {
+    padding: 0;
+}
+
+.tab-content .table > thead > tr > th, .tab-content .table > tbody > tr > th, .tab-content .table > tfoot > tr > th, .tab-content .table > thead > tr > td, .tab-content .table > tbody > tr > td, .tab-content .table > tfoot > tr > td {
+    border-top: 1px solid #DDDDDD;
+    padding: 5px;
+    vertical-align: top;
+}
+
+
+.node rect {
+  stroke: #333;
+  fill: #fff;
+}
+
+.edgePath path {
+  stroke: #333;
+  fill: #333;
+  stroke-width: 1.5px;
+}

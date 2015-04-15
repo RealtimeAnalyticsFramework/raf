@@ -1,0 +1,305 @@
+<!------------------------------------------------------------------------------------------------------------------------- 
+  dashboard templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="dashboardTemplate" type="text/x-jsrender">
+<div class="row">
+    <div class="col-sm-3">
+        <div class="core-box">
+            <div class="heading">
+                <i class="fa fa-laptop circle-icon circle-green"></i>
+                <h2>Manage Cluster</h2>
+            </div>
+            <div class="content">
+               Manage membership table and partition table of cluster. 
+            </div>
+            <a href="#" class="view-more">
+                View More <i class="clip-arrow-right-2"></i>
+            </a>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="core-box">
+            <div class="heading">
+                <i class="fa fa-bar-chart-o circle-icon circle-teal"></i>
+                <h2>Manage Store</h2>
+            </div>
+            <div class="content">
+            	Store CRUD, include partition store and replicated store.
+            </div>
+            <a href="#" class="view-more">
+                View More <i class="clip-arrow-right-2"></i>
+            </a>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="core-box">
+            <div class="heading">
+                <i class="fa fa-mobile circle-icon circle-blue"></i>
+                <h2>Manage RDD</h2>
+            </div>
+            <div class="content">
+            	Resilient Distributed Datasets, to query or calculate data.
+            </div>
+            <a href="#" class="view-more">
+                View More <i class="clip-arrow-right-2"></i>
+            </a>
+        </div>
+    </div>
+    <div class="col-sm-3">
+        <div class="core-box">
+            <div class="heading">
+                <i class="fa fa-pencil circle-icon circle-bricky"></i>
+                <h2>Manage SQL</h2>
+            </div>
+            <div class="content">
+            	Through SQL, to query or calculate data from store.
+            </div>
+            <a href="#" class="view-more">
+                View More <i class="clip-arrow-right-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+</script>
+
+
+<!------------------------------------------------------------------------------------------------------------------------- 
+  SQL templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="sqlTemplate" type="text/x-jsrender">
+Enter SQL script in the textbox, then click the 'Execute' button to run it. <BR><BR>
+<div class="control-group">  
+    <label class="control-label" for="textarea">SQL statements</label>  
+    <div class="controls">  
+        <textarea class="col-md-12 input-xlarge" id="sql_commands" width="100%" rows="3"></textarea>  
+    </div>  
+</div>  
+<div class="form-actions">  
+    <button type="button" class="btn btn-primary" id="sql_exec">Execute</button>  
+</div> 
+<div class="controls">  
+    <textarea class="col-md-12 input-xlarge" id="sql_result" width="100%" rows="3" readOnly="true"></textarea>  
+</div>  
+</script>
+
+
+<!------------------------------------------------------------------------------------------------------------------------- 
+  DAG graph templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="dagGraphTemplate" type="text/x-jsrender">
+DAG <BR><BR>
+<div width="100%" height="100%">
+<svg width='100%' height='768px' >
+  <g/>
+</svg>
+</div>
+</script>
+
+
+<!------------------------------------------------------------------------------------------------------------------------- 
+  dag transform templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="dagTransformTemplate" type="text/x-jsrender">
+Enter java script in the textbox, then click the 'Execute' button to run it. <BR><BR>
+<div class="control-group">  
+  <button id="button_store_delegate" type="button" class="btn btn-info">Create Store Delegate</button>
+  <button id="button_filter" type="button" class="btn btn-info">Filter</button>
+  <button id="button_union" type="button" class="btn btn-info">Union</button>
+  <button id="button_group" type="button" class="btn btn-info">Group</button>
+  <button id="button_join" type="button" class="btn btn-info">Join</button>
+  <br>
+  <label class="control-label" for="textarea">Transform statements</label>  
+  <div class="controls">  
+    <textarea class="col-md-12 input-xlarge" id="dag_commands" width="100%" rows="3"></textarea>  
+  </div>  
+</div>  
+<div class="form-actions">  
+  <button type="button" class="btn btn-primary" id="dag_exec">Execute</button>  
+</div> 
+<div class="controls">  
+  <textarea class="col-md-12 input-xlarge" id="dag_result" width="100%" rows="3" readOnly="true"></textarea>  
+</div>  
+
+<!-- hidden div to contain javascript template -->
+<div style="display:none">
+  <textarea style="display:none" id="dag_store_delegate_command" >
+idgs.dag.createStoreDelegate ({
+    schema_name: "tpch",
+    store_name: "Customer",
+    rdd_name: "sd_customer"
+  }, function (response) {
+    $("#dag_result").html(JSON.stringify(response)).trigger('autosize.resize');
+  }
+);
+  </textarea>  
+
+<!-- hidden div to contain javascript template -->
+<div style="display:none">
+  <textarea style="display:none" id="dag_filter_command" >
+idgs.dag.filter (
+  {
+    transformer_op_name: "FILTER_TRANSFORMER",
+    in_rdd: [{
+      rdd_name: "sd_customer",
+      filter_expr: {
+        name: "GT",
+        expression: [
+          {
+            name: "FIELD",
+            value: "c_custkey"
+          },
+          {
+            name: "CONST",
+            value: "2"
+          }
+        ]
+      }  
+    }],
+    out_rdd : {
+      rdd_name: "filtered_customer",
+      key_type_name: "idgs.sample.tpch.pb.CustomerKey",
+      value_type_name: "idgs.sample.tpch.pb.Customer"
+    }
+    
+  }, function (response) {
+    $("#dag_result").html(JSON.stringify(response)).trigger('autosize.resize');
+  }
+);
+  </textarea>  
+
+</script>
+
+<!------------------------------------------------------------------------------------------------------------------------- 
+  dag action templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="dagActionTemplate" type="text/x-jsrender">
+Enter action script in the textbox, then click the 'Execute' button to run it. <BR><BR>
+<div class="control-group">  
+  <button id="button_count" type="button" class="btn btn-info">Count</button>
+  <br>
+  <label class="control-label" for="textarea">Action statements</label>  
+  <div class="controls">  
+    <textarea class="col-md-12 input-xlarge" id="action_commands" width="100%" rows="3"></textarea>  
+  </div>  
+</div>  
+<div class="form-actions">  
+  <button type="button" class="btn btn-primary" id="action_exec">Execute</button>  
+</div> 
+<div class="controls">  
+  <textarea class="col-md-12 input-xlarge" id="action_result" width="100%" rows="3" readOnly="true"></textarea>  
+</div>  
+
+<!-- hidden div to contain javascript template -->
+<div style="display:none">
+  <textarea style="display:none" id="dag_count_command" >
+idgs.dag.count (
+  {
+    rdd_name: "filtered_customer",
+    action_op_name: "COUNT_ACTION",
+    action_id: "count_1"
+  }, function (response) {
+    $("#action_result").html(JSON.stringify(response)).trigger('autosize.resize');
+  }
+);
+  </textarea>  
+
+
+</script>
+
+
+
+<!------------------------------------------------------------------------------------------------------------------------- 
+  store crud templete
+--------------------------------------------------------------------------------------------------------------------------->
+<script id="storeCRUDTemplate" type="text/x-jsrender">
+Store CRUD Test
+<BR><BR>
+<button id="button_insert" type="button" class="btn btn-info">Insert</button>
+<button id="button_update" type="button" class="btn btn-info">Update</button>
+<button id="button_get" type="button" class="btn btn-info">Get</button>
+<button id="button_delete" type="button" class="btn btn-info">Delete</button>
+<button id="button_truncate" type="button" class="btn btn-info">Truncate</button>
+<BR><label class="control-label" for="textarea">Script</label>  
+<div class="controls">  
+    <textarea class="col-md-12 input-xlarge" id="store_commands" width="100%" rows="3"></textarea>  
+</div>  
+<button id="button_exec" type="button" class="btn btn-info">Execute</button>
+
+<!-- hidden div to contain javascript template -->
+<div style="display:none">
+  <textarea style="display:none" id="store_insert_commands" >
+idgs.store.insert ({
+  schema_name: "tpch",
+  store_name: "Customer",
+  key: {
+    c_custkey: 1
+  },
+  value : {
+    c_name: "Tom",
+    c_address: "Beijing",
+    c_nationkey: "10086",
+    c_phone: "10000",
+    c_acctbal: 1000,
+    c_mktsegment: "telecom",
+    c_comment:"God"
+  }
+}, function (response) {
+  $("#results_store_tab").html(JSON.stringify(response)).trigger('autosize.resize');
+});
+  </textarea>  
+
+  <textarea style="display:none" id="store_update_commands" >
+idgs.store.update ({
+  schema_name: "tpch",
+  store_name: "Customer",
+  key: {
+    c_custkey: 1
+  },
+  value : {
+    c_name: "Tom",
+    c_address: "Shanghai",
+    c_nationkey: "10086",
+    c_phone: "20000",
+    c_acctbal: 2000,
+    c_mktsegment: "telecom",
+    c_comment:"Thanks God"
+  }
+}, function (response) {
+  $("#results_store_tab").html(JSON.stringify(response)).trigger('autosize.resize');
+});
+  </textarea>  
+    
+  <textarea style="display:none" id="store_get_commands" >
+idgs.store.get ({
+  schema_name: "tpch",
+  store_name: "Customer",
+  key: {
+    c_custkey: 1
+  }
+}, function (response) {
+  $("#results_store_tab").html(JSON.stringify(response)).trigger('autosize.resize');
+});
+  </textarea>  
+      
+  <textarea style="display:none" id="store_delete_commands" >
+idgs.store.delete ({
+  schema_name: "tpch",
+  store_name: "Customer",
+  key: {
+    c_custkey: 1
+  }
+}, function (response) {
+  $("#results_store_tab").html(JSON.stringify(response)).trigger('autosize.resize');
+});
+  </textarea>  
+    
+  <textarea style="display:none" id="store_truncate_commands" >
+$.idgs.store.truncate ({
+  schema_name: "tpch",
+  store_name: "Customer"
+}, function (response) {
+  $("#results_store_tab").html(JSON.stringify(response)).trigger('autosize.resize');
+});
+  </textarea>  
+</div>
+</script>
