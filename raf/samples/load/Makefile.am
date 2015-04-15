@@ -1,4 +1,4 @@
-# $Header: /var/cvsroot/idgs/samples/load/Makefile.am,v 1.20 2013/11/07 07:35:05 tinglou Exp $
+# $Header$
 # Makefile for load tpch
 #
 
@@ -10,11 +10,9 @@ LOAD_FILES = \
 	src/batch_line_loader.cpp \
 	src/loader_factory.cpp
 
-conf_DATA = conf/client.conf conf/ssb_file_mapper.conf conf/tpch_file_mapper.conf
-	
-bin_PROGRAMS = load
+bin_PROGRAMS = idgs-load
 
-load_SOURCES = \
+idgs_load_SOURCES = \
   $(LOAD_FILES) \
 	src/load_main.cpp
 
@@ -25,15 +23,22 @@ ut_load_SOURCES = \
   test/load_test.cpp
   
   
-LDADD = @IDGS_LDFLAGS@ \
-	-ltpc \
+LDADD =  \
 	-lidgsclient \
-	-lidgsadmin \
-	-lidgsrdd \
+	-ltpc \
+	-lidgsrddng \
 	-lidgsdatastore \
 	-lidgsframework \
-	-lgtest -lgtest_main -ltbb
+  @IDGS_LDADD@ \
+	-lgtest -lgtest_main
 
+idgs_load_LDADD = \
+	-lidgsclient \
+	-ltpc \
+	-lidgsrddng \
+	-lidgsdatastore \
+	-lidgsframework \
+  @IDGS_LDADD@
 
-# the macro IDGS_CXXFLAGS is defined in configure.ac
+AM_LDFLAGS= @IDGS_LDFLAGS@
 AM_CXXFLAGS= @IDGS_CXXFLAGS@ -I@srcdir@/src -I@srcdir@/test

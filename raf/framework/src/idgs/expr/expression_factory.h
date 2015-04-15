@@ -8,7 +8,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "idgs/util/resource_manager.h"
 #include "idgs/expr/expression.h"
 
 namespace idgs {
@@ -28,8 +27,10 @@ public:
   static idgs::ResultCode build(Expression** expression, const idgs::pb::Expr& entryExp,
       const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value);
 
+  static void registerExpression(std::shared_ptr<Expression> expr);
+
 private:
-  static idgs::util::resource_manager<Expression*> exprs;
+  static std::map<std::string, std::shared_ptr<Expression> > exprs;
 };
 
 } /* namespace expr */

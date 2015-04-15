@@ -1,1 +1,1 @@
-SUBDIRS = tpc-svc shell load allinone 
+SUBDIRS = tpc-svc shell load 

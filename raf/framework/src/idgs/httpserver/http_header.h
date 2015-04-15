@@ -7,12 +7,17 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-
 #include <string>
 
+#define HTTP_HEADER_CONTENT_TYPE  "Content-Type"
+
+#define CONTENT_TYPE_TEXT_PLAIN   "text/plain"
+#define CONTENT_TYPE_JSON         "application/json"
+#define CONTENT_TYPE_PROTOBUF     "application/protobuf"
+
+
 namespace idgs {
-namespace http {
-namespace server {
+namespace httpserver {
 
 struct HttpHeader
 {
@@ -20,6 +25,5 @@ struct HttpHeader
   std::string header_value;
 };
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

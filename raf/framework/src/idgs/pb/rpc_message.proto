@@ -20,8 +20,8 @@ enum TransportChannel {
 }
 
 message ActorId {
-  required int32 member_id = 1 [default = -3];
-  required string actor_id = 2 ;
+  required string actor_id = 1 ;
+  required int32 member_id = 2 [default = -3];
 }
 
 // how payload and attachement serdes
@@ -32,27 +32,32 @@ enum PayloadSerdes {
 }
 
 message RpcMessage {
-  required string operation_name = 1;
+  required ActorId dest_actor = 1;
+  required string operation_name = 2;
+  required ActorId source_actor = 3;
 
-  required ActorId source_actor = 2;
-  required ActorId dest_actor = 3;
-  
   optional uint64 message_id = 4;
-  
   optional TransportChannel channel = 5 [default = TC_AUTO];
+  optional PayloadSerdes serdes_type = 6 [default = PB_BINARY];
 
-  optional ActorId client_actor = 6;
+  // used when message is forwarded.
+  optional ActorId client_actor = 7;
   
-  optional PayloadSerdes serdes_type = 7 [default = PB_BINARY];
+  // set in response to indicate error cause.
+  optional string error_message = 8;
+
+  //
+  // Following should be moved out of RpcMessage.
+  //
 
   // payload of this message, type is specified by operationType
-  optional bytes payload = 8;
+  optional bytes payload = 9;
   
   message NameValuePair {
     required string name = 1;
     required bytes value = 2;
   };
-  repeated NameValuePair attachments = 9;  
+  repeated NameValuePair attachments = 10;  
 }
 
 

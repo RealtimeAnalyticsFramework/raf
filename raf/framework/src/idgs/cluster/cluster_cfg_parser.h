@@ -20,11 +20,11 @@ namespace cluster {
 class ClusterCfgParser {
 public:
   /**
-   * Parse cluster's xml config file into input param config
+   * Parse cluster config file (in JSON)
    * @param config store parsed value
-   * @param xmlFile path
+   * @param path path to the JSON
    */
-  static idgs::ResultCode parse(idgs::pb::ClusterConfig& config, const char* xmlFile);
+  static idgs::ResultCode parse(idgs::pb::ClusterConfig& config, const char* path);
 
 };
 

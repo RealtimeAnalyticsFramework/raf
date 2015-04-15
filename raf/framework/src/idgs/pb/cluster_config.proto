@@ -2,54 +2,31 @@ package idgs.pb;
 
 option java_outer_classname = "PbClusterConfig";
 
-// Partition cell
-message PartitionCell {
-  required int32 memberId = 1 [default = -1] ; 
-  required bool state = 2 [default = true] ;
-}
-
-// Partition 
-message Partition {  
-  repeated PartitionCell cells = 1;
-}
-
-// Partition Table
-message PartitionTable{
-  repeated Partition partition = 1;
-}
-
 // state of member
-enum MemberStatus {
-  INITIAL = 0; 							// when member is created
-  TAKEN = 1; 							// when leading find a joined position for new joined member
-  JOINED = 2; 							// after received whole membership table
-  PREPARED = 3;  						// after handled partition event when member's role's local store; after handled delta member event if not local store 
-  ACTIVE = 4; 							// after service initialized
-  INACTIVE = 5; 						// after leaving
-}
-
-// role of member 
-enum MemberRole {
-  LEADING = 0;
-  ACTIVE_MEMBER = 1;
-  NEW_MEMBER = 2;
+enum MemberState {
+  MS_INACTIVE = 0;              // after leaving
+  MS_INITIAL  = 1;							// when member is created
+  MS_TAKEN    = 2;							// when leading find a joined position for new joined member
+  MS_JOINED   = 3;							// after received whole membership table
+  MS_PREPARED = 4;  						// after handled partition event when member's role's local store; after handled delta member event if not local store 
+  MS_ACTIVE   = 5;							// after service initialized
 }
 
 message MemberService {
   //role: leading, populated by the platform, should not be configured.
-  optional bool leading = 1 [ default = false ];
+  optional bool leading        = 1 [ default = false ];
   
   //role: for local store
-  optional bool local_store = 2 [ default = true ];
+  optional bool local_store    = 2 [ default = true ];
   
   //role: support distribute computing
   optional bool dist_computing = 3 [ default = true ];
   
   //role: client agent
-  optional bool client_agent = 4 [ default = true ];
+  optional bool client_agent   = 4 [ default = true ];
   
   //role: admin console
-  optional bool admin_console = 5 [ default = true ];
+  optional bool admin_console  = 5 [ default = true ];
 }
 
 message EndPoint {
@@ -61,36 +38,28 @@ message EndPoint {
   }
 
   optional AddressFamily af = 1 [default = PAF_INET];
-  optional string host = 2 [default = "0.0.0.0"];
-  required uint32 port = 3 [default = 4682]; // INTC
+  optional string host      = 2 [default = "0.0.0.0"];
+  required uint32 port      = 3 [default = 4682]; // INTC
 }
 
 // Member Information
 message Member {
   // identifier when member joins, leading will find a position to put the joined member
-  optional int32 id = 1 [ default = -1 ]; 
-  optional uint32 node_id = 2 [ default = 0 ];
-  optional uint32 pid = 3 [ default = 0 ];
+  optional int32 id                = 1 [ default = -1 ]; 
+  optional uint32 node_id          = 2 [ default = 0 ];
+  optional uint32 pid              = 3 [ default = 0 ];
   
-  // group name
-  optional string group_name = 4 [ default = "idgs" ];
+  optional EndPoint public_address = 4;
+  optional EndPoint inner_address  = 5;
   
-  optional EndPoint publicAddress = 12;
-  optional EndPoint innerAddress  = 13;
+  required MemberService service   = 6;
   
-  required MemberService service = 9;
+  // when member leaves, member will be marked as INACTIVE
+  optional MemberState state       = 7;// [default = MS_INACTIVE];
   
-  //when member leaves, member will be marked LEAVE status, rather than delete it from membership table
-  optional MemberStatus status = 10;
-  
-  optional uint32 weight = 11 [ default = 10 ];
+  optional float weight            = 8 [ default = 100 ];
+  optional uint32 zone             = 9 [ default = 0];
 }
-
-// membership table
-message MembershipTable{
-  repeated Member member = 1; 
-}
-
 
 message ModuleConfig {
   required string name         = 1;
@@ -104,7 +73,7 @@ message LogConfig {
   optional string log_option = 1 [default = ""];
   
   // Directory of log, default is "./logs"
-  optional string log_dir = 2 [default = "./logs"];
+  optional string log_dir    = 2 [default = "./logs"];
 }
 
 message TimeoutConfig {
@@ -112,41 +81,42 @@ message TimeoutConfig {
   optional uint32 msg_delivery_timeout = 1 [default = 500];
   
   // Data accessing timeout, in ms, default is 500ms
-  optional uint32 data_access_timeout = 2 [default = 500];
+  optional uint32 data_access_timeout  = 2 [default = 500];
 
   // Distributed computing timeout, in ms, default is 5s
-  optional uint32 computing_timeout = 3 [default = 5000];
+  optional uint32 computing_timeout    = 3 [default = 5000];
 }
 
 // configuration of cluster, each member has its own configuration file.
 message ClusterConfig {
-  optional uint32 thread_count = 1 [default = 3];         // worker thread pool size
-  optional uint32 io_thread_count = 2 [default = 3];      // io thread pool size
-  optional uint32 max_idle_thread = 3 [default = 1];      // max idle thread to save energy
-  optional uint32 repartition_batch = 4 [default = 200 ]; // batch put messages when repartition 
+  optional uint32 thread_count          = 1 [default = 3];         // worker thread pool size
+  optional uint32 io_thread_count       = 2 [default = 3];         // io thread pool size
+  optional uint32 max_idle_thread       = 3 [default = 1];         // max idle thread to save energy
+  optional uint32 repartition_batch     = 4 [default = 200 ];      // batch put messages when repartition 
 
-  optional uint32 socket_buffer_size = 5 [default = 2097152 ]; // 1024 * 1024 * 2
-  optional uint32 mtu = 7 [default = 1472]; // ethernet UDP MTU = 1500 - 20(IP) - 8(UDP)
-  optional uint32 tcp_batch = 8 [default = 200]; // batch send/recv messages
-  optional bool portAutoAdjust = 9 [default = true]; // auto adjust inter/outer port if not available.
+  optional uint32 socket_buffer_size    = 5 [default = 2097152 ];  // 1024 * 1024 * 2
+  optional uint32 mtu                   = 6 [default = 0];         // ethernet UDP MTU = 1500 - 20(IP) - 8(UDP)
+  optional uint32 tcp_batch             = 7 [default = 200];       // batch send/recv messages
+  optional bool port_auto_adjust        = 8 [default = true];      // auto adjust inter/outer port if not available.
   
   // max reserved member size
-  optional uint32 reserved_member_size = 10 [default = 100];
+  optional uint32 reserved_member_size  = 9 [default = 100];
+  // group name
+  optional string group_name            = 10 [ default = "idgs" ];
   
   // partition count, should be a primary number.
-  required uint32 partition_count = 11 [default = 1023];
-  
+  required uint32 partition_count       = 11 [default = 1021];
   // max backup number 
-  optional uint32 max_backup_count = 12 [default = 1];
+  optional uint32 max_replica_count     = 12 [default = 3];
   
-  optional LogConfig log_config = 13;
+  optional LogConfig log_config         = 13;
   
   optional TimeoutConfig timeout_config = 14;
   
-  repeated ModuleConfig modules = 15;
+  repeated ModuleConfig modules         = 15;
 
   // configuration of the member.
-  required Member member = 16;
+  required Member member                = 16;
 }
 
 

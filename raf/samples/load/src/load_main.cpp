@@ -8,7 +8,7 @@
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
-#include "idgs/util/singleton.h"
+
 #include "loader_factory.h"
 
 using namespace std;
@@ -91,8 +91,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   /// create loader by factory
-  std::unique_ptr<Loader> loader_ptr(
-      ::idgs::util::singleton<LoaderFactory>::getInstance().createLoader(settings.standalone));
+  std::unique_ptr<Loader> loader_ptr(LoaderFactory::createLoader(settings.standalone));
 
   /// initialize
   idgs::ResultCode rc = loader_ptr->init(&settings);

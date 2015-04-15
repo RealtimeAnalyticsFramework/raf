@@ -23,10 +23,8 @@ public:
   TpchQ6Action& operator()(const TpchQ6Action& other) = delete;
   TpchQ6Action& operator()(TpchQ6Action&& other) = delete;
 
-  idgs::rdd::pb::RddResultCode action(const idgs::actor::ActorMessagePtr& msg, const idgs::rdd::BaseRddPartition* input,
-      std::vector<protobuf::PbVariant>& output);
-  idgs::rdd::pb::RddResultCode aggregate(const idgs::actor::ActorMessagePtr& actionRequest, idgs::actor::ActorMessagePtr& actionResponse,
-      const std::vector<std::vector<std::string>>& input);
+  virtual idgs::rdd::pb::RddResultCode action(idgs::rdd::action::ActionContext* ctx, const idgs::rdd::BaseRddPartition* input) override;
+  virtual idgs::rdd::pb::RddResultCode aggregate(idgs::rdd::action::ActionContext* ctx) override;
 };
 
 } /* namespace op */

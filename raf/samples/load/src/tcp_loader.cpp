@@ -18,29 +18,30 @@ idgs::ResultCode TcpLoader::init(LoaderSettings* settings) {
   client_setting.clientConfig = settings->client_cfg_file;
   client_setting.storeConfig = "";
   client_setting.scriptFile = "";
-  idgs::ResultCode rc = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(client_setting);
+  auto& clientPool = getTcpClientPool();
+  idgs::ResultCode rc = clientPool.loadConfig(client_setting);
   if (rc != RC_SUCCESS) {
     LOG(ERROR)<< "load client config error, " << getErrorDescription(rc) << ", config file: " << client_setting.clientConfig;
     return rc;
   }
+  datastore = clientPool.getDataStore();
   return RC_OK;
 }
 
 void TcpLoader::sendMessage(idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out) {
-  std::shared_ptr < TcpClientInterface > client = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(
-      *rc);
+  auto client = getTcpClientPool().getTcpClient(*rc);
   sendMessage(client, clientActorMsg, rc, time_out);
   client->close();
 }
 
-void TcpLoader::sendMessage(const std::shared_ptr<idgs::client::TcpClientInterface>& client,
+void TcpLoader::sendMessage(const std::shared_ptr<idgs::client::TcpClient>& client,
     idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out) {
   DVLOG(2) << clientActorMsg->toString();
   if (*rc != RC_OK) {
     LOG_FIRST_N(ERROR, 20) << "No client available";
     return;
   }
-  client->send(clientActorMsg, rc, time_out);
+  *rc = client->send(clientActorMsg, time_out);
   if (*rc != RC_SUCCESS) {
     LOG(ERROR)<< "Send client actor message error, " << getErrorDescription(*rc);
     client->close();
@@ -50,21 +51,21 @@ void TcpLoader::sendMessage(const std::shared_ptr<idgs::client::TcpClientInterfa
 
 ClientActorMessagePtr TcpLoader::sendRecvMessage(idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc,
     int time_out) {
-  std::shared_ptr < TcpClientInterface > client = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(
-      *rc);
+  auto client = getTcpClientPool().getTcpClient(*rc);
   ClientActorMessagePtr response = sendRecvMessage(client, clientActorMsg, rc, time_out);
   client->close();
   return response;
 }
 
-ClientActorMessagePtr TcpLoader::sendRecvMessage(const std::shared_ptr<idgs::client::TcpClientInterface>& client,
+ClientActorMessagePtr TcpLoader::sendRecvMessage(const std::shared_ptr<idgs::client::TcpClient>& client,
     idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out) {
   DVLOG(2) << clientActorMsg->toString();
   if (*rc != RC_OK) {
     LOG_FIRST_N(ERROR, 10) << "No client available";
     return ClientActorMessagePtr(NULL);
   }
-  ClientActorMessagePtr response = client->sendRecv(clientActorMsg, rc, time_out);
+  ClientActorMessagePtr response;
+  *rc = client->sendRecv(clientActorMsg, response, time_out);
   if (*rc != RC_SUCCESS) {
     LOG_FIRST_N(ERROR, 10) << "Send client actor message error, " << getErrorDescription(*rc);
     return ClientActorMessagePtr(NULL);

@@ -16,26 +16,30 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
 #include "idgs/rdd/pb/rdd_transform.pb.h"
-#include "idgs/store/data_map.h"
-
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 
+namespace idgs {
+namespace tpc {
+namespace ssb_Q1_1_test {
+
+RddClient client;
+
 ActorId createLineOrderFilterRdd(const string& rddId) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(FILTER_TRANSFORMER);
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name("LINE_ORDER_FILTER");
-  out->set_data_type(idgs::rdd::pb::ORDERED);
+  out->set_persist_type(idgs::rdd::pb::ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.LineOrderKey");
   out->set_value_type_name("idgs.sample.ssb.pb.LineOrder");
 
@@ -44,62 +48,28 @@ ActorId createLineOrderFilterRdd(const string& rddId) {
   //in->mutable_rdd_id()->set_member_id(rddId.member_id());
   in->mutable_rdd_name()->append(rddId);
 
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(AND);
-
-  // >= 1994-01-01
-  Expr* exp1 = expression->add_expression();
-  exp1->set_type(GE);
-
-  Expr* elem1 = exp1->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_discount");
-
-  Expr* elem2 = exp1->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("1");
-
-  // discount <= 0.07
-  auto exp4 = expression->add_expression();
-  exp4->set_type(LE);
-  elem1 = exp4->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_discount");
-
-  elem2 = exp4->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("3");
-
-  // quantity < 25
-  auto emp5 = expression->add_expression();
-  emp5->set_type(LT);
-  elem1 = emp5->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_quantity");
-
-  elem2 = emp5->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("25");
+  shared_ptr<Expr> expression(AND(GE(FIELD("lo_discount"), CONST("1", DOUBLE)),
+                                    LE(FIELD("lo_discount"), CONST("3", DOUBLE)),
+                                    LT(FIELD("lo_quantity"), CONST("25", DOUBLE))
+                                   ));
 
   in->mutable_filter_expr()->CopyFrom(* expression);
 
-  singleton<RddClient>::getInstance().createRdd(request, response);
+  auto rc = client.createRdd(request, response);
+  EXPECT_EQ(RC_OK, rc);
 
   return response->rdd_id();
 }
 
 ActorId createDateFilterRdd(const string& rddId) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(FILTER_TRANSFORMER);
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name("DATE_FILTER");
-  out->set_data_type(idgs::rdd::pb::ORDERED);
+  out->set_persist_type(idgs::rdd::pb::ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.DateKey");
   out->set_value_type_name("idgs.sample.ssb.pb.Date");
 
@@ -108,27 +78,17 @@ ActorId createDateFilterRdd(const string& rddId) {
   //in->mutable_rdd_id()->set_member_id(rddId.member_id());
   in->mutable_rdd_name()->append(rddId);
 
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(EQ);
-
-  Expr* elem1 = expression->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("d_year");
-
-  Expr* elem2 = expression->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(UINT32);
-  elem2->set_value("1992");
+  shared_ptr<Expr> expression(EQ(FIELD("d_year"), CONST("1992", UINT32)));
 
   in->mutable_filter_expr()->CopyFrom(* expression);
-  singleton<RddClient>::getInstance().createRdd(request, response);
-
+  auto rc = client.createRdd(request, response);
+  EXPECT_EQ(RC_OK, rc);
   return response->rdd_id();
 }
 
 ActorId createLineOrderGroupRdd(const string& rddId) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(GROUP_TRANSFORMER);
 
@@ -138,22 +98,22 @@ ActorId createLineOrderGroupRdd(const string& rddId) {
 
   FieldNamePair* field = in->add_out_fields();
   auto expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_orderdate");
 
   field = in->add_out_fields();
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_discount");
 
   field = in->add_out_fields();
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_extendedprice");
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name("LINE_ORDER_GROUP");
-  out->set_data_type(idgs::rdd::pb::ORDERED);
+  out->set_persist_type(idgs::rdd::pb::ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.GLineOrderKey");
   out->set_value_type_name("idgs.sample.ssb.pb.GLineOrder");
 
@@ -170,14 +130,14 @@ ActorId createLineOrderGroupRdd(const string& rddId) {
   fld->set_field_type(DOUBLE);
 
   in->mutable_filter_expr()->CopyFrom(* expr);
-  singleton<RddClient>::getInstance().createRdd(request, response);
-
+  auto rc = client.createRdd(request, response);
+  EXPECT_EQ(RC_OK, rc);
   return response->rdd_id();
 }
 
 ActorId createJoinRdd(const string& lineOrderRDD, const string& dateRdd) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(HASH_JOIN_TRANSFORMER);
 
@@ -188,19 +148,19 @@ ActorId createJoinRdd(const string& lineOrderRDD, const string& dateRdd) {
   FieldNamePair* field = in->add_out_fields();
   field->set_field_alias("orderdate");
   auto expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_orderdate");
 
   field = in->add_out_fields();
   field->set_field_alias("discount");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_discount");
 
   field = in->add_out_fields();
   field->set_field_alias("price");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_extendedprice");
 
   in = request->add_in_rdd();
@@ -209,7 +169,7 @@ ActorId createJoinRdd(const string& lineOrderRDD, const string& dateRdd) {
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name("LINE_ORDER_JOIN");
-  out->set_data_type(idgs::rdd::pb::ORDERED);
+  out->set_persist_type(idgs::rdd::pb::ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.JoinKey");
   out->set_value_type_name("idgs.sample.ssb.pb.Join");
 
@@ -225,90 +185,90 @@ ActorId createJoinRdd(const string& lineOrderRDD, const string& dateRdd) {
   fld->set_field_name("price");
   fld->set_field_type(DOUBLE);
 
-  shared_ptr<JoinRequest> joinParam(new JoinRequest);
+  shared_ptr<JoinRequest> joinParam = std::make_shared<JoinRequest>();
   joinParam->set_type(INNER_JOIN);
 
-  auto joinfld = joinParam->add_join_field();
-  joinfld->set_l_join_field("lo_orderdate");
-  joinfld->set_r_join_field("d_datekey");
-
   AttachMessage params;
-  params[JOIN_PARAM] = joinParam;
+  params[TRANSFORMER_PARAM] = joinParam;
 
-  singleton<RddClient>::getInstance().createRdd(request, response, params);
-
+  auto rc = client.createRdd(request, response, params);
+  EXPECT_EQ(RC_OK, rc);
   return response->rdd_id();
 }
 
 void ssbQ1_1Action(const ActorId& rddId) {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(MULTIPLY);
-  auto elem1 = expression->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("price");
+  shared_ptr<Expr> expression(MULTIPLY(FIELD("price"), FIELD("discount")));
 
-  auto elem2 = expression->add_expression();
-  elem2->set_type(FIELD);
-  elem2->set_value("discount");
-
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new SumActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<SumActionResult>();
 
   request->set_action_id("100000");
   request->set_action_op_name(SUM_ACTION);
   request->mutable_expression()->CopyFrom(*expression);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result, rddId);
+  auto rc = client.sendAction(request, response, result, rddId);
+  EXPECT_EQ(RC_OK, rc);
 
   LOG(INFO) << "*****************************";
   LOG(INFO) << "    Result is : " << std::fixed << dynamic_cast<SumActionResult*>(result.get())->total();
   LOG(INFO) << "*****************************";
 }
 
+}
+}
+}
+
 TEST(hash_join, ssb_Q1_1) {
-  ResultCode code = singleton<RddClient>::getInstance().init("samples/tpc-svc/conf/client.conf");
+  ResultCode code = idgs::tpc::ssb_Q1_1_test::client.init("conf/client.conf");
+  LOG(INFO) << code;
 
   LOG(INFO) << "Create store delegate RDD for lineorder.";
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+  request->set_schema_name("ssb");
   request->set_store_name("ssb_lineorder");
   request->set_rdd_name("ssb_lineorder");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  auto rc = idgs::tpc::ssb_Q1_1_test::client.createStoreDelegateRDD(request, response);
+  ASSERT_EQ(RC_OK, rc);
+
   auto orderDelegateRDD = response->rdd_id();
 
   sleep(2);
 
   LOG(INFO) << "Create filter RDD for lineorder.";
-  auto orderFilterRDD = createLineOrderFilterRdd("ssb_lineorder");
+  auto orderFilterRDD = idgs::tpc::ssb_Q1_1_test::createLineOrderFilterRdd("ssb_lineorder");
 
   sleep(2);
 
   LOG(INFO) << "Create group RDD for lineorder.";
-  auto orderGroupRDD = createLineOrderGroupRdd("LINE_ORDER_FILTER");
+  auto orderGroupRDD = idgs::tpc::ssb_Q1_1_test::createLineOrderGroupRdd("LINE_ORDER_FILTER");
 
   sleep(2);
 
   LOG(INFO) << "Create store delegate RDD for date.";
+  request->set_schema_name("ssb");
   request->set_store_name("ssb_date");
   request->set_rdd_name("ssb_date");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  rc = idgs::tpc::ssb_Q1_1_test::client.createStoreDelegateRDD(request, response);
+  assert(RC_OK == rc);
+
   auto dateDelegateRDD = response->rdd_id();
 
   sleep(2);
 
   LOG(INFO) << "Create filter RDD for date.";
-  auto dateFilterRDD = createDateFilterRdd("ssb_date");
+  auto dateFilterRDD = idgs::tpc::ssb_Q1_1_test::createDateFilterRdd("ssb_date");
 
   sleep(2);
 
   LOG(INFO) << "Create inner join RDD for date.";
-  auto joinRDD = createJoinRdd("LINE_ORDER_GROUP", "DATE_FILTER");
+  auto joinRDD = idgs::tpc::ssb_Q1_1_test::createJoinRdd("LINE_ORDER_GROUP", "DATE_FILTER");
 
   sleep(2);
 
   LOG(INFO) << "Handle sum action.";
-  ssbQ1_1Action(joinRDD);
+  idgs::tpc::ssb_Q1_1_test::ssbQ1_1Action(joinRDD);
 }

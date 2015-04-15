@@ -11,19 +11,21 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include <thread>
 // #include "idgs/net/network_model.h"
 #include "idgs/net/member_endpoint.h"
-#include "idgs/httpserver/http_server.h"
 #include "idgs/pb/cluster_config.pb.h"
+#include "idgs/actor/actor_message.h"
 
 namespace idgs {
+namespace httpserver {
+class HttpServer;
+} // namespace httpserver
 namespace net {
 class InnerTcpServer;
 class AsyncTcpServer;
-class AsyncUdpServer;
+class InnerUdtServer;
 
 class RpcMemberListener;
 class NetworkModelAsio;
 class NetworkStatistics;
-class ResendScheduler;
 
 typedef NetworkModelAsio NetworkModel;
 
@@ -53,12 +55,7 @@ public:
     return &endPointCache[memberId];
   }
 
-  ResendScheduler* getResendScheduler() {
-    return resendScheduler;
-  }
-
   /// set socket options, e.g. receive/send buffer size
-  static void setUdpSocketOption(asio::ip::udp::socket& s, bool server = true);
   static void setTcpSocketOption(asio::ip::tcp::socket& s);
 
   InnerTcpServer* getInnerTcpServer() {
@@ -69,7 +66,7 @@ public:
     return outerTcpServer;
   }
 
-  idgs::http::server::HttpServer* getHttpServer() {
+  idgs::httpserver::HttpServer* getHttpServer() {
     return httpServer;
   }
 
@@ -82,12 +79,13 @@ private:
   asio::io_service ioService;
   InnerTcpServer* innerTcpServer;
   AsyncTcpServer* outerTcpServer;
-  AsyncUdpServer* innerUdpServer;
+#if defined(WITH_UDT)
+  InnerUdtServer* innerUdtServer;
+#endif // defined(WITH_UDT)
 
   RpcMemberListener* rpcMemberListener;
   NetworkStatistics* networkStatistics;
-  ResendScheduler* resendScheduler;
-  idgs::http::server::HttpServer* httpServer;
+  idgs::httpserver::HttpServer* httpServer;
 
   std::map<int32_t, MemberEndPoint> endPointCache;
   std::vector<std::shared_ptr<std::thread>> ioThreads;

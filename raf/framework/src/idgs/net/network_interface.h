@@ -1,4 +1,5 @@
 /*
+
  * network_interface.h
  *
  *  Created on: Jan 21, 2014
@@ -7,8 +8,6 @@
 
 #ifndef NETWORK_INTERFACE_H_
 #define NETWORK_INTERFACE_H_
-#include <vector>
-#include <iostream>
 
 #include "idgs/result_code.h"
 

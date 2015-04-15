@@ -3,13 +3,12 @@
   <id>release</id>
   <formats>
     <format>dir</format>
-    <format>zip</format>
   </formats>
   <includeBaseDirectory>false</includeBaseDirectory>
   <dependencySets>
     <dependencySet>
       <useProjectArtifact>true</useProjectArtifact>
-      <outputDirectory>lib</outputDirectory>
+      <outputDirectory>javalib</outputDirectory>
     </dependencySet>
   </dependencySets>
   <fileSets>

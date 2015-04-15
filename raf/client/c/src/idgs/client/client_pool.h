@@ -7,24 +7,23 @@
  */
 #pragma once
 
-#include "client_const.h"
-#include "tbb/concurrent_queue.h"
-#include "tcp_synchronous_client.h"
-#include "tcp_asynch_client.h"
-#include "idgs/util/singleton.h"
+#include <atomic>
+#include <tbb/concurrent_queue.h>
+
+#include "idgs/client/client_const.h"
+#include "idgs/client/client_setting.h"
+#include "idgs/client/tcp_client.h"
+
+#include "idgs/store/data_store.h"
 
 namespace idgs {
 namespace client {
 typedef std::shared_ptr<TcpClient> TcpClientPtr;
-typedef std::shared_ptr<TcpSynchronousClient> TcpSynchClientPtr;
-typedef std::shared_ptr<TcpAsynchClient> TcpAsynchClientPtr;
 
-class TcpClientInterface;
+class PooledTcpClient;
 
 class TcpClientPool {
-  friend class TcpSynchronousClient;
-  friend class TcpAsynchClient;
-  friend class TcpClientInterface;
+  friend class PooledTcpClient;
 public:
 
   TcpClientPool();
@@ -32,7 +31,7 @@ public:
 
   idgs::ResultCode loadConfig(const ClientSetting& setting);
 
-  std::shared_ptr<TcpClientInterface> getTcpClient(idgs::ResultCode &code);
+  std::shared_ptr<TcpClient> getTcpClient(idgs::ResultCode &code);
 
   void close();
 
@@ -48,6 +47,7 @@ public:
     return pool.size();
   }
 
+  idgs::store::DataStore* getDataStore();
 private:
   enum State {
     NOT_INITIALIZED, INITIALIZED
@@ -55,86 +55,16 @@ private:
 
   bool putBack(TcpClientPtr client);
 
+private:
   std::shared_ptr<idgs::client::pb::ClientConfig> clientConfig;
   tbb::concurrent_bounded_queue<TcpClientPtr> pool;
   std::vector<idgs::client::pb::Endpoint> availableServers;
-  tbb::atomic<State> isLoaded;
+  std::atomic<State> isLoaded;
+
+  idgs::store::DataStore datastore;
 };
 
-class TcpClientInterface {
-public:
-  friend class TcpClientPool;
+TcpClientPool& getTcpClientPool();
 
-  TcpClientInterface(const TcpClientInterface& rhs) {
-    this->client = rhs.client;
-  }
-  TcpClientInterface(TcpClientInterface&& rhs) {
-    this->client = std::move(rhs.client);
-  }
-  ;
-
-  const idgs::client::pb::Endpoint& getServerAddress() {
-    return client->getServerAddress();
-  }
-
-  void send(ClientActorMessagePtr& actorMsg, idgs::ResultCode* code, int timeout_sec = 10) {
-    if (client.get() == NULL) {
-      *code = RC_ERROR;
-      return;
-    }
-
-    return client->send(actorMsg, code, timeout_sec);
-  }
-
-  ClientActorMessagePtr sendRecv(ClientActorMessagePtr& actorMsg, idgs::ResultCode* code, int timeout_sec = 10) {
-    if (client.get() == NULL) {
-      *code = RC_ERROR;
-      return ClientActorMessagePtr(NULL);
-    }
-
-    return client->sendRecv(actorMsg, code, timeout_sec);
-  }
-
-  ClientActorMessagePtr receive(ResultCode& code) {
-    if (client.get() == NULL) {
-      code = RC_ERROR;
-      return ClientActorMessagePtr(NULL);
-    }
-
-    return client->receive(&code);
-  }
-
-  bool close() {
-    if (client.get()) {
-      DVLOG(2) << "client " << client.get() << " is recycled by pool";
-      TcpClientPtr _c = client;
-      client.reset();
-      return ::idgs::util::singleton<TcpClientPool>::getInstance().putBack(_c);
-    }
-    return true;
-  }
-
-  ~TcpClientInterface() {
-    function_footprint();
-    close();
-  }
-
-private:
-
-  TcpClientInterface(TcpClientPtr _client) :
-      client(_client) {
-
-  }
-
-  idgs::ResultCode initialize() {
-    if (client.get() == NULL) {
-      return RC_ERROR;
-    }
-
-    return client->initialize();
-  }
-
-  TcpClientPtr client;
-};
-}
-}
+} // namespace client
+} // namespace idgs

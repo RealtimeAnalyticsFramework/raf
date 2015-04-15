@@ -5,61 +5,6 @@ package idgs.pb;
 
 option java_outer_classname = "PbExpr";
 
-enum ExpressionType {
-  // constant
-  CONST   	= 1; 
-  
-  // logical
-  AND    	= 10;
-  OR     	= 11;
-  NOT    	= 12;
-  
-  // comparison
-  EQ     	= 20;             // equal
-  NE     	= 21;             // not equal
-  LT     	= 22;             // less than
-  LE     	= 23;             // less equal
-  GT     	= 24;             // greater than
-  GE     	= 25;             // greater equal
-  BETWEEN   = 26;             // between and / not between and
-  
-  // branch
-  // Parameters: [cond1, value1, cond2, value2, ... , condN, valueN, default]
-  // logic:
-  // if(cond1) value1 
-  // else if(cond2) value2
-  // ...
-  // else default
-  IF        = 30;             
-  VSET      = 31;             // variable set            
-  VGET      = 32;             // variable get
-  
-  // string only: regular express match
-  LIKE   	= 40;            
-  SUBSTR   	= 41;            
-  
-  
-  // Arithmetic
-  ADD	    = 50;            
-  SUBTRACT	= 51;          
-  MULTIPLY 	= 52;         
-  DIVIDE    = 53;
-  MODULUS   = 54;
-  HASH      = 55;
-
-  // bitwise operations
-  BIT_AND   = 60;
-  BIT_OR    = 61;
-  BIT_NOT   = 62;
-  BIT_XOR   = 63;
-  
-  // field stractor
-  FIELD     = 70;
-  
-  // user defined function
-  UDF 	 	= 90;            // user defined function    
-};
-
 /// copied from google/protobuf/descriptor
 enum DataType {
   // 0 is reserved for errors.
@@ -91,16 +36,32 @@ enum DataType {
 }
 
 message Expr {
-  /// @fixme change to string
-  required ExpressionType type 			= 1;
+  // constant 
+  //   CONST
+  // logical
+  //   AND OR NOT
+  // comparison
+  //   EQ NE LT LE GT GE BETWEEN(between and / not between and) IN(in (value1, value2 ...)) ISNULL ISNOTNULL 
+  // branch
+  //   IF([cond1, value1, cond2, value2, ... , condN, valueN, default]) VSET(variable set) VGET(variable get)
+  // string only: regular express match
+  //   LIKE SUBSTR(value, start, length)
+  // arithmetic
+  //   ADD SUBTRACT MULTIPLY DIVIDE MODULUS HASH
+  // bitwise operations
+  //   BIT_AND BIT_OR BIT_NOT BIT_XOR
+  // field stractor
+  //   FIELD 
+  required string name 			= 1;
   
   // the following is only available for branch/inner node (logical, comparison or Arithmetic)
   repeated Expr expression 	= 2;
   
-  // the following is only available for leaf/outer node (constant value or path of field like "name"; "name.first")
+  // the following is only available for constant 
   optional DataType const_type 			= 3;
+  // the following is only available for leaf/outer node (constant value or path of field like "name"; "name.first")
   optional string value 				= 4;
 
   // the following is only available for user defined functions
-  optional string udf 					= 5;
+  optional string param             	= 5;
 }

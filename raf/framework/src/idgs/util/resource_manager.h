@@ -8,8 +8,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include <map>
-#include <string>
 
 namespace idgs {
 namespace util {

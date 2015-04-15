@@ -11,9 +11,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "async_tcp_server.h"
-#include "idgs/cluster/cluster_framework.h"
 
-using asio::ip::tcp;
+#include "idgs/application.h"
+#include "idgs/httpserver/http_server.h"
+
 using namespace idgs::actor;
 
 namespace idgs {
@@ -33,7 +34,7 @@ void AsyncTcpServer::init(idgs::pb::ClusterConfig* cfg) {
 }
 
 int32_t AsyncTcpServer::start() {
-  auto inner_addr = cfg->member().publicaddress();
+  auto inner_addr = cfg->member().public_address();
   auto af = inner_addr.af();
   auto address = inner_addr.host();
   auto port = inner_addr.port();
@@ -42,7 +43,7 @@ int32_t AsyncTcpServer::start() {
       if(af == idgs::pb::EndPoint_AddressFamily_PAF_INET || af == idgs::pb::EndPoint_AddressFamily_PAF_INET6) {
         acceptor = new asio::ip::tcp::acceptor(io_service, asio::ip::tcp::endpoint(asio::ip::address::from_string(address), port));
       } else {
-        LOG(FATAL) << "Temporary not support network family!";
+        LOG(FATAL) << "Unsupported network family " << idgs::pb::EndPoint_AddressFamily_Name(af);
         return 1;
       }
       run();
@@ -56,8 +57,8 @@ int32_t AsyncTcpServer::start() {
     }
     break;
   }while(1);
-  cfg->mutable_member()->mutable_publicaddress()->set_port(port);
-  DVLOG(0) << "Outer TCP server has started at address: " << address << ", port: " << port;
+  cfg->mutable_member()->mutable_public_address()->set_port(port);
+  DVLOG(2) << "Outer TCP server has started at address: " << address << ", port: " << port;
   return 0;
 }
 
@@ -71,6 +72,7 @@ void AsyncTcpServer::handle_accept(asio::ip::tcp::socket *sock, const asio::erro
     uint8_t serdes = 0;
     try {
       asio::read(*sock, asio::buffer(reinterpret_cast<void*>(&cookie), sizeof(cookie)), asio::transfer_all());
+
       if(cookie == IDGS_COOKIE) {
         asio::read(*sock, asio::buffer(reinterpret_cast<void*>(&serdes), sizeof(serdes)), asio::transfer_all());
         if(serdes >= 3) {
@@ -80,10 +82,10 @@ void AsyncTcpServer::handle_accept(asio::ip::tcp::socket *sock, const asio::erro
 
 
         // handle current session
-        static ActorFramework* af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+        static ActorManager* af = idgs_application()->getRpcFramework()->getActorManager();
         tcpActor = new StatefulTcpActor(io_service, sock);
-        tcpActor->setActorId(af->generateActorId());
-        af->Register(tcpActor->getActorId(), tcpActor);
+        tcpActor->setActorId(af->generateActorId(tcpActor));
+        af->registerSessionActor(tcpActor->getActorId(), tcpActor);
 
         NetworkModelAsio::setTcpSocketOption(tcpActor->socket());
 
@@ -93,10 +95,13 @@ void AsyncTcpServer::handle_accept(asio::ip::tcp::socket *sock, const asio::erro
         tcpActor->startReceiveHeader();
       } else {
         VLOG(2) << "Get Http Connection";
-        ::idgs::util::singleton<RpcFramework>::getInstance().getNetwork()->getHttpServer()->process(
+        idgs_application()->getRpcFramework()->getNetwork()->getHttpServer()->process(
             sock, reinterpret_cast<char*>(&cookie), sizeof(cookie));
       }
     } catch (std::exception& e) {
+      asio::ip::tcp::endpoint endpoint = sock->remote_endpoint();
+      LOG(ERROR) << "Failed to handle incoming socket:" << endpoint.address().to_string() << ':' << endpoint.port() << " " << e.what();
+
       if(tcpActor) {
         tcpActor->terminate();
       } else {

@@ -26,6 +26,11 @@ public:
     static std::string name("ADD");
     return name;
   }
+
+  virtual const std::string* alias() override {
+    static std::string alias("+");
+    return &alias;
+  }
 };
 
 /// Subtract expression
@@ -41,6 +46,11 @@ public:
     static std::string name("SUBTRACT");
     return name;
   }
+
+  virtual const std::string* alias() override {
+    static std::string alias("-");
+    return &alias;
+  }
 };
 
 /// Multiply expression
@@ -55,6 +65,11 @@ public:
   virtual const std::string& name() {
     static std::string name("MULTIPLY");
     return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("*");
+    return &alias;
   }
 };
 
@@ -72,11 +87,15 @@ public:
     return name;
   }
 
+  virtual const std::string* alias() override {
+    static std::string alias("/");
+    return &alias;
+  }
 };
 
 /// Modulus expression
 /// To handle operator '%'.
-class ModulusExpression: public NAryExpression, public idgs::util::CloneEnabler<ModulusExpression, Expression> {
+class ModulusExpression: public BinaryExpression, public idgs::util::CloneEnabler<ModulusExpression, Expression> {
 public:
 
   /// @brief Evaluate the express, and the state of ctx may be changed by the express.
@@ -86,6 +105,11 @@ public:
   virtual const std::string& name() {
     static std::string name("MODULUS");
     return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("%");
+    return &alias;
   }
 };
 
@@ -101,6 +125,82 @@ public:
   virtual const std::string& name() {
     static std::string name("HASH");
     return name;
+  }
+};
+
+/// bit and expression
+class BitAndExpression: public NAryExpression, public idgs::util::CloneEnabler<BitAndExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("BIT_AND");
+    return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("&");
+    return &alias;
+  }
+};
+
+/// bit or expression
+class BitOrExpression: public NAryExpression, public idgs::util::CloneEnabler<BitOrExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("BIT_OR");
+    return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("|");
+    return &alias;
+  }
+};
+
+/// bit not expression
+class BitNotExpression: public UnaryExpression, public idgs::util::CloneEnabler<BitNotExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("BIT_NOT");
+    return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("~");
+    return &alias;
+  }
+};
+
+/// bit xor expression
+class BitXorExpression: public NAryExpression, public idgs::util::CloneEnabler<BitXorExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("BIT_XOR");
+    return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias("^");
+    return &alias;
   }
 };
 

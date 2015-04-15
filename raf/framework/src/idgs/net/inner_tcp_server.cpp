@@ -11,6 +11,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "inner_tcp_server.h"
+#include "idgs/application.h"
 
 namespace idgs {
 namespace net {
@@ -19,6 +20,9 @@ namespace net {
 
 InnerTcpServer::InnerTcpServer(NetworkModelAsio* net, asio::io_service& _io_service) : network(net), io_service(_io_service), acceptor(NULL),cfg(NULL) {
   connections.resize(MAX_MEMBERS);
+  for(int i = 0; i < MAX_MEMBERS; ++i) {
+    queues.push_back(std::make_shared<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> >());
+  }
   queues.resize(MAX_MEMBERS);
   InnerTcpConnection::innerTcpServer = this;
 }
@@ -33,8 +37,11 @@ void InnerTcpServer::init(idgs::pb::ClusterConfig* cfg) {
   this->cfg = cfg;
 }
 
-tbb::concurrent_queue<idgs::actor::ActorMessagePtr>& InnerTcpServer::getQueue(int memberId) {
-  DVLOG(5) << "Queue size: " << queues.size() << ", member: " << memberId;
+std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > InnerTcpServer::getQueue(int memberId) {
+  DVLOG_FIRST_N(5, 20) << "Queue size: " << queues.size() << ", dest member: " << memberId;
+  if(memberId < 0) {
+    return std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> >();
+  }
   size_t size;
   {
 //    tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
@@ -45,8 +52,8 @@ tbb::concurrent_queue<idgs::actor::ActorMessagePtr>& InnerTcpServer::getQueue(in
 //    tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
     size = queues.size();
 
-    if(likely(memberId >= size)) {
-      queues.resize(memberId + 1);
+    for (int i = 0; i < (memberId - size + 1); ++i) {
+      queues.push_back(std::make_shared<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> >());
     }
   }
   return queues[memberId];
@@ -60,24 +67,18 @@ bool InnerTcpServer::setConnection(uint32_t memberId, std::shared_ptr<InnerTcpCo
     connections[memberId] = conn;
     return true;
   } else {
-    if(connections[memberId]) {
-      // connection exists
-      return false;
-    } else {
-      // connection reset
-      connections[memberId] = conn;
-      return true;
-    }
+    connections[memberId] = conn;
+    return true;
   }
 }
 
-bool InnerTcpServer::resetConnection(uint32_t memberId, std::shared_ptr<InnerTcpConnection> conn) {
+bool InnerTcpServer::resetConnectionIfEq(uint32_t memberId, std::shared_ptr<InnerTcpConnection> conn) {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
   if(unlikely(connections.size() <= memberId)) {
     connections.resize(memberId + 1);
     return true;
   }
-  if (connections[memberId].get() == conn.get()) {
+  if (connections[memberId] && connections[memberId] == conn) {
     connections[memberId].reset();
     return true;
   }
@@ -98,20 +99,34 @@ std::shared_ptr<InnerTcpConnection>& InnerTcpServer::getConnection(uint32_t memb
     }
   }
 
-  // connect if necessary
-  if(unlikely(!connections[memberId])) {
-    tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
-    if(likely(!connections[memberId])) {
-      connections[memberId] = std::make_shared<InnerTcpConnection>(io_service);
-    }
-  }
 
   return connections[memberId];
 }
 
+void InnerTcpServer::connect(int peerId) {
+  auto memberMgr = idgs_application()->getMemberManager();
+  int32_t localMemberId = memberMgr->getLocalMemberId();
+
+  if (peerId > localMemberId) {
+    return;
+  }
+
+  getConnection(peerId);
+
+  // connect if necessary
+  if(unlikely(!connections[peerId])) {
+    tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+    if(likely(!connections[peerId])) {
+      connections[peerId] = std::make_shared<InnerTcpConnection>(io_service);
+    }
+  }
+
+  connections[peerId]->connect(peerId);
+}
+
 
 int InnerTcpServer::start() {
-  auto inner_addr = cfg->member().inneraddress();
+  auto inner_addr = cfg->member().inner_address();
   auto af = inner_addr.af();
   auto address = inner_addr.host();
   auto port = inner_addr.port();
@@ -120,12 +135,12 @@ int InnerTcpServer::start() {
       if(af == idgs::pb::EndPoint_AddressFamily_PAF_INET || af == idgs::pb::EndPoint_AddressFamily_PAF_INET6) {
         acceptor = new asio::ip::tcp::acceptor(io_service, asio::ip::tcp::endpoint(asio::ip::address::from_string(address), port));
       } else {
-        LOG(FATAL) << "Temporary not support network family!";
+        LOG(FATAL) << "Unsupported network family " << idgs::pb::EndPoint_AddressFamily_Name(af);
         return 1;
       }
       accept();
     } catch (asio::system_error& error) {
-      LOG(ERROR) << "$$$$$$$$$$Failed to start inner tcp server at port " << port << ", caused by " << error.what();
+      LOG(ERROR) << "Failed to start inner tcp server at port " << port << ", caused by " << error.what();
       if(error.code().value() == EADDRINUSE) {
         ++port;
         continue;
@@ -134,7 +149,7 @@ int InnerTcpServer::start() {
     }
     break;
   } while(1);
-  cfg->mutable_member()->mutable_inneraddress()->set_port(port);
+  cfg->mutable_member()->mutable_inner_address()->set_port(port);
   DVLOG(0) << "Inner TCP server has started at address: " << address << ", port: " << port;
   return 0;
 }
@@ -142,6 +157,9 @@ int InnerTcpServer::start() {
 
 int InnerTcpServer::stop() {
   function_footprint();
+  for (auto& q : queues) {
+    q->clear();
+  }
   if(acceptor) {
     auto bak = acceptor;
     acceptor = NULL;
@@ -151,6 +169,13 @@ int InnerTcpServer::stop() {
     delete bak;
   }
 
+  for(auto& c: connections) {
+    if(c) {
+//      c->terminate();
+      c.reset();
+    }
+  }
+  InnerTcpConnection::innerTcpServer = NULL;
   connections.clear();
   return 0;
 }
@@ -192,13 +217,21 @@ void InnerTcpServer::handle_accept(std::shared_ptr<InnerTcpConnection> conn, con
 int32_t InnerTcpServer::sendMessage(idgs::actor::ActorMessagePtr& msg) {
 //  DVLOG(2) << "Inner TCP server send actor message: " << msg->toString();
 
-  uint32_t memberId = msg->getDestMemberId();
-  tbb::concurrent_queue<idgs::actor::ActorMessagePtr>& q = getQueue(memberId);
-  msg->freePbMemory();
-  q.push(msg);
+  int32_t memberId = msg->getDestMemberId();
+  if(memberId < 0) {
+    LOG(ERROR) << "Invalid member ID: " << memberId;
+    return RC_ERROR;
+  }
+  auto q = getQueue(memberId);
 
-  std::shared_ptr<InnerTcpConnection>& conn = getConnection(memberId);
-//  DVLOG_IF(2, conn) << "Inner TCP connection: " << conn->toString();
+#if defined(NDEBUG)
+  msg->freePbMemory();
+#endif
+
+  q->push(msg);
+
+  std::shared_ptr<InnerTcpConnection> conn = getConnection(memberId);
+
   if(conn) {
     conn->sendMessage(msg);
   }

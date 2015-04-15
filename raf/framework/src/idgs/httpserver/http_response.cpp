@@ -9,8 +9,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "http_response.h"
 
 namespace idgs {
-namespace http {
-namespace server {
+namespace httpserver {
 
 namespace misc_strings {
 
@@ -281,6 +280,5 @@ HttpResponse HttpResponse::stockRedirectRespons(std::string& redUri) {
   return rep;
 }
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

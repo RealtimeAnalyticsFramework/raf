@@ -9,10 +9,11 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include <memory>
-#include "tbb/concurrent_hash_map.h"
 
-#include "google/protobuf/dynamic_message.h"
-#include "google/protobuf/compiler/importer.h"
+#include <tbb/concurrent_hash_map.h>
+
+#include <google/protobuf/dynamic_message.h>
+#include <google/protobuf/compiler/importer.h>
 
 #include "idgs/result_code.h"
 #include "protobuf/pbvariant.h"
@@ -38,8 +39,6 @@ public:
   MessageHelper();
   virtual ~MessageHelper();
 
-  /// Copy constructor, called by containers.
-  /// This should be singleton, copy constructor should be deleted.
   MessageHelper(const MessageHelper& other) = delete;
   MessageHelper(MessageHelper&& other) = delete;
   MessageHelper& operator()(const MessageHelper& other) = delete;
@@ -73,6 +72,8 @@ public:
   bool isMessageRegistered(const std::string& typeName);
 
   const google::protobuf::Message* getPbPrototype(const std::string& type);
+
+  void addPbPrototype(const google::protobuf::Message* msg);
 
   idgs::ResultCode setMessageValue(google::protobuf::Message* msg, const std::string& fieldName, const PbVariant& var);
 

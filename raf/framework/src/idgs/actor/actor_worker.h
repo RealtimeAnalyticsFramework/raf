@@ -29,21 +29,16 @@ public:
     terminateAndJoin();
   }
 
-  ActorWorker(const ActorWorker& thread) {
-    // function_footprint();
-    if (this == &thread) {
-      return;
-    }
-    this->id = thread.id;
-    this->m_is_finish = thread.m_is_finish;
-    this->m_pthread = thread.m_pthread;
-  }
+  ActorWorker(const ActorWorker& thread) = delete;
+
   ActorWorker(ActorWorker&& thread) {
     // function_footprint();
     this->id = thread.id;
-    this->m_is_finish = std::move(thread.m_is_finish);
-    this->m_pthread = std::move(thread.m_pthread);
+    this->m_is_finish.store(thread.m_is_finish.load());
+    this->m_pthread = thread.m_pthread;
+
     thread.m_pthread = NULL;
+    thread.m_is_finish.store(true);
   }
 
   void start();
@@ -58,9 +53,9 @@ public:
     this->id = id;
   }
 
-  bool operator==(const ActorWorker& thread) {
-    return this->id == thread.id && this->m_is_finish == thread.m_is_finish && this->m_pthread == thread.m_pthread;
-  }
+//  bool operator==(const ActorWorker& thread) {
+//    return this->id == thread.id && this->m_is_finish == thread.m_is_finish && this->m_pthread == thread.m_pthread;
+//  }
 
   void markFinish() {
     m_is_finish.store(true);
@@ -70,7 +65,7 @@ public:
 
 private:
   int id;
-  tbb::atomic<bool> m_is_finish;
+  std::atomic<bool> m_is_finish;
   std::thread *m_pthread;
   void run();
   static void localProcess(std::shared_ptr<ActorMessage>& actorMsg);

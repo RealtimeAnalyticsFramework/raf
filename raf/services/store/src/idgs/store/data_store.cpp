@@ -6,21 +6,22 @@ The source code, information and material ("Material") contained herein is owned
 
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
-#if defined(__GNUC__) || defined(__clang__) 
-#include "idgs_gch.h" 
+#if defined(__GNUC__) || defined(__clang__)
+#include "idgs_gch.h"
 #endif // GNUC_ $
+
 #include "data_store.h"
 
-#include "config_parser.h"
-#include "data_store_actor.h"
-#include "data_sync_actor.h"
-#include "aggregator_actor.h"
-#include "idgs/actor/actor_descriptor_mgr.h"
-#include "idgs/store/store_listener_factory.h"
-#include "idgs/store/listener_manager.h"
+#include "idgs/application.h"
+
+
+#include "idgs/store/config_parser.h"
+#include "idgs/store/listener/store_listener_factory.h"
+
+
+#include "idgs/util/utillity.h"
 
 using namespace google::protobuf;
-using namespace idgs::actor;
 
 namespace idgs {
 namespace store {
@@ -35,15 +36,8 @@ DataStore::~DataStore() {
 }
 
 ResultCode DataStore::initialize(const string& configFilePath) {
-  ResultCode status;
-  status = registerActor();
-  if (status != RC_SUCCESS) {
-    LOG(ERROR)<< "Failed to register listener. Error code : " << status << ", message : " << getErrorDescription(status) << ".";
-    return status;
-  }
-
   DVLOG(1) << "Load data store configuration: " << configFilePath;
-  status = loadCfgFile(configFilePath);
+  auto status = loadCfgFile(configFilePath);
   if (status != RC_SUCCESS) {
     LOG(ERROR)<< "Failed to load data store config. Error code : " << status << ", message : " << getErrorDescription(status) << ".";
     return status;
@@ -54,12 +48,9 @@ ResultCode DataStore::initialize(const string& configFilePath) {
 }
 
 ResultCode DataStore::start() {
-  ResultCode status;
-
-  status = initializeDataStore();
+  ResultCode status = startDataStore();
   if (status != RC_SUCCESS) {
-    DVLOG(2) << "Failed to initialize store of data. Error code : " << status << ", message : "
-                << getErrorDescription(status) << ".";
+    DVLOG(2) << "Failed to initialize store of data. caused by " << getErrorDescription(status);
     return status;
   }
 
@@ -67,349 +58,232 @@ ResultCode DataStore::start() {
 }
 
 ResultCode DataStore::stop() {
-  storeMap.clear();
-
+  schemaMap.clear();
   return RC_SUCCESS;
-}
-
-ResultCode DataStore::loadStoreConfig(const string& storeName, shared_ptr<StoreConfigWrapper>& storeConfigWrapper) {
-  return getStoreConfigWrappers().getStoreConfig(storeName, storeConfigWrapper);
-}
-
-ResultCode DataStore::registerStoreConfig(const shared_ptr<StoreConfigWrapper>& storeConfigWrapper) {
-  return getStoreConfigWrappers().addStoreConfig(storeConfigWrapper);
-}
-
-ResultCode DataStore::insertData(const string& storeName, const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* ps) {
-  if (key.get() == NULL) {
-    DVLOG(2) << "Failed. Error code : " << RC_INVALID_KEY << ", message : " << getErrorDescription(RC_INVALID_KEY);
-    return RC_INVALID_KEY;
-  }
-
-  if (value.get() == NULL) {
-    DVLOG(1) << "Failed. Error code : " << RC_INVALID_VALUE << ", message : " << getErrorDescription(RC_INVALID_VALUE);
-    return RC_INVALID_VALUE;
-  }
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  return it->second->setData(key, value, ps);
-}
-
-ResultCode DataStore::getData(const string& storeName, const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* ps) {
-  if (key.get() == NULL) {
-    DVLOG(2) << "Failed. Error code : " << RC_INVALID_KEY << ", message : " << getErrorDescription(RC_INVALID_KEY);
-    return RC_INVALID_KEY;
-  }
-
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  return it->second->getData(key, value, ps);
-}
-
-ResultCode DataStore::updateData(const string& storeName, const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* ps) {
-  if (key.get() == NULL) {
-    DVLOG(2) << "Failed. Error code : " << RC_INVALID_KEY << ", message : " << getErrorDescription(RC_INVALID_KEY);
-    return RC_INVALID_KEY;
-  }
-
-  if (value.get() == NULL) {
-    DVLOG(2) << "Failed. Error code : " << RC_INVALID_VALUE << ", message : " << getErrorDescription(RC_INVALID_VALUE);
-    return RC_INVALID_VALUE;
-  }
-
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  return it->second->setData(key, value, ps);
-}
-
-ResultCode DataStore::removeData(const string& storeName, const StoreKey<Message>& key,
-    StoreValue<google::protobuf::Message>& value, PartitionStatus* ps) {
-  if (key.get() == NULL) {
-    DVLOG(2) << "Failed. Error code : " << RC_INVALID_KEY << ", message : " << getErrorDescription(RC_INVALID_KEY);
-    return RC_INVALID_KEY;
-  }
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  return it->second->removeData(key, value, ps);
-}
-
-ResultCode DataStore::syncStore(const string& storeName, shared_ptr<idgs::store::pb::SyncStore>& store) {
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  ResultCode code = storeConfigWrappers.getStoreConfig(storeName, storeConfigWrapper);
-  if (code != RC_SUCCESS) {
-    return code;
-  }
-
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  switch (storeConfigWrapper->getStoreConfig().partition_type()) {
-  case idgs::store::pb::REPLICATED: {
-    ReplicatedStore* repStore = dynamic_cast<ReplicatedStore*>(it->second.get());
-    repStore->syncData(store);
-    break;
-  }
-  default: {
-    break;
-  }
-  }
-
-  return RC_SUCCESS;
-
-}
-
-ResultCode DataStore::storeSize(const string& storeName, size_t& size) {
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  size = it->second->storeSize(size);
-  return RC_OK;
-}
-
-ResultCode DataStore::storeSize(const std::string& storeName, const uint32_t& partition, size_t& size) {
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  if (!it->second) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  PartitionStore* partStore = dynamic_cast<PartitionStore*>(it->second.get());
-
-  size = partStore->storeSize(partition, size);
-
-  return RC_OK;
 }
 
 ResultCode DataStore::loadCfgFile(const string& configFilePath) {
-  return StoreConfigParser().parseStoreConfig(configFilePath, getStoreConfigWrappers());
-}
-
-ResultCode DataStore::initializeDataStore() {
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  vector<string> storeNames = storeConfigWrappers.getStoreNames();
-  for (size_t i = 0; i < storeNames.size(); i++) {
-    storeConfigWrappers.getStoreConfig(storeNames[i], storeConfigWrapper);
-
-    switch (storeConfigWrapper->getStoreConfig().partition_type()) {
-    case idgs::store::pb::PARTITION_TABLE: {
-      break;
-    }
-    case idgs::store::pb::REPLICATED: {
-      auto it = storeMap.find(storeNames[i]);
-      if (it == storeMap.end()) {
-        storeMap[storeNames[i]].reset(new ReplicatedStore);
-        storeMap[storeNames[i]]->setStoreConfigWrapper(storeConfigWrapper);
-        storeMap[storeNames[i]]->initialize();
-      }
-
-      break;
-    }
-    case idgs::store::pb::CONSISTENCE_HASH: {
-      return RC_NOT_SUPPORT;
-    }
-    case idgs::store::pb::CUSTOM: {
-      return RC_NOT_SUPPORT;
-    }
-    default: {
-      return RC_NOT_SUPPORT;
-    }
-    }
-  }
-
-  return RC_SUCCESS;
-
-}
-
-ResultCode DataStore::scanPartitionData(const string& storeName, const uint32_t& partition,
-    std::shared_ptr<StoreMap>& dataMap) {
-
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  ResultCode code = storeConfigWrappers.getStoreConfig(storeName, storeConfigWrapper);
+  pb::DataStoreConfig config;
+  auto code = StoreConfigParser::parseStoreConfigFromFile(configFilePath, &config);
   if (code != RC_SUCCESS) {
     return code;
   }
 
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
-
-  switch (storeConfigWrapper->getStoreConfig().partition_type()) {
-  case idgs::store::pb::PARTITION_TABLE: {
-    PartitionStore* store = dynamic_cast<PartitionStore*>(it->second.get());
-    store->scanPartitionData(partition, dataMap);
-    break;
-  }
-  case idgs::store::pb::REPLICATED: {
-    ReplicatedStore* store = dynamic_cast<ReplicatedStore*>(it->second.get());
-    store->scanData(dataMap);
-    break;
-  }
-  default: {
-    break;
-  }
-  }
-
-  return RC_SUCCESS;
-
+  return createDataStore(config);
 }
 
-ResultCode DataStore::migrateData(const uint32_t& partition, const int32_t& localMemberId, const int32_t& curMemberId,
-    const int32_t& newMemberId) {
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  vector<string> storeNames = storeConfigWrappers.getStoreNames();
-  for (size_t i = 0; i < storeNames.size(); i++) {
-    storeConfigWrappers.getStoreConfig(storeNames[i], storeConfigWrapper);
-    switch (storeConfigWrapper->getStoreConfig().partition_type()) {
-    case idgs::store::pb::PARTITION_TABLE: {
-      auto it = storeMap.find(storeNames[i]);
-      if (it == storeMap.end()) {
-        storeMap[storeNames[i]].reset(new PartitionStore);
-        storeMap[storeNames[i]]->setStoreConfigWrapper(storeConfigWrapper);
+ResultCode DataStore::createDataStore(const std::string& content, bool start) {
+  pb::DataStoreConfig config;
+  auto code = StoreConfigParser::parseStoreConfigFromString(content, &config);
+  if (code != RC_SUCCESS) {
+    return code;
+  }
+
+  return createDataStore(config);
+}
+
+ResultCode DataStore::createDataStore(const pb::DataStoreConfig& dataStoreConfig, bool start) {
+  pb::DataStoreConfig config(dataStoreConfig);
+  auto code = StoreConfigParser::parseStoreConfig(&config);
+  if (code != RC_SUCCESS) {
+    return RC_PARSE_CONFIG_ERROR;
+  }
+
+  auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
+
+  auto schemas = config.schemas();
+  auto it = schemas.begin();
+  for (; it != schemas.end(); ++ it) {
+    tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+    auto sit = schemaMap.find(it->schema_name());
+    if (sit == schemaMap.end()) {
+      schemaMap.insert(std::pair<std::string, StoreSchemaWrapperPtr>(it->schema_name(), std::make_shared<StoreSchemaWrapper>(it->schema_name())));
+    }
+
+    auto& schema = schemaMap[it->schema_name()];
+    auto& helper = schema->getMessageHelper();
+
+    if (it->has_proto_filename()) {
+      const string& filename = it->proto_filename();
+      DVLOG(2) << "register protobuf file : " << filename;
+      do {
+        code = helper.registerDynamicMessage(filename);
+        if (code == RC_SUCCESS) {
+          break;
+        }
+
+        std::string idgsHome = "..";
+        if (getenv("IDGS_HOME")) {
+          idgsHome = getenv("IDGS_HOME");
+        }
+
+        string path = idgsHome + "/" + filename;
+        code = helper.registerDynamicMessage(path);
+        if (code != RC_SUCCESS) {
+          LOG(ERROR) << "error when register protobuf file : " << path << " casused by " << getErrorDescription(code);
+          return code;
+        }
+      } while (false);
+    }
+
+    if (it->has_proto_content()) {
+      const string& content = it->proto_content();
+      string filename = "/tmp/idgs/proto/dynamic_proto_file_m" + std::to_string(localMemberId) + ".proto";
+      sys::saveFile(filename, content);
+      DVLOG(2) << "register protobuf with content : " << content;
+      code = helper.registerDynamicMessage(filename);
+      if (code != RC_SUCCESS) {
+        LOG(ERROR) << "error when register protobuf with content : " << content << " casused by " << getErrorDescription(code);
+        remove(filename.c_str());
+        return code;
       }
 
-      PartitionStore* partStore = dynamic_cast<PartitionStore*>(storeMap[storeNames[i]].get());
-      partStore->migrateData(partition, localMemberId, curMemberId, newMemberId);
-      break;
+      remove(filename.c_str());
     }
-    default: {
-      break;
-    }
-    }
-  }
 
-  return RC_SUCCESS;
+    auto storeIt = it->store_config().begin();
+    for (; storeIt != it->store_config().end(); ++ storeIt) {
+      string keyType = storeIt->key_type();
+      if (!helper.isMessageRegistered(keyType)) {
+        LOG(ERROR)<< "store " << storeIt->name() << ", key type " << keyType << " is not register to system.";
+        return RC_KEY_TYPE_NOT_REGISTERED;
+      }
 
-}
+      string valueType = storeIt->value_type();
+      if (!helper.isMessageRegistered(valueType)) {
+        LOG(ERROR)<< "store " << storeIt->name() << ", value type " << valueType << " is not register to system.";
+        return RC_VALUE_TYPE_NOT_REGISTERED;
+      }
 
-ResultCode DataStore::clearData(const std::string& storeName, const uint32_t& partition) {
-  auto it = storeMap.find(storeName);
-  if (it == storeMap.end()) {
-    return RC_STORE_NOT_FOUND;
-  }
+      StoreConfigWrapperPtr storeConfigWrapper = std::make_shared<StoreConfigWrapper>();
+      storeConfigWrapper->setSchema(it->schema_name());
 
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  ResultCode code = storeConfigWrappers.getStoreConfig(storeName, storeConfigWrapper);
-  if (code == RC_SUCCESS) {
-    switch (storeConfigWrapper->getStoreConfig().partition_type()) {
-    case idgs::store::pb::PARTITION_TABLE: {
-      PartitionStore* store = dynamic_cast<PartitionStore*>(it->second.get());
-      code = store->clearData(partition);
-      break;
-    }
-    case idgs::store::pb::REPLICATED: {
-      ReplicatedStore* store = dynamic_cast<ReplicatedStore*>(it->second.get());
-      code = store->clearData();
-      break;
-    }
-    default: {
-      code = RC_NOT_SUPPORT;
-      break;
-    }
+      auto key = helper.getPbPrototype(keyType);
+      auto value = helper.getPbPrototype(valueType);
+      storeConfigWrapper->setMessageTemplate(key, value);
+
+      code = storeConfigWrapper->setStoreConfig(* storeIt);
+      if (code != RC_SUCCESS) {
+        return code;
+      }
+
+      code = schema->addStore(storeConfigWrapper);
+      if (code != RC_SUCCESS) {
+        return code;
+      }
+
+      if (start) {
+        code = schema->getStore(storeIt->name())->initialize();
+        if (code != RC_SUCCESS) {
+          return code;
+        }
+      }
     }
   }
 
   return code;
 }
 
-ResultCode DataStore::registerActor() {
-  ActorFramework* actorFramework = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+ResultCode DataStore::dropSchema(const std::string& schemaName) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto it = schemaMap.find(schemaName);
+  if (it == schemaMap.end()) {
+    return RC_SCHEMA_NOT_FOUND;
+  }
 
-  // register stateless actor and its descriptor
-  StoreServiceActor* storeActor = new StoreServiceActor(ACTORID_STORE_SERVCIE);
-  actorFramework->Register(ACTORID_STORE_SERVCIE, storeActor);
-
-  StoreSyncStatelessActor* syncActor = new StoreSyncStatelessActor(DATA_STORE_SYNC_ACTOR);
-  actorFramework->Register(DATA_STORE_SYNC_ACTOR, syncActor);
-
-  ListenerManager* listenerManager = new ListenerManager(LISTENER_MANAGER);
-  actorFramework->Register(LISTENER_MANAGER, listenerManager);
-
-  // register actor descriptor
-  shared_ptr<ModuleDescriptorWrapper> module_descriptor(new ModuleDescriptorWrapper);
-  module_descriptor->setName(STORE_MODULE_DESCRIPTOR_NAME);
-  module_descriptor->setDescription(STORE_MODULE_DESCRIPTOR_DESCRIPTION);
-  module_descriptor->addActorDescriptor(ReplicatedStoreSyncStatefulActor::generateActorDescriptor());
-  module_descriptor->addActorDescriptor(DataAggregatorActor::generateActorDescriptor());
-  module_descriptor->addActorDescriptor(DataSizeAggregatorActor::generateActorDescriptor());
-  module_descriptor->addActorDescriptor(StoreServiceActor::generateActorDescriptor());
-  module_descriptor->addActorDescriptor(StoreSyncStatelessActor::generateActorDescriptor());
-  module_descriptor->addActorDescriptor(ListenerManager::generateActorDescriptor());
-  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerModuleDescriptor(
-      module_descriptor->getName(), module_descriptor);
+  it->second->drop();
+  schemaMap.erase(it);
 
   return RC_SUCCESS;
 }
 
-std::vector<std::string> DataStore::getAllStoreNames() {
-  return getStoreConfigWrappers().getStoreNames();
+ResultCode DataStore::dropStore(const std::string& schemaName, const std::string& storeName) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto it = schemaMap.find(schemaName);
+  if (it == schemaMap.end()) {
+    return RC_SCHEMA_NOT_FOUND;
+  }
+
+  return it->second->removeStore(storeName);
+}
+
+ResultCode DataStore::startDataStore() {
+  auto it = schemaMap.begin();
+  for (; it != schemaMap.end(); ++ it) {
+    auto& stores = it->second->getStores();
+    for (int32_t i = 0; i < stores.size(); ++ i) {
+      auto& storeConfigWrapper = stores.at(i)->getStoreConfigWrapper();
+
+      auto code = storeConfigWrapper->buildStoreListener();
+      if (code != RC_SUCCESS) {
+        return code;
+      }
+
+      stores.at(i)->initialize();
+    }
+  }
+
+  return RC_SUCCESS;
 }
 
 bool DataStore::isInit() {
   return isInited;
 }
 
-std::shared_ptr<Store>& DataStore::getStore(const std::string& name) {
-  static std::shared_ptr<Store> nullStore;
+StorePtr DataStore::getStore(const std::string& storeName) {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-  auto it = storeMap.find(name);
-  if (it == storeMap.end()) {
+  auto it = schemaMap.begin();
+  for (; it != schemaMap.end(); ++ it) {
+    auto store = it->second->getStore(storeName);
+    if (store) {
+      return store;
+    }
+  }
+
+  static StorePtr nullStore;
+  return nullStore;
+}
+
+StorePtr DataStore::getStore(const std::string& schemaName, const std::string& storeName) {
+  auto it = schemaMap.find(schemaName);
+  if (it == schemaMap.end()) {
+    static StorePtr nullStore;
     return nullStore;
   }
 
-  return it->second;
+  return it->second->getStore(storeName);
 }
 
-ResultCode DataStore::registerStoreListener(StoreListener* listener) {
-  if (!listener) {
-    return RC_INVALID_STORE_LISTENER;
+ResultCode DataStore::getStores(std::vector<StorePtr>& stores) {
+  auto it = schemaMap.begin();
+  for (; it != schemaMap.end(); ++ it) {
+    auto code = getStores(it->first, stores);
+    if (code != RC_SUCCESS) {
+      return code;
+    }
   }
 
-  StoreListenerFactory::registerStoreListener(listener);
   return RC_SUCCESS;
+}
+
+ResultCode DataStore::getStores(const std::string& schemaName, std::vector<StorePtr>& stores) {
+  auto it = schemaMap.find(schemaName);
+  if (it == schemaMap.end()) {
+    return RC_SCHEMA_NOT_FOUND;
+  }
+
+  auto store = it->second->getStores();
+  stores.insert(stores.end(), store.begin(), store.end());
+
+  return RC_SUCCESS;
+}
+
+void DataStore::registerStoreListener(StoreListener* listener) {
+  StoreListenerFactory::registerStoreListener(listener);
+}
+
+void DataStore::unregisterStoreListener(StoreListener* listener) {
+  StoreListenerFactory::unregisterStoreListener(listener->getName());
 }
 
 }//namespace store

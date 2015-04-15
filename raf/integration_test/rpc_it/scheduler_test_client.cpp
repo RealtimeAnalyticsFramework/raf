@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 
-#include <array>
 #include <gtest/gtest.h>
 #include "idgs/client/client_pool.h"
 
@@ -47,23 +46,18 @@ namespace idgs {
       int client_run() {
         function_footprint();
 
-        using asio::ip::tcp;
         try {
 
           ResultCode resultCode;
 
-          std::shared_ptr<TcpClientInterface> client =
-              ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(resultCode);
+          auto client = getTcpClientPool().getTcpClient(resultCode);
           if (resultCode != RC_SUCCESS) {
             cerr << "Get Client error: " << getErrorDescription(resultCode) << endl;
             return RC_ERROR;
           }
 
           // step 1, 2
-          std::array<char, 128> buf;
-
-          idgs::client::ClientActorMessagePtr clientActorMsg(new idgs::client::ClientActorMessage);
-          clientActorMsg->setChannel(TC_AUTO);
+          idgs::client::ClientActorMessagePtr clientActorMsg = make_shared<idgs::client::ClientActorMessage>();
           clientActorMsg->setDestActorId(test_server_id);
           clientActorMsg->setDestMemberId(ANY_MEMBER);
           clientActorMsg->setSourceActorId("client_actor_id");
@@ -71,7 +65,8 @@ namespace idgs {
           clientActorMsg->setOperationName(start_work_operation);
           clientActorMsg->getRpcMessage()->set_payload("payload");
           ResultCode errorCode;
-          idgs::client::ClientActorMessagePtr response = client->sendRecv(clientActorMsg, &errorCode);
+          idgs::client::ClientActorMessagePtr response;
+          errorCode = client->sendRecv(clientActorMsg, response);
           if (errorCode != RC_SUCCESS) {
             cerr << "execute the command error: " << getErrorDescription(errorCode) << endl;
             client->close();
@@ -79,7 +74,7 @@ namespace idgs {
           }
           DLOG(INFO) << "write message to server" << clientActorMsg->toString();
           // step 3, 4
-          response = client->receive(errorCode);
+          errorCode = client->receive(response);
           if (errorCode != RC_SUCCESS) {
             DLOG(INFO) << "get response error " << errorCode;
             return errorCode;
@@ -91,10 +86,10 @@ namespace idgs {
             response->setDestMemberId(response->getSourceMemberId());
             response->setChannel(TC_TCP);
             response->setSourceMemberId(CLIENT_MEMBER);
-            ResultCode resultCode;
 
             ResultCode errorCode;
-            idgs::client::ClientActorMessagePtr tcpResponse = client->sendRecv(response, &errorCode);
+            idgs::client::ClientActorMessagePtr tcpResponse;
+            errorCode = client->sendRecv(response, tcpResponse);
             DVLOG(2) << "after sendRecv";
             if (errorCode != RC_SUCCESS) {
               cerr << "execute the command error: " << getErrorDescription(errorCode) << endl;
@@ -134,11 +129,11 @@ TEST(scheduler_test, scheduler_actor_test) {
   function_footprint();
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/rpc_it/client.conf";
+  setting.clientConfig = "conf/client.conf";
   ResultCode resultCode;
 
   DVLOG(2) <<"start parse conf" ;
-  resultCode = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  resultCode = getTcpClientPool().loadConfig(setting);
   if (resultCode != RC_SUCCESS) {
     cerr << "Load Configuration error: " << getErrorDescription(resultCode) << endl;
     exit(1);
@@ -151,6 +146,6 @@ TEST(scheduler_test, scheduler_actor_test) {
   //ASSERT_EQ(2, count);
   ASSERT_EQ(3, test_server_count);
   ::sleep(3);
-  //::idgs::util::singleton<idgs::client::TcpClientPool>::getInstance().close();
+  //getTcpClientPool().close();
   DLOG(INFO) << "Test finished";
 }

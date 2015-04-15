@@ -16,11 +16,29 @@ namespace idgs {
 namespace expr {
 
 ExpressionContext::ExpressionContext():
-  key(NULL), value(NULL), inPartition(NULL), outPartition(NULL) {
+  key(NULL), value(NULL), outkey(NULL), outvalue(NULL), viarialbes(NULL) {
 }
 
 ExpressionContext::~ExpressionContext() {
+  if (viarialbes) {
+    delete viarialbes;
+    viarialbes = NULL;
+  }
 }
+
+
+__thread ExpressionContext* threadlocal_expression_context = NULL;
+
+///
+/// get expression context in thread local storage
+///
+ExpressionContext& getTlExpressionContext() {
+  if (!threadlocal_expression_context) {
+    threadlocal_expression_context = new ExpressionContext();
+  }
+  return *threadlocal_expression_context;
+}
+
 
 } // namespace expr
 } // namespace idgs 

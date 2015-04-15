@@ -12,9 +12,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/store/store.h"
 
-#include "idgs/cluster/cluster_framework.h"
+#include "idgs/application.h"
 
-using namespace idgs::cluster;
 using namespace google::protobuf;
 using namespace protobuf;
 
@@ -25,14 +24,14 @@ namespace store {
 /// @fixme one member only own part of partitions.
 ResultCode PartitionStore::initialize() {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
-  int32_t part_size = getPartitionSize();
-  for (int32_t i = 0; i < part_size; i++) {
+  auto part_size = idgs_application()->getClusterFramework()->getPartitionCount();
+  for (int32_t i = 0; i < part_size; ++ i) {
     auto it = dataMap.find(i);
     if (it == dataMap.end()) {
       if (getStoreConfigWrapper()->getStoreConfig().store_type() == pb::ORDERED) {
-        dataMap[i].reset(new TreeMap);
+        dataMap[i] = std::make_shared<TreeMap>();
       } else if (getStoreConfigWrapper()->getStoreConfig().store_type() == pb::UNORDERED) {
-        dataMap[i].reset(new HashMap);
+        dataMap[i] = std::make_shared<HashMap>();
       }
     }
   }
@@ -40,34 +39,37 @@ ResultCode PartitionStore::initialize() {
   return RC_SUCCESS;
 }
 
-/// @todo refactor
-ResultCode PartitionStore::migrateData(const uint32_t& partition, const int32_t& localMemberId,
-    const int32_t& curMemberId, const int32_t& newMemberId) {
+ResultCode PartitionStore::snapshotStore(const int32_t& partition, std::shared_ptr<StoreMap>& map) {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
-  if (localMemberId == newMemberId) {
-    auto it = dataMap.find(partition);
-    if (it == dataMap.end()) {
-      if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::ORDERED) {
-        dataMap[partition].reset(new TreeMap);
-      } else if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::UNORDERED) {
-        dataMap[partition].reset(new HashMap);
-      }
-    }
-  } else if (localMemberId == curMemberId) {
-    dataMap.erase(partition);
+  auto it = dataMap.find(partition);
+  if (it == dataMap.end()) {
+    return RC_PARTITION_NOT_FOUND;
   }
+
+  StoreMap* snapshot = NULL;
+  if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::ORDERED) {
+    auto treeMap = dynamic_cast<TreeMap*>(it->second.get());
+    snapshot = new TreeMap(* treeMap);
+  } else if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::UNORDERED) {
+    auto hashMap = dynamic_cast<HashMap*>(it->second.get());
+    snapshot = new HashMap(* hashMap);
+  } else {
+    return RC_NOT_SUPPORT;
+  }
+
+  map.reset(snapshot);
 
   return RC_SUCCESS;
 }
 
 /// @todo partitionExist
-ResultCode PartitionStore::getData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode PartitionStore::getData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   std::shared_ptr<StoreMap> map;
   int32_t partition = getDataPartition(key, status);
   bool partitionExist = false;
   {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-    DVLOG(1) << "partititon store insert data";
+    DVLOG(1) << "partition store get data";
 
     auto it = dataMap.find(partition);
     partitionExist = (it != dataMap.end());
@@ -91,13 +93,13 @@ ResultCode PartitionStore::getData(const StoreKey<Message>& key, StoreValue<Mess
   return map->get(key, value);
 }
 
-ResultCode PartitionStore::setData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode PartitionStore::setData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   std::shared_ptr<StoreMap> map;
   int32_t partition = getDataPartition(key, status);
   bool partitionExist = false;
   {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-    DVLOG_EVERY_N(1, 100) << "partititon store insert data";
+    DVLOG_EVERY_N(1, 100) << "partition store insert data";
 
     auto it = dataMap.find(partition);
     partitionExist = (it != dataMap.end());
@@ -121,13 +123,13 @@ ResultCode PartitionStore::setData(const StoreKey<Message>& key, StoreValue<Mess
   return map->set(key, value);
 }
 
-ResultCode PartitionStore::removeData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode PartitionStore::removeData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   std::shared_ptr<StoreMap> map;
   int32_t partition = getDataPartition(key, status);
   bool partitionExist = false;
   {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-    DVLOG(1) << "partititon store insert data";
+    DVLOG(1) << "partition store delete data";
 
     auto it = dataMap.find(partition);
     partitionExist = (it != dataMap.end());
@@ -151,27 +153,54 @@ ResultCode PartitionStore::removeData(const StoreKey<Message>& key, StoreValue<M
   return map->remove(key, value);
 }
 
-ResultCode PartitionStore::storeSize(size_t& size) {
-  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-  size = 0;
-  int32_t partSize = getPartitionSize();
-  for (int32_t i = 0; i < partSize; i++) {
+void PartitionStore::clearData() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto partSize = idgs_application()->getClusterFramework()->getPartitionCount();
+  for (int32_t i = 0; i < partSize; ++ i) {
     auto it = dataMap.find(i);
     if (it != dataMap.end()) {
-      size += it->second->size();
+      it->second->clear();
     }
   }
-  return RC_SUCCESS;
 }
 
-ResultCode PartitionStore::storeSize(const uint32_t& partition, size_t& size) {
+size_t PartitionStore::dataSize() {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  size_t size = 0;
+  auto cluster = idgs_application()->getClusterFramework();
+  auto localMemberId = cluster->getMemberManager()->getLocalMemberId();
+  auto partSize = cluster->getPartitionCount();
+  for (int32_t i = 0; i < partSize; ++ i) {
+    if (localMemberId == cluster->getPartitionManager()->getPartition(i)->getPrimaryMemberId()) {
+      auto it = dataMap.find(i);
+      if (it != dataMap.end()) {
+        size += it->second->size();
+      }
+    }
+  }
+
+  return size;
+}
+
+size_t PartitionStore::dataSize(const uint32_t& partition) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  auto it = dataMap.find(partition);
+  if (it == dataMap.end()) {
+    return 0;
+  }
+
+  return it->second->size();
+}
+
+ResultCode PartitionStore::clearData(const uint32_t& partition) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
   auto it = dataMap.find(partition);
   if (it == dataMap.end()) {
     return RC_PARTITION_NOT_FOUND;
   }
 
-  size = it->second->size();
+  it->second->clear();
+
   return RC_SUCCESS;
 }
 
@@ -187,80 +216,135 @@ ResultCode PartitionStore::scanPartitionData(const uint32_t& partition, shared_p
   return RC_SUCCESS;
 }
 
-size_t PartitionStore::getPartitionSize() {
-  return ::idgs::util::singleton<ClusterFramework>::getInstance().getPartitionCount();
-}
-
-uint32_t PartitionStore::getDataPartition(const StoreKey<Message>& key, PartitionStatus* status) {
+uint32_t PartitionStore::getDataPartition(const StoreKey<Message>& key, PartitionInfo* status) {
   if (status) {
     return  status->partitionId;
   } else {
     if (getStoreConfigWrapper()) {
-      PartitionStatus ps;
-      getStoreConfigWrapper()->calculatePartitionStatus(const_cast<StoreKey<Message>&>(key), &ps);
+      PartitionInfo ps;
+      getStoreConfigWrapper()->calculatePartitionInfo(const_cast<StoreKey<Message>&>(key), &ps);
       return ps.partitionId;
     } else {
       LOG(WARNING) << "store config is NULL";
-      uint32_t partSize = ::idgs::util::singleton<ClusterFramework>::getInstance().getPartitionCount();
+      uint32_t partSize = idgs_application()->getClusterFramework()->getPartitionCount();
       hashcode_t hashcode = HashCode::hashcode(key.get());
       return hashcode % partSize;
     }
   }
 }
 
-ResultCode PartitionStore::clearData(const uint32_t& partition) {
-  DVLOG(1) << "clear distributed partition: " << partition;
+void PartitionStore::addMigrationActor(idgs::actor::Actor* actor) {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
-  auto it = dataMap.find(partition);
-  if (it == dataMap.end()) {
-    return RC_PARTITION_NOT_FOUND;
+  migrationActors.push_back(actor);
+  migrationActorIds.insert(actor->getActorId());
+}
+
+void PartitionStore::removeMigrationActor(idgs::actor::Actor* actor) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto it = find(migrationActors.begin(), migrationActors.end(), actor);
+  if (it != migrationActors.end()) {
+    migrationActors.erase(it);
   }
 
-  return it->second->clear();
+  auto idit = migrationActorIds.find(actor->getActorId());
+  if (idit != migrationActorIds.end()) {
+    migrationActorIds.erase(idit);
+  }
 }
+
+std::vector<idgs::actor::Actor*> PartitionStore::getMigrationActors() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  return migrationActors;
+}
+
+std::set<std::string> PartitionStore::getMigrationActorIds() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  return migrationActorIds;
+}
+
 // class PartitionStore
 
 // class ReplicatedStore
 ResultCode ReplicatedStore::initialize() {
   if (getStoreConfigWrapper()->getStoreConfig().store_type() == pb::ORDERED) {
-    dataMap.reset(new TreeMap);
+    dataMap = std::make_shared<TreeMap>();
   } else if (getStoreConfigWrapper()->getStoreConfig().store_type() == pb::UNORDERED) {
-    dataMap.reset(new HashMap);
+    dataMap = std::make_shared<HashMap>();
   }
 
   return RC_SUCCESS;
 }
 
-ResultCode ReplicatedStore::getData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode ReplicatedStore::getData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   return dataMap->get(key, value);
 }
 
-ResultCode ReplicatedStore::setData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode ReplicatedStore::setData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   return dataMap->set(key, value);
 }
 
-ResultCode ReplicatedStore::removeData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionStatus* status) {
+ResultCode ReplicatedStore::removeData(const StoreKey<Message>& key, StoreValue<Message>& value, PartitionInfo* status) {
   return dataMap->remove(key, value);
 }
 
-ResultCode ReplicatedStore::syncData(shared_ptr<idgs::store::pb::SyncStore>& store) {
-  return dataMap->scan(store);
+size_t ReplicatedStore::dataSize() {
+  return dataMap->size();
 }
 
-ResultCode ReplicatedStore::storeSize(size_t& size) {
-  size = dataMap->size();
-  return RC_SUCCESS;
-}
-
-ResultCode ReplicatedStore::clearData() {
+void ReplicatedStore::clearData() {
   DVLOG(1) << "clear replicated store";
   dataMap->clear();
-  return RC_SUCCESS;
 }
 
 ResultCode ReplicatedStore::scanData(std::shared_ptr<StoreMap>& dataMap) {
   dataMap = this->dataMap;
   return RC_SUCCESS;
+}
+
+ResultCode ReplicatedStore::snapshotStore(std::shared_ptr<StoreMap>& map) {
+  StoreMap* snapshot = NULL;
+  if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::ORDERED) {
+    auto treeMap = dynamic_cast<TreeMap*>(dataMap.get());
+    snapshot = new TreeMap(* treeMap);
+  } else if (getStoreConfigWrapper()->getStoreConfig().store_type() == idgs::store::pb::UNORDERED) {
+    auto hashMap = dynamic_cast<HashMap*>(dataMap.get());
+    snapshot = new HashMap(* hashMap);
+  } else {
+    return RC_NOT_SUPPORT;
+  }
+
+  map.reset(snapshot);
+
+  return RC_SUCCESS;
+}
+
+void ReplicatedStore::addSyncActor(idgs::actor::Actor* actor) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  syncActors.push_back(actor);
+  syncActorIds.insert(actor->getActorId());
+}
+
+void ReplicatedStore::removeSyncActor(idgs::actor::Actor* actor) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto it = find(syncActors.begin(), syncActors.end(), actor);
+  if (it != syncActors.end()) {
+    syncActors.erase(it);
+  }
+
+  auto idit = syncActorIds.find(actor->getActorId());
+  if (idit != syncActorIds.end()) {
+    syncActorIds.erase(idit);
+  }
+}
+
+std::vector<idgs::actor::Actor*> ReplicatedStore::getSyncActors() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  return syncActors;
+}
+
+std::set<std::string> ReplicatedStore::getSyncActorIds() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+  return syncActorIds;
 }
 
 // class ReplicatedStore

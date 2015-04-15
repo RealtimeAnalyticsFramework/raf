@@ -13,145 +13,54 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/application.h"
 
 namespace idgs{
-namespace http {
-namespace server {
-void HttpServlet::service(HttpRequest& req, HttpResponse& rep) {
-  if (req.getMethod() == GET){
-    doGet(req,rep);
-  } else if (req.getMethod() == DELETE){
-    doDelete(req,rep);
-  } else if (req.getMethod() == HEAD){
-    doHead(req,rep);
-  } else if (req.getMethod() == OPTIONS){
-    doOptions(req,rep);
-  } else if (req.getMethod() == POST){
-    doPost(req,rep);
-  } else if (req.getMethod() == PUT){
-    doPut(req,rep);
+namespace httpserver {
+
+void HttpServlet::service(HttpRequest& request, HttpResponse& response) {
+  if (request.getMethod() == GET){
+    doGet(request,response);
+  } else if (request.getMethod() == DELETE){
+    doDelete(request,response);
+  } else if (request.getMethod() == HEAD){
+    doHead(request,response);
+  } else if (request.getMethod() == OPTIONS){
+    doOptions(request,response);
+  } else if (request.getMethod() == POST){
+    doPost(request,response);
+  } else if (request.getMethod() == PUT){
+    doPut(request,response);
   } else {
-    notSupportedAction(req, rep);
+    notSupportedAction(request, response);
   }
 }
 
-void HttpServlet::doGet(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doGet(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::doDelete(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doDelete(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::doHead(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doHead(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::doOptions(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doOptions(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::doPost(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doPost(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::doPut(HttpRequest& req, HttpResponse& rep) {
-  notSupportedAction(req, rep);
+void HttpServlet::doPut(HttpRequest& request, HttpResponse& response) {
+  notSupportedAction(request, response);
 }
 
-void HttpServlet::notSupportedAction(HttpRequest& req, HttpResponse& rep) {
-  std::string con = "method " + req.getMethod() + " not supported";
-  rep = HttpResponse::createReply(HttpResponse::not_implemented, con);
+void HttpServlet::notSupportedAction(HttpRequest& request, HttpResponse& response) {
+  std::string con = "method " + request.getMethod() + " not supported";
+  response = HttpResponse::createReply(HttpResponse::not_implemented, con);
 }
 
-////////////////////////// HttpAsyncServlet ///////////////////////////////////
-
-HttpAsyncServlet::HttpAsyncServlet():handler(NULL) {
-  VLOG(2) << "HttpAsyncServlet " << this->getActorId() << " is created";
-  idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->Register(getActorId(), this);
-}
-
-HttpAsyncServlet::~HttpAsyncServlet() {
-  VLOG(2) << "HttpAsyncServlet " << this->getActorName() << "::" << this->getActorId() << " is stopped";
-  idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->unRegisterStatefulActor(getActorId());
-}
-
-void HttpAsyncServlet::service(HttpRequest& req) {
-  if (req.getMethod() == GET){
-    doGet(req);
-  } else if (req.getMethod() == DELETE){
-    doDelete(req);
-  } else if (req.getMethod() == HEAD){
-    doHead(req);
-  } else if (req.getMethod() == OPTIONS){
-    doOptions(req);
-  } else if (req.getMethod() == POST){
-    doPost(req);
-  } else if (req.getMethod() == PUT){
-    doPut(req);
-  } else {
-    notSupportedAction(req);
-  }
-}
-
-void HttpAsyncServlet::doGet(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::doDelete(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::doHead(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::doOptions(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::doPost(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::doPut(HttpRequest& req) {
-  notSupportedAction(req);
-}
-
-void HttpAsyncServlet::actorMessageHandler(const idgs::actor::ActorMessagePtr& msg) {
-  VLOG(3) << "get actor response: " << msg->toString();
-  std::stringstream ss;
-  std::string payload = "";
-  if (msg->getPayload().get()) {
-    payload = protobuf::JsonMessage::toPrettyJsonString(msg->getPayload().get());
-  } else {
-    if(msg->getRpcMessage()->has_payload() && msg->getSerdesType() == idgs::pb::PayloadSerdes::PB_JSON) {
-      const google::protobuf::FieldDescriptor* fd = msg->getRpcMessage()->GetDescriptor()->FindFieldByName("payload");
-      payload = msg->getRpcMessage()->GetReflection()->GetString(*msg->getRpcMessage(), fd);
-      payload = protobuf::JsonMessage::toIndentJsonString(payload);
-    }
-  }
-
-  ss << payload << std::endl;
-
-  VLOG(3) << "get payload: " << ss.str();
-
-  std::multimap<std::string, idgs::actor::PbMessagePtr>& attachments = msg->getAttachments();
-  if (!attachments.empty()) {
-    for (auto it = attachments.begin(); it != attachments.end(); ++it) {
-      ss << "{" << it->first << "} = {" << protobuf::JsonMessage::toPrettyJsonString(it->second.get()) << "}" << std::endl;
-    }
-  }
-
-  HttpResponse rep = HttpResponse::createReply(HttpResponse::ok, ss.str());
-  handler(rep);
-}
-
-void HttpAsyncServlet::notSupportedAction(HttpRequest& req) {
-  HttpResponse rep = HttpResponse::createReply(HttpResponse::not_implemented);
-  handler(rep);
-}
-
-
-
-} // idgs
-} // http
-} // server
+} // namespace httpserver
+} // namesapce idgs

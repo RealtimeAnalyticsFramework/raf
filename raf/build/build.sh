@@ -16,6 +16,12 @@ if [ "$BUILD_DIR" == "" ]; then
   export BUILD_DIR
 fi
 
+max_make(){
+  local CORES=`grep processor /proc/cpuinfo | wc -l`
+  make -j $CORES -k $@
+}
+
+
 # dump stdout and stderr when error.
 # $1 executable
 #
@@ -30,13 +36,16 @@ run_app() {
   fi
   rm -f 1.log
 }
-killall -9 idgs-aio
+
+# killall -9 idgs
+
 #
 # build
 #
 echo "#############################  Building ###################################"
 echo "workspace: $WORKSPACE"
 cd $WORKSPACE/idgs
+mkdir it_log
 if test ! -f "aclocal.m4" ; then
   run_app aclocal
 fi
@@ -56,7 +65,7 @@ if test ! -f "Makefile"; then
 fi
 
 echo "make"
-make -j 8 -k 1>/dev/null || make -j 4 -k 1>/dev/null || make -k || make || exit $?
+max_make 1>/dev/null || make || exit $?
 echo "install"
 make install 1>/dev/null 2>&1 || exit $?
 

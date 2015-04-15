@@ -55,8 +55,8 @@ BatchLineLoader::~BatchLineLoader() {
 
 ClientActorMessagePtr BatchLineLoader::genBatchLineClientActorMsg(const std::string& store_name,
     const std::vector<std::string>& lines, uint32_t option) {
-  ClientActorMessagePtr actorMsg(new ClientActorMessage);
-  std::shared_ptr<RawlineCrudRequest> pay_load(new RawlineCrudRequest());
+  ClientActorMessagePtr actorMsg = std::make_shared<ClientActorMessage>();
+  std::shared_ptr<RawlineCrudRequest> pay_load = std::make_shared<RawlineCrudRequest>();
   actorMsg->setOperationName(OP_CRUD_REQUEST);
   pay_load->set_store_name(store_name);
   pay_load->set_type(CrudType::INSERT);
@@ -118,7 +118,7 @@ bool BatchLineLoader::loadTask(std::vector<std::string>& lines) {
         break;
       }
       if (line.empty()) {
-        LOG(WARNING)<< "read an empty line, ignored";
+        // LOG(WARNING)<< "read an empty line, ignored";
         continue;
       }
       read_lines.fetch_add(1);
@@ -143,8 +143,8 @@ bool BatchLineLoader::loadTask(std::vector<std::string>& lines) {
 }
 
 void BatchLineLoader::sendStoreFileMapperCfg(idgs::ResultCode* rc) {
-  ClientActorMessagePtr actorMsg(new ClientActorMessage);
-  std::shared_ptr<StoreFileMapperConfig> pay_load(new StoreFileMapperConfig(*mapper_config));
+  ClientActorMessagePtr actorMsg = std::make_shared<ClientActorMessage>();
+  std::shared_ptr<StoreFileMapperConfig> pay_load = std::make_shared<StoreFileMapperConfig>(* mapper_config);
   actorMsg->setOperationName(OP_CRUD_MAPPER);
   actorMsg->setSourceActorId("client_actor_id");
   actorMsg->setSourceMemberId(CLIENT_MEMBER);

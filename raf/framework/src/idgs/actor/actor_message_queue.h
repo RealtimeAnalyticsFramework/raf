@@ -9,10 +9,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include <condition_variable>
-#include <atomic>
 
 #include "idgs/actor/actor_worker.h"
-#include "idgs/util/singleton.h"
 
 namespace idgs {
 namespace actor {
@@ -56,6 +54,11 @@ public:
     shutdown = true;
   }
 
+  void close() {
+    shutdown = true;
+//    queue.clear();
+  }
+
   void setMaxIdleCount(int32_t c) {
     maxIdleCount = c;
   }
@@ -72,8 +75,12 @@ public:
     return queue.unsafe_size();
   }
 
-protected:
+public:
   void push(const ActorMessagePtr& source) {
+    if (shutdown) {
+      return;
+    }
+
     queue.push(source);
     if (idleCount.load() > maxIdleCount) {
       notify();
@@ -91,18 +98,6 @@ private:
 
 };
 // class ActorMessageQueue
-
-/// deliver traffic message
-inline void relayMessage(ActorMessagePtr& msg) {
-  static ActorMessageQueue& q = ::idgs::util::singleton<ActorMessageQueue>::getInstance();
-  q.push(msg);
-}
-
-/// deliver timer message
-inline void relayTimerMessage(ActorMessagePtr& msg) {
-  static ActorMessageQueue& q = ::idgs::util::singleton<ActorMessageQueue>::getInstance();
-  q.push(msg);
-}
 
 } // namespace actor
 } // namespace idgs

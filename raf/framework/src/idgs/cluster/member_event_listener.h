@@ -19,7 +19,7 @@ class MemberEventListener {
 public:
   virtual ~MemberEventListener() {}
 
-  virtual void statusChanged(const MemberWrapper& member) = 0;
+  virtual void memberStatusChanged(const MemberWrapper& member) = 0;
 
 };
 // end interface MemberListener

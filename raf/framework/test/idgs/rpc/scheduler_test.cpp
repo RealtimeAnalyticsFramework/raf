@@ -20,7 +20,7 @@ TEST(scheduler_test, dummy) {
 }
 
 // TEST(scheduler_test, scheduler_test) {
-//  ScheduledMessageService& service = ::idgs::util::singleton<RpcFramework>::getInstance().getScheduler();
+//  ScheduledMessageService service;
 //
 //  // Test if thread is started
 //  ResultCode res = service.start();

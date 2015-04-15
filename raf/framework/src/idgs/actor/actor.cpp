@@ -11,10 +11,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 #include "idgs/actor/actor.h"
 
-#include "idgs/cluster/cluster_framework.h"
+#include "idgs/application.h"
+
 #include "protobuf/message_helper.h"
-#include "idgs/actor/actor_message_queue.h"
-#include "idgs/util/backtrace.h"
 
 namespace idgs {
 namespace actor {
@@ -28,8 +27,7 @@ const std::string OP_ACTOR_NOT_FOUND = "ACTOR_NOT_FOUND";
 std::shared_ptr<idgs::actor::ActorMessage> Actor::createActorMessage() const {
   std::shared_ptr<idgs::actor::ActorMessage> msg = std::make_shared<idgs::actor::ActorMessage>();
   msg->setSourceActorId(getActorId());
-  int32_t localMemberId =
-      ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
+  int32_t localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   msg->setSourceMemberId(localMemberId);
   return msg;
 }
@@ -37,33 +35,32 @@ std::shared_ptr<idgs::actor::ActorMessage> Actor::createActorMessage() const {
 ActorMessagePtr Actor::createActorMessage(const std::string& actorId) {
   ActorMessagePtr msg = std::make_shared<idgs::actor::ActorMessage>();
   msg->setSourceActorId(actorId);
-  int32_t localMemberId =
-      ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
+  int32_t localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   msg->setSourceMemberId(localMemberId);
   return msg;
 }
 
 bool Actor::parse(ActorMessagePtr& msg) {
+  // DVLOG_FIRST_N(4, 20) << "Actor " << getActorName() << "(" << getActorId() << ") parse message.";
   try {
     if (getDescriptor()) {
       if (msg->getPayload().get()) {
-        DVLOG(5) << "payload: " << msg->getPayload()->DebugString();
+        DVLOG(7) << "payload: " << msg->getPayload()->DebugString();
       } else {
-        if (msg->getRpcMessage()->has_payload()) {
+        if (msg->getRpcMessage()->has_payload() && !msg->getRpcMessage()->payload().empty()) {
           // const idgs::actor::ActorDescriptorPtr& ad = getDescriptor();
-          static idgs::actor::ActorDescriptorMgr& adm = idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance();
-          const ActorOperationDescriporWrapper* op;
-          const idgs::actor::ActorDescriptorPtr& ad = adm.getActorDescriptor(getActorName());
+          static auto adm = idgs_application()->getActorDescriptorMgr();
+          const ActorOperationDescriporWrapper* aod;
+          const idgs::actor::ActorDescriptorPtr& ad = adm->getActorDescriptor(getActorName());
           if(ad) {
-            op = ad->getResolvedInOperation(msg->getRpcMessage()->operation_name());
+            aod = ad->getResolvedInOperation(msg->getRpcMessage()->operation_name());
           } else {
-            op = getDescriptor()->getResolvedInOperation(msg->getRpcMessage()->operation_name());
+            aod = getDescriptor()->getResolvedInOperation(msg->getRpcMessage()->operation_name());
           }
-          if (op) {
-            auto payload = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(
-                op->getPayloadType());
+          if (aod) {
+            auto payload = protobuf::MessageHelper().createMessage(aod->getPayloadType());
             if (!payload.get()) {
-              LOG(ERROR)<< "create paylaod type: " << op->getPayloadType() << " error, pls. check actor descriptor's in operation: " << op << "'s payload type is right?";
+              LOG(ERROR)<< "create paylaod type: " << aod->getPayloadType() << " error, pls. check actor descriptor's in operation: " << aod << "'s payload type is right?";
             }
             protobuf::ProtoSerdesHelper::deserialize(
                 static_cast<protobuf::SerdesMode>(msg->getRpcMessage()->serdes_type()), msg->getRpcMessage()->payload(),
@@ -74,7 +71,8 @@ bool Actor::parse(ActorMessagePtr& msg) {
             LOG(WARNING) << getDescriptor()->toString();
           }
         } else {
-          DLOG(WARNING) << "No payload for actor: " << idgs::util::demangle(typeid(*this).name()) << " operation: " << msg->getRpcMessage()->operation_name();
+          // no payload
+          // DLOG(WARNING) << "No payload for actor: " << idgs::util::demangle(typeid(*this).name()) << " operation: " << msg->getRpcMessage()->operation_name();
         }
       }
     } else {
@@ -92,18 +90,19 @@ bool Actor::parse(ActorMessagePtr& msg) {
 /// @param msg reference to the message
 void Actor::process(const ActorMessagePtr& msg) {
   parse(const_cast<ActorMessagePtr&>(msg));
-  if (handleSystemOperation(msg)) {
-    DVLOG(1) << "received a system message.";
-    return;
-  }
   innerProcess(msg);
 }
 
-void Actor::innerProcess(const ActorMessagePtr& msg) {
+ProcessStatus Actor::innerProcess(const ActorMessagePtr& msg) {
   function_footprint();
   if (!msg) {
     DVLOG(1) << "received a null message.";
-    return;
+    return ProcessStatus::DEFAULT;
+  }
+
+  if (handleSystemOperation(msg)) {
+    DVLOG(1) << "received a system message.";
+    return ProcessStatus::TERMINATE;
   }
 
   try {
@@ -116,28 +115,31 @@ void Actor::innerProcess(const ActorMessagePtr& msg) {
       auto handler = it->second;
       // LOG(INFO) << "handler: " << reinterpret_cast<void*>(handler);
       (this->*handler)(msg);
-      return;
+      return ProcessStatus::DEFAULT;
     } else {
       it = handlerMap.find("*");
       if(likely(it != handlerMap.end())) {
         auto handler = it->second;
         // LOG(INFO) << "handler: " << reinterpret_cast<void*>(handler);
         (this->*handler)(msg);
-        return;
+        return ProcessStatus::DEFAULT;
       } else {
-        // @todo should be LOG(ERROR)
-        DVLOG(10)<< "Unknown operations: " << opName;
+        LOG(ERROR) << "Unknown operations: " << opName << ", message: " << msg->toString();
       }
     }
   } catch (std::exception& e) {
     LOG(ERROR) << "Exception: " << e.what();
+    dump_exception_callstack();
   } catch (...) {
     catchUnknownException();
+    dump_exception_callstack();
   }
+
+  return ProcessStatus::DEFAULT;
 }
 
 bool Actor::handleSystemOperation(const ActorMessagePtr& msg) {
-  if (msg->getRpcMessage()->operation_name() == OP_DESTROY) {
+  if (msg && msg->getRpcMessage() && msg->getRpcMessage()->operation_name() == OP_DESTROY) {
     onDestroy();
     return true;
   }
@@ -145,15 +147,18 @@ bool Actor::handleSystemOperation(const ActorMessagePtr& msg) {
 }
 
 void Actor::terminate() {
+  terminate(getActorId());
+}
+
+void Actor::terminate(const std::string& actor_id, int member_id) {
   VLOG(2) << "Terminate actor: " << getActorName() << "(" << getActorId() << ")";
 
-  // socket_.close();
   ActorMessagePtr msg = createActorMessage();
-  msg->setDestMemberId(msg->getSourceMemberId());
-  msg->setDestActorId(msg->getSourceActorId());
+  msg->setDestMemberId(member_id);
+  msg->setDestActorId(actor_id);
   msg->setOperationName(idgs::actor::OP_DESTROY);
 
-  DVLOG(5) << "Destroy TCP actor message: " << msg->toString();
+  DVLOG(5) << "Destroy actor message: " << msg->toString();
 
   idgs::actor::relayMessage(msg);
 

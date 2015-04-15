@@ -14,16 +14,17 @@ namespace store {
 const std::string STORE_MODULE_DESCRIPTOR_NAME = "store";
 const std::string STORE_MODULE_DESCRIPTOR_DESCRIPTION = "Service store actor descriptor";
 
+const std::string OPERATION_NAME = "operation";
 const std::string STORE_ATTACH_KEY = "key";
 const std::string STORE_ATTACH_VALUE = "value";
+const std::string STORE_ATTACH_LAST_VALUE = "last_value";
+const std::string STORE_ATTACH_VERSION_VALUE = "version_value";
 const std::string STORE_ATTACH_LISTENER = "STORE_ATTACH_LISTENER";
 
-/// Actor id of handle crud operation.
+/// Actor id of handle CRUD operation.
 const std::string ACTORID_STORE_SERVCIE = "store.service";
-const std::string DATA_AGGREGATOR_ACTOR = "DataAggregatorActor";
-const std::string DATA_SIZE_AGGREGATOR_ACTOR = "DataSizeAggregatorActor";
-const std::string DATA_REPLICATED_STORE_SYNC_ACTOR = "ReplicatedStoreSyncStatefulActor";
-const std::string LISTENER_MANAGER = "ListenerManager";
+const std::string DATA_AGGREGATOR_ACTOR = "store.aggregator";
+const std::string LISTENER_MANAGER = "store.listener_manager";
 
 /// Option names of actor 'DATA_STORE_ACTOR'
 const std::string OP_INSERT = "insert";
@@ -33,29 +34,71 @@ const std::string OP_DELETE = "delete";
 const std::string OP_COUNT = "count";
 const std::string OP_TRUNCATE = "truncate";
 
-const std::string DATA_STORE_LOCAL_INSERT = "DATA_STORE_LOCAL_INSERT";
-const std::string DATA_STORE_LOCAL_UPDATE = "DATA_STORE_LOCAL_UPDATE";
-const std::string DATA_STORE_LOCAL_GET = "DATA_STORE_LOCAL_GET";
-const std::string DATA_STORE_LOCAL_REMOVE = "DATA_STORE_LOCAL_REMOVE";
-const std::string DATA_STORE_LOCAL_SIZE = "DATA_STORE_LOCAL_SIZE";
-const std::string LOCAL_DATA_CLEAR = "LOCAL_DATA_CLEAR";
+const std::string OP_INTERNAL_INSERT = "OP_INTERNAL_INSERT";
+const std::string OP_INTERNAL_UPDATE = "OP_INTERNAL_UPDATE";
+const std::string OP_INTERNAL_GET = "OP_INTERNAL_GET";
+const std::string OP_INTERNAL_DELETE = "OP_INTERNAL_DELETE";
+const std::string OP_INTERNAL_COUNT = "OP_INTERNAL_COUNT";
+const std::string OP_INTERNAL_TRUNCATE = "OP_INTERNAL_TRUNCATE";
 
-const std::string DATA_STORE_INSERT_RESPONSE = "DATA_STORE_INSERT_RESPONSE";
-const std::string DATA_STORE_UPDATE_RESPONSE = "DATA_STORE_UPDATE_RESPONSE";
-const std::string DATA_STORE_GET_RESPONSE = "DATA_STORE_GET_RESPONSE";
-const std::string DATA_STORE_REMOVE_RESPONSE = "DATA_STORE_REMOVE_RESPONSE";
-const std::string DATA_STORE_SIZE_RESPONSE = "DATA_STORE_SIZE_RESPONSE";
-const std::string DATA_CLEAR_RESPONSE = "DATA_CLEAR_RESPONSE";
-
-/// Actor id of handle sync data operation.
-const std::string DATA_STORE_SYNC_ACTOR = "DATA_STORE_SYNC_ACTOR";
-
-/// Option names of actor 'DATA_STORE_SYNC_ACTOR'
-const std::string DATA_STORE_SYNC_REQUEST = "DATA_STORE_SYNC_REQUEST";
-const std::string DATA_STORE_SYNC = "DATA_STORE_SYNC";
-const std::string DATA_STORE_SYNC_RESPONSE = "DATA_STORE_SYNC_RESPONSE";
+const std::string OP_INSERT_RESPONSE = "OP_INSERT_RESPONSE";
+const std::string OP_UPDATE_RESPONSE = "OP_UPDATE_RESPONSE";
+const std::string OP_GET_RESPONSE = "OP_GET_RESPONSE";
+const std::string OP_DELETE_RESPONSE = "OP_DELETE_RESPONSE";
+const std::string OP_COUNT_RESPONSE = "OP_COUNT_RESPONSE";
+const std::string OP_TRUNCATE_RESPONSE = "OP_TRUNCATE_RESPONSE";
 
 /// Option names of actor 'LISTENER_MANAGER'
+
+/// Actor ID of migration actor
+const std::string MIGRATION_SOURCE_ACTOR = "store.migration_source";
+const std::string MIGRATION_TARGET_ACTOR = "store.migration_target";
+const std::string STORE_MIGRATION_SOURCE_ACTOR = "store.store_migration_source";
+const std::string STORE_MIGRATION_TARGET_ACTOR = "store.store_migration_target";
+
+/// Operation names of actor 'XXX_MIGRATION_ACTOR', for data migration
+const std::string MIGRATION_REQUEST = "MIGRATION_REQUEST";
+const std::string MIGRATION_DATA = "MIGRATION_DATA";
+const std::string STORE_MIGRATION_COMPLETE = "STORE_MIGRATION_COMPLETE";
+const std::string PARTITION_MIGRATION_COMPLETE = "PARTITION_MIGRATION_COMPLETE";
+const std::string CANCEL_MIGRATION = "CANCEL_MIGRATION";
+const std::string SOURCE_MEMBER_LEAVE = "SOURCE_MEMBER_LEAVE";
+
+/// Actor ID of synchronization actor
+const std::string SYNC_TARGET_ACTOR = "store.sync_target";
+const std::string STORE_SYNC_TARGET_ACTOR = "store.store_sync_target";
+const std::string SYNC_SOURCE_ACTOR = "store.sync_source";
+const std::string STORE_SYNC_SOURCE_ACTOR = "store.store_sync_source";
+
+/// Operation names of actor 'XXX_REPLICATION_ACTOR', for data migration
+const std::string SYNC_REQUEST = "SYNC_REQUEST";
+const std::string SYNC_DATA = "SYNC_DATA";
+const std::string SYNC_COMPLETE = "SYNC_COMPLETE";
+
+/// Actor id of store schema
+const std::string ACTORID_SCHEMA_SERVCIE = "store.schema_service";
+const std::string DATA_STORE_SCHEMA_AGGR_ACTOR = "store.schema_aggregator";
+
+/// Operation names of DATA_STORE_SCHEMA_XXX_ACTOR
+const std::string OP_SHOWSTORES = "OP_SHOWSTORES";
+const std::string OP_SHOWSTORES_RESPONSE = "OP_SHOWSTORES_RESPONSE";
+const std::string OP_CREATE_SCHEMA = "OP_CREATE_SCHEMA";
+const std::string OP_LOCAL_CREATE_SCHEMA = "OP_LOCAL_CREATE_SCHEMA";
+const std::string OP_CREATE_SCHEMA_RESPONSE = "OP_CREATE_SCHEMA_RESPONSE";
+const std::string OP_DROP_SCHEMA = "OP_DROP_SCHEMA";
+const std::string OP_LOCAL_DROP_SCHEMA = "OP_LOCAL_DROP_SCHEMA";
+const std::string OP_DROP_SCHEMA_RESPONSE = "OP_DROP_SCHEMA_RESPONSE";
+const std::string OP_CREATE_STORE = "OP_CREATE_STORE";
+const std::string OP_LOCAL_CREATE_STORE = "OP_LOCAL_CREATE_STORE";
+const std::string OP_CREATE_STORE_RESPONSE = "OP_CREATE_STORE_RESPONSE";
+const std::string OP_DROP_STORE = "OP_DROP_STORE";
+const std::string OP_LOCAL_DROP_STORE = "OP_LOCAL_DROP_STORE";
+const std::string OP_DROP_STORE_RESPONSE = "OP_DROP_STORE_RESPONSE";
+
+const std::string OP_DESTROY = "DESTROY";
+
+// listener
+const std::string BACKUP_STORE_LISTENER = "backup";
 
 } //namespace store
 } // namespace idgs

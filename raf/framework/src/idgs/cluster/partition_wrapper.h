@@ -8,72 +8,46 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "idgs/pb/cluster_config.pb.h"
+#include "idgs/pb/cluster_event.pb.h"
 #include "idgs/idgslogging.h"
 
 namespace idgs {
-
 namespace cluster {
 
 class PartitionWrapper {
-
-private:
-
-  idgs::pb::Partition partition;
-
-  uint8_t backup_nodes;
-
-  void init();
+public:
+  PartitionWrapper();
+  PartitionWrapper(int replicas);
+  ~PartitionWrapper() {
+  }
 
 public:
-
-  PartitionWrapper();
-
-  PartitionWrapper(uint8_t bakupNodes);
-
-  ~PartitionWrapper() {
-
-  }
-  uint8_t getMemberCount() const {
+  uint8_t getReplicaCount() const {
     return partition.cells_size();
   }
 
-  uint8_t getBackupNodes() const {
-    return backup_nodes;
-  }
-
-  /// copy constructor, called by containers.
-  PartitionWrapper(const PartitionWrapper& other) = default;
-
-  /// copy assignment, called by containers.
-  PartitionWrapper& operator =(const PartitionWrapper& other) = default;
-
   void setMemberId(int32_t index, int32_t memberId) {
-    partition.mutable_cells(index)->set_memberid(memberId);
+    partition.mutable_cells(index)->set_member_id(memberId);
   }
 
-  void setState(int pos, bool state) {
+  void setState(int pos, const pb::PartitionState& state) {
     partition.mutable_cells(pos)->set_state(state);
   }
 
-  bool getState(int pos) const {
+  pb::PartitionState getState(int pos) const {
     return partition.cells(pos).state();
   }
+
+  pb::PartitionState getMemberState(int32_t memberId) const;
 
   const idgs::pb::Partition& getPartition() const {
     return partition;
   }
 
-  bool isPrimaryReady() const {
-    return getState(0);
-  }
-
-  uint32_t getPrimaryMemberId() const {
-    return getMemberId(0);
-  }
+  int32_t getPrimaryMemberId() const;
 
   int32_t getMemberId(uint32_t index) const {
-    return partition.cells(index).memberid();
+    return partition.cells(index).member_id();
   }
 
   void setPartition(const idgs::pb::Partition& partition) {
@@ -81,10 +55,11 @@ public:
   }
 
   friend std::ostream& operator <<(std::ostream& os, const PartitionWrapper& p);
-
   std::string toString() const;
 
-};
-// end class PartitionWrapper
-}// end namespace cluster
+private:
+  idgs::pb::Partition partition;
+  void init(int replicas);
+}; // end class PartitionWrapper
+} // end namespace cluster
 } // end namespace idgs

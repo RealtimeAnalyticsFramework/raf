@@ -7,9 +7,8 @@
  */
 #pragma once
 
-#include <memory>
 #include "idgs/rdd/pb/rdd_svc.pb.h"
-#include "idgs/result_code.h"
+#include "idgs/store/store.h"
 
 namespace idgs {
 namespace client {
@@ -44,6 +43,8 @@ public:
       const idgs::pb::ActorId& rddId, const AttachMessage& attach = AttachMessage(), int time_out = 20);
 
   idgs::ResultCode init(const std::string& clientConfig = "");
+
+  const idgs::store::StoreConfigWrapperPtr& getStoreConfigWrapper(const std::string& storeName) const;
 };
 }
 }

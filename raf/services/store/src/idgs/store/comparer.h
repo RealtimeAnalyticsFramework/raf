@@ -7,10 +7,8 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-#include "google/protobuf/message.h"
 
 #include "idgs/store/store_ptr.h"
-#include "idgs/util/singleton.h"
 #include "protobuf/msg_comparer.h"
 
 namespace idgs {
@@ -78,17 +76,20 @@ private:
 
 inline bool less::operator()(const StoreKey<google::protobuf::Message>& msg1,
     const StoreKey<google::protobuf::Message>& msg2) const {
-  return ::idgs::util::singleton<protobuf::less>::getInstance().operator ()(msg1.get(), msg2.get());
+  static protobuf::less less;
+  return less.operator ()(msg1.get(), msg2.get());
 }
 
 inline bool equals_to::operator()(const StoreKey<google::protobuf::Message>& msg1,
     const StoreKey<google::protobuf::Message>& msg2) const {
-  return ::idgs::util::singleton<protobuf::equals_to>::getInstance().operator ()(msg1.get(), msg2.get());
+  static protobuf::equals_to eq;
+  return eq.operator ()(msg1.get(), msg2.get());
 }
 
 inline int32_t compare_to::operator()(const StoreKey<google::protobuf::Message>& msg1,
     const StoreKey<google::protobuf::Message>& msg2) const {
-  return ::idgs::util::singleton<protobuf::compare_to>::getInstance().operator ()(msg1.get(), msg2.get());
+  static protobuf::compare_to compare;
+  return compare.operator ()(msg1.get(), msg2.get());
 }
 } //namespace store
 } // namespace idgs

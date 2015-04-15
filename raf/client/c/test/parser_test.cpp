@@ -12,24 +12,18 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include <gtest/gtest.h>
 #include "idgs/client/command_parser.h"
-#include "idgs/store/data_store.h"
 
 using namespace idgs::client;
 using namespace idgs;
-using namespace idgs::store;
 using namespace std;
 
 TEST(parser, parseToCmd) {
-
-  std::string storeConfig = "services/store/test/data_store.conf";
-  ResultCode code = ::idgs::util::singleton<DataStore>::getInstance().initialize(storeConfig);
-
   //string insert_cmd = "store.service insert {\"store_name\":\"Customer\"} key={\"c_custkey\":\"234000\"} value={\"c_name\":\"Tom0\",\"c_nationkey\":\"10\",\"c_phone\":\"13500000000\"}";
   string insert_cmd = "store.service insert {\"store_name\":\"Orders\"} key={\"o_orderkey\":\"100000\"} value={\"o_custkey\":\"234000\",\"o_orderstatus\":\"2\",\"o_totalprice\":\"200.55\",\"o_orderdate\":\"2013-02-01\"}";
 
   CommandParser parser;
   Command command;
-  code = parser.parse(insert_cmd, &command);
+  ResultCode code = parser.parse(insert_cmd, &command);
   ASSERT_EQ(RC_SUCCESS, code);
   ASSERT_EQ("store.service", command.actorId);
   ASSERT_EQ("insert", command.opName);

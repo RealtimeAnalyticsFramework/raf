@@ -8,15 +8,15 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "idgs/actor/actor_framework.h"
+#include "idgs/actor/actor_manager.h"
 #include "idgs/actor/thread_model_stl.h"
 #include "idgs/net/network_model_asio.h"
-#include "idgs/util/singleton.h"
 #include "idgs/actor/scheduler.h"
 
 namespace idgs {
 namespace actor {
-template<class NETWORKMODEL, class THREADMODEL = StlThreadModel, class ACTORFRAME = ActorFramework>
+
+template<class NETWORKMODEL, class THREADMODEL = StlThreadModel, class ACTORFRAME = ActorManager>
 class BasicRpcFramework {
 public:
   BasicRpcFramework() = default;
@@ -34,8 +34,8 @@ public:
   }
 
   inline void shutdown() {
-    // threadModel.shutdown();
-    // networkModel.shutdown();
+    threadModel.shutdown();
+    networkModel.shutdown();
 
     DVLOG(2) << "RPC Framework is shutdown";
   }
@@ -44,7 +44,7 @@ public:
     return &threadModel;
   }
 
-  ACTORFRAME* getActorFramework() {
+  ACTORFRAME* getActorManager() {
     return &actorFramework;
   }
 
@@ -53,25 +53,19 @@ public:
   }
 
   ScheduledMessageService& getScheduler() {
-    return ::idgs::util::singleton<ScheduledMessageService>::getInstance();
+    return service;
   }
 
 private:
   THREADMODEL threadModel;
   NETWORKMODEL networkModel;
   ACTORFRAME actorFramework;
+  ScheduledMessageService service;
 };
-typedef BasicRpcFramework<idgs::net::NetworkModelAsio, StlThreadModel, ActorFramework> RpcFramework;
+typedef BasicRpcFramework<idgs::net::NetworkModelAsio, StlThreadModel, ActorManager> RpcFramework;
 
-inline int sendMessage(ActorMessagePtr& msg) {
-  static auto af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
-  return af->sendMessage(msg);
-}
-
-inline int postMessage(ActorMessagePtr& msg) {
-  static auto af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
-  return af->postMessage(msg);
-}
+int sendMessage(ActorMessagePtr msg);
+int postMessage(ActorMessagePtr msg);
 
 } // namespace actor
 } // namespace idgs

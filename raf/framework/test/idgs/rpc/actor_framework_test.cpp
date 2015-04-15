@@ -28,7 +28,7 @@ namespace idgs {
           TestStatefulActor() {}
 
           ~TestStatefulActor() {
-            queue.clear();
+            msg_queue.clear();
           }
 
           virtual const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
@@ -76,27 +76,25 @@ using namespace idgs::pb;
 using namespace idgs::actor::actor_framework_test;
 using namespace std;
 
-TEST(ActorFramework, statfull)
+TEST(ActorManager, statfull)
 {
-  DVLOG(1)<<"--------------------- TEST(ActorFramework, TestStatefulActor) -----------------" << endl;
+  DVLOG(1)<<"--------------------- TEST(ActorManager, TestStatefulActor) -----------------" << endl;
 
-  ::idgs::util::singleton<RpcFramework>::getInstance().initialize();
-
-  ActorFramework *actorHandle = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+  ActorManager actorHandle;
 
   TestStatefulActor* statefulActor1 = new TestStatefulActor();
-  string id1 = actorHandle->generateActorId();
+  string id1 = actorHandle.generateActorId();
   DVLOG(1) << "generate id1: " << id1 << endl;
-  actorHandle->Register(id1, statefulActor1);
+  actorHandle.registerSessionActor(id1, statefulActor1);
 
   TestStatefulActor* statefulActor2 = new TestStatefulActor();
-  string id2 = actorHandle->generateActorId();
+  string id2 = actorHandle.generateActorId();
   DVLOG(1) << "generate id2: " << id2 << endl;
-  actorHandle->Register(id2, statefulActor2);
+  actorHandle.registerSessionActor(id2, statefulActor2);
 
   // test actor 2 put and get
   StatefulActor *testActor;
-  testActor = (idgs::actor::StatefulActor*)actorHandle->getActor(id2);
+  testActor = (idgs::actor::StatefulActor*)actorHandle.getActor(id2);
   DVLOG(1) << "testActor : " << testActor << endl;
   DVLOG(1) << "statefulActor2 : " << statefulActor2 << endl;
   ASSERT_EQ(testActor, statefulActor2);
@@ -107,7 +105,7 @@ TEST(ActorFramework, statfull)
   DVLOG(1) << " count_ equals " << count_ << endl;
 
   // test actor 1 put and get
-  testActor = (idgs::actor::StatefulActor*)actorHandle->getActor(id1);
+  testActor = (idgs::actor::StatefulActor*)actorHandle.getActor(id1);
   DVLOG(1) << "testActor : " << testActor << endl;
   DVLOG(1) << "statefulActor1 : " << statefulActor1 << endl;
   ASSERT_EQ(testActor, statefulActor1);
@@ -117,38 +115,35 @@ TEST(ActorFramework, statfull)
   DVLOG(1) << " count_ equals " << count_ << endl;
 
   //unregister actor 1
-  DVLOG(1) << "actorHandle -> " << actorHandle << endl;
-  actorHandle->unRegisterStatefulActor(id1);
+  DVLOG(1) << "actorHandle -> " << &actorHandle << endl;
+  actorHandle.unregisterSessionActor(id1);
   DVLOG(1) << " actor is unRegistered " << endl;
-  testActor = (idgs::actor::StatefulActor*)actorHandle->getActor(id1);
+  testActor = (idgs::actor::StatefulActor*)actorHandle.getActor(id1);
   DVLOG(1) << "after unregister actor 1, the test actor is " << testActor << endl;
   ASSERT_EQ(testActor, (StatefulActor *)NULL);
 
-  testActor = (idgs::actor::StatefulActor*)actorHandle->getActor(id2);
+  testActor = (idgs::actor::StatefulActor*)actorHandle.getActor(id2);
   DVLOG(1) << "after unregister actor 1, the test actor 2 is " << testActor << endl;
   ASSERT_EQ(testActor, statefulActor2);
   count_ = 0;
 }
 
-TEST(ActorFramework, stateless)
+TEST(ActorManager, stateless)
 {
-  DVLOG(1)<<"--------------------- TEST(ActorFramework, TestStatelessActor) -----------------" << endl;
-  RpcFramework& rpc = ::idgs::util::singleton<RpcFramework>::getInstance();
-  rpc.initialize();
-
-  ActorFramework *actorHandle = rpc.getActorFramework();
+  DVLOG(1)<<"--------------------- TEST(ActorManager, TestStatelessActor) -----------------" << endl;
+  ActorManager actorHandle;
 
   TestStatelessActor* statelessActor1 = new TestStatelessActor();
   string ope1 = "operation_1";
-  actorHandle->Register(ope1, statelessActor1);
+  actorHandle.registerServiceActor(ope1, statelessActor1);
 
   TestStatelessActor* statelessActor2 = new TestStatelessActor();
   string ope2 = "operation_2";
-  actorHandle->Register(ope2, statelessActor2);
+  actorHandle.registerServiceActor(ope2, statelessActor2);
 
   // test actor 2 get and process
   StatelessActor *testActor;
-  testActor = (idgs::actor::StatelessActor*) actorHandle->getActor(ope2);
+  testActor = (idgs::actor::StatelessActor*) actorHandle.getActor(ope2);
   DVLOG(1) << "testActor : " << testActor << endl;
   DVLOG(1) << "statelessActor2 : " << statelessActor2 << endl;
   ASSERT_EQ(testActor, statelessActor2);
@@ -159,7 +154,7 @@ TEST(ActorFramework, stateless)
   DVLOG(1) << " count_ equals " << count_ << endl;
 
   // test actor 1 get and process
-  testActor = (idgs::actor::StatelessActor*) actorHandle->getActor(ope1);
+  testActor = (idgs::actor::StatelessActor*) actorHandle.getActor(ope1);
   DVLOG(1) << "testActor : " << testActor << endl;
   DVLOG(1) << "statelessActor1 : " << statelessActor1 << endl;
   ASSERT_EQ(testActor, statelessActor1);
@@ -169,14 +164,14 @@ TEST(ActorFramework, stateless)
   DVLOG(1) << " count_ equals " << count_ << endl;
 
   //unregister actor 1
-  DVLOG(1) << "actorHandle -> " << actorHandle << endl;
-  actorHandle->unRegisterStatelessActor(ope1);
+  DVLOG(1) << "actorHandle -> " << &actorHandle << endl;
+  actorHandle.unregisterServiceActor(ope1);
   DVLOG(1) << " actor is unRegistered " << testActor << endl;
-  testActor = (idgs::actor::StatelessActor*) actorHandle->getActor(ope1);
+  testActor = (idgs::actor::StatelessActor*) actorHandle.getActor(ope1);
   DVLOG(1) << "after unregister actor 1, the test actor is " << testActor << endl;
   ASSERT_EQ(testActor, (StatelessActor *)NULL);
 
-  testActor = (idgs::actor::StatelessActor*) actorHandle->getActor(ope2);
+  testActor = (idgs::actor::StatelessActor*) actorHandle.getActor(ope2);
   DVLOG(1) << "after unregister actor 1, the test actor 2 is " << testActor << endl;
   ASSERT_EQ(testActor, statelessActor2);
 
@@ -185,7 +180,7 @@ TEST(ActorFramework, stateless)
 
 TEST(ActorMessageQueue, push_pop) {
 
-  std::shared_ptr<RpcMessage> msg_ptr(new RpcMessage());
+  std::shared_ptr<RpcMessage> msg_ptr = std::make_shared<RpcMessage>();
   msg_ptr->set_operation_name("add the message");
   msg_ptr->mutable_dest_actor()->set_actor_id("test_server_id");
   msg_ptr->mutable_source_actor()->set_actor_id("sourceactorid");
@@ -196,13 +191,14 @@ TEST(ActorMessageQueue, push_pop) {
 
   std::shared_ptr<ActorMessage> actorMsg(new ActorMessage(msg_ptr));
 
+  ActorMessageQueue queue;
   //rw->setNetworkActorId("5");
-  relayMessage(actorMsg);
+  queue.push(actorMsg);
   //VLOG(1) << rw->getNetworkActorId() << std::endl;
   DVLOG(2) << "before push ActorMessage" << actorMsg->toString();
 
   std::shared_ptr<ActorMessage> actorMsg2;
-  ::idgs::util::singleton<ActorMessageQueue>::getInstance().try_pop(&actorMsg2);
+  queue.try_pop(&actorMsg2);
   DVLOG(2) << "after pop ActorMessage " << actorMsg2->getRpcMessage()->payload();
 
   //VLOG(1) << "popped network actor id " << result->getNetworkActorId() << std::endl;

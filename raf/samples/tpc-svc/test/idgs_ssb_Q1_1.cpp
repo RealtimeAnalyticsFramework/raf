@@ -17,87 +17,31 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
 #include "idgs/tpc/tpc_svc_const.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace idgs::tpc;
 
 std::shared_ptr<Expr> buildSsbQ1OrderFilterExpression() {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(AND);
-
-  // >= 1994-01-01
-  Expr* exp1 = expression->add_expression();
-  exp1->set_type(GE);
-
-  Expr* elem1 = exp1->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_discount");
-
-  Expr* elem2 = exp1->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("1");
-
-  // discount <= 0.07
-  auto exp4 = expression->add_expression();
-  exp4->set_type(LE);
-  elem1 = exp4->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_discount");
-
-  elem2 = exp4->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("3");
-
-  // quantity < 25
-  auto emp5 = expression->add_expression();
-  emp5->set_type(LT);
-  elem1 = emp5->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_quantity");
-
-  elem2 = emp5->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("25");
+  shared_ptr<Expr> expression(AND(GE(FIELD("lo_discount"), CONST("1", DOUBLE)),
+                              LE(FIELD("lo_discount"), CONST("3", DOUBLE)),
+                              LT(FIELD("lo_quantity"), CONST("25", DOUBLE))
+                             ));
 
   return expression;
 }
 
 std::shared_ptr<Expr> buildSsbQ1DateFilterExpression() {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(EQ);
-
-  Expr* elem1 = expression->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("d_year");
-
-  Expr* elem2 = expression->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(UINT32);
-  elem2->set_value("1992");
-
+  shared_ptr<Expr> expression(EQ(FIELD("d_year"), CONST("1992", UINT32)));
   return expression;
 }
 
 std::shared_ptr<Expr> buildSsbQ1ActionExpression() {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(MULTIPLY);
-  auto elem1 = expression->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("lo_extendedprice");
-
-  auto elem2 = expression->add_expression();
-  elem2->set_type(FIELD);
-  elem2->set_value("lo_discount");
-
+  shared_ptr<Expr> expression(MULTIPLY(FIELD("lo_extendedprice"), FIELD("lo_discount")));
   return expression;
 }
 
@@ -113,34 +57,35 @@ TEST(ssb_query, Q1) {
     }
   }
 
-  RddClient& client = singleton<RddClient>::getInstance();
-  ResultCode code = client.init("samples/tpc-svc/conf/client.conf");
+  RddClient client;
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in init client, cause by " << idgs::getErrorDescription(code);
     exit(1);
   }
 
   LOG(INFO) << "Create store delegate RDD for lineorder.";
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+  request->set_schema_name("ssb");
   request->set_store_name("ssb_lineorder");
   request->set_rdd_name("ssb_lineorder");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   auto orderDelegateRddID = response->rdd_id();
 
   LOG(INFO) << "Create store delegate RDD for date.";
   request->set_store_name("ssb_date");
   request->set_rdd_name("ssb_date");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   auto dateDelegateRddID = response->rdd_id();
   sleep(3);
 
   LOG(INFO) << "Create RDD for SSBQ1.";
 
-  RddRequestPtr ssbQ1Request(new CreateRddRequest);
-  RddResponsePtr ssbQ1Response(new CreateRddResponse);
+  RddRequestPtr ssbQ1Request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr ssbQ1Response = std::make_shared<CreateRddResponse>();
 
   ssbQ1Request->set_transformer_op_name(SSB_Q1_1_TRANSFORMER);
 
@@ -161,9 +106,9 @@ TEST(ssb_query, Q1) {
 
   auto out = ssbQ1Request->mutable_out_rdd();
   out->set_rdd_name("SSB_Q1.1");
-  out->set_data_type(ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.LineOrderKey");
   out->set_value_type_name("idgs.sample.ssb.pb.LineOrder");
+  out->set_input_sync(false);
 
   client.createRdd(ssbQ1Request, ssbQ1Response);
   auto ssbQ1RddID = ssbQ1Response->rdd_id();
@@ -177,9 +122,9 @@ TEST(ssb_query, Q1) {
 
   for (int32_t i = 0; i < totalCount; ++ i) {
     auto start = idgs::sys::getCurrentTime();
-    ActionRequestPtr actionRequest(new ActionRequest);
-    ActionResponsePtr actionResponse(new ActionResponse);
-    ActionResultPtr actionResult(new SumActionResult);
+    ActionRequestPtr actionRequest = std::make_shared<ActionRequest>();
+    ActionResponsePtr actionResponse = std::make_shared<ActionResponse>();
+    ActionResultPtr actionResult = std::make_shared<SumActionResult>();
 
     actionRequest->set_action_id("100000");
     actionRequest->set_action_op_name(SSB_Q1_1_ACTION);

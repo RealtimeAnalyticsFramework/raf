@@ -24,21 +24,21 @@ case_tpchQ6() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>caseQ6_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>caseQ6_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>caseQ6_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>caseQ6_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -47,7 +47,7 @@ case_tpchQ6() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>caseQ6_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>caseQ6_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";

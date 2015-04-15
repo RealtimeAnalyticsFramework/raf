@@ -10,13 +10,13 @@
 #endif // defined(__GNUC__) || defined(__clang__) $
 #include "ssb_Q1_action.h"
 #include "idgs/util/utillity.h"
-#include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
 
 using namespace std;
 using namespace protobuf;
 using namespace idgs::actor;
 using namespace idgs::rdd;
+using namespace idgs::rdd::action;
 using namespace idgs::rdd::pb;
 
 namespace idgs {
@@ -29,8 +29,7 @@ SsbQ1_1Action::SsbQ1_1Action() {
 SsbQ1_1Action::~SsbQ1_1Action() {
 }
 
-RddResultCode SsbQ1_1Action::action(const idgs::actor::ActorMessagePtr& msg, const BaseRddPartition* input,
-    std::vector<PbVariant>& output) {
+RddResultCode SsbQ1_1Action::action(ActionContext* ctx, const BaseRddPartition* input) {
   double sum = 0;
 
   if (!input->empty()) {
@@ -52,13 +51,14 @@ RddResultCode SsbQ1_1Action::action(const idgs::actor::ActorMessagePtr& msg, con
 
   PbVariant var;
   var = sum;
-  output.push_back(var);
+  ctx->addPartitionResult(var);
 
   return RRC_SUCCESS;
 }
 
-RddResultCode SsbQ1_1Action::aggregate(const idgs::actor::ActorMessagePtr& actionRequest, idgs::actor::ActorMessagePtr& actionResponse, const vector<vector<string>>& input) {
+RddResultCode SsbQ1_1Action::aggregate(ActionContext* ctx) {
   double sum = 0;
+  auto& input = ctx->getAggregateResult();
   for (size_t partition = 0; partition < input.size(); ++partition) {
     double pSize = 0;
     ResultCode code = sys::convert<double>(input[partition][0], pSize);
@@ -70,10 +70,10 @@ RddResultCode SsbQ1_1Action::aggregate(const idgs::actor::ActorMessagePtr& actio
     sum += pSize;
   }
 
-  shared_ptr<SumActionResult> response(new SumActionResult);
-  response->set_total(sum);
+  shared_ptr<SumActionResult> result = make_shared<SumActionResult>();
+  result->set_total(sum);
 
-  actionResponse->setAttachment(ACTION_RESULT, response);
+  ctx->setActionResult(result);
 
   return RRC_SUCCESS;
 }

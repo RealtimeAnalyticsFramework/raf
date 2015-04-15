@@ -10,8 +10,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 
+#include "idgs/application.h"
+
 #include "idgs/actor/thread_model_stl.h"
-#include "idgs/actor/actor_message_queue.h"
 
 using namespace std;
 
@@ -57,7 +58,7 @@ int StlThreadModel::shutdown() {
     iter->markFinish();
   }
   for (auto iter = receivers.begin(); iter != end; ++iter) {
-    ::idgs::util::singleton<ActorMessageQueue>::getInstance().notifyAll();
+    idgs_application()->getActorMessageQueue()->notifyAll();
   }
   for (auto iter = receivers.begin(); iter != end; ++iter) {
     iter->join();

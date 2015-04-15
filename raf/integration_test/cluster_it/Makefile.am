@@ -9,13 +9,11 @@ it_cluster_SOURCES = \
 	cluster_it_test.cpp
 
 LDADD= \
-    -lidgsadmin \
-    -lidgsrdd \
+    -lidgsrddng \
     -lidgsdatastore \
     -lidgsframework \
-   	-ltbb \
     -lgtest -lgtest_main \
-   	-lpthread 
+    @IDGS_LDADD@
 
 AM_LDFLAGS = @IDGS_LDFLAGS@
        

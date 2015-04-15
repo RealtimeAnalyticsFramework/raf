@@ -10,10 +10,7 @@
 #endif // GNUC_ $
 #include "command.h"
 #include "client_const.h"
-#include "protobuf/message_helper.h"
-#include "idgs/util/singleton.h"
 
-using namespace protobuf;
 
 namespace idgs {
 namespace client {
@@ -23,19 +20,10 @@ Command::Command() {
 Command::~Command() {
 }
 
-PbMessagePtr Command::parseToMessage(const std::string& msgType, const std::string& msgValue, ResultCode& rc) {
-  PbMessagePtr msg = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage(msgType);
-  rc = protobuf::JsonMessage().parseJsonFromString(msg.get(), msgValue);
-
-  if (rc != RC_OK) {
-    LOG(ERROR)<< "parse json string to message error, message type = " << msgType << ", message value = " << msgValue;
-    return PbMessagePtr(NULL);
-  }
-  return msg;
-}
-
 ClientActorMessagePtr Command::toClientActorMsg(ResultCode& rc) {
-  ClientActorMessagePtr actorMsg(new ClientActorMessage);
+  rc = idgs::RC_OK;
+
+  ClientActorMessagePtr actorMsg(std::make_shared<ClientActorMessage>());
   actorMsg->setOperationName(opName);
   actorMsg->setDestActorId(actorId);
   actorMsg->setSourceActorId(CLIENT_ACTOR_ID);

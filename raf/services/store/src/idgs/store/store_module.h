@@ -8,24 +8,58 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "idgs/idgs_module.h"
+
+#include "idgs/application.h"
+
+#include "idgs/store/listener/listener_manager.h"
+#include "idgs/store/storage/data_store_actor.h"
+#include "idgs/store/schema/store_schema_actor.h"
+#include "idgs/store/listener/backup_store_listener.h"
+
+#include "idgs/sync/migration_target_actor.h"
+#include "idgs/sync/migration_source_actor.h"
+#include "idgs/sync/store_migration_target_actor.h"
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/sync_target_actor.h"
+#include "idgs/sync/sync_source_actor.h"
+#include "idgs/sync/store_sync_target_actor.h"
+#include "idgs/sync/store_sync_source_actor.h"
+#include "idgs/sync/data_sync_listener.h"
 
 
 namespace idgs {
 namespace store {
-class PartitionChangeListener;
-class MemberJoinedListener;
 
-/// @fixme all module level singleton should be an attribute of the class below.
 struct StoreModule: public idgs::Module {
+public:
+  StoreModule();
   virtual ~StoreModule();
 
   virtual int init(const char* config_path, idgs::Application* theApp);
   virtual int start();
   virtual int stop();
+
+public:
+  DataStore* getDataStore() {
+    return datastore;
+  }
+
+private:
   idgs::Application* app;
-  PartitionChangeListener* partChangeListener;
-  MemberJoinedListener* memberJoinedListener;
+  DataStore* datastore;
+
+  DataMigraionListener* partChangeListener;
+  DataSyncListener* memberJoinedListener;
+  BackupStoreListener* backupStoreListener;
+
+  StoreServiceActor* storeActor;
+  ListenerManager* listenerManager;
+  StoreSchemaActor* schemaActor;
+  MigrationTargetActor* migrationTargetActor;
+  MigrationSourceActor* migrationSourceActor;
+  SyncTargetActor* syncTargetActor;
+  SyncSourceActor* syncSourceActor;
+
 };
 
 /// entry point of this module

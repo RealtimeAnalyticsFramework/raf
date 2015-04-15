@@ -10,7 +10,7 @@ case0() {
   echo "########################"
   cd $WORKSPACE/idgs/
   echo "start server"
-  dist/bin/idgs-aio 1>case0.log 2>&1 &
+  $VALGRIND dist/bin/idgs 1>case0.log 2>&1 &
   IDGS_PID=$!
  
   echo "sleep 5 seconds" 
@@ -19,7 +19,21 @@ case0() {
   echo "kill server"
   safekill $IDGS_PID 
 
-  check_core_dump dist/bin/idgs-aio
+  definitely_lost=`grep "definitely lost:" case0.log | sed -e 's/==[0-9]*==[a-z ]*: [0-9,]* bytes in \([0-9,]*\) blocks/\1/' -e 's/,//'`
+  indirectly_lost=`grep "indirectly lost:" case0.log | sed -e 's/==[0-9]*==[a-z ]*: [0-9,]* bytes in \([0-9,]*\) blocks/\1/' -e 's/,//'`
+  possibly_lost=`grep "possibly lost:" case0.log | sed -e 's/==[0-9]*==[a-z ]*: [0-9,]* bytes in \([0-9,]*\) blocks/\1/' -e 's/,//'`
+  still_reachable=`grep "still reachable:" case0.log | sed -e 's/==[0-9]*==[a-z ]*: [0-9,]* bytes in \([0-9,]*\) blocks/\1/' -e 's/,//'`
+  suppressed=`grep " suppressed:" case0.log | grep "==" | sed -e 's/==[0-9]*==[a-z ]*: [0-9,]* bytes in \([0-9,]*\) blocks/\1/' -e 's/,//'`
+
+  cat <<END | tee case0_valgrind.txt
+definitely_lost, indirectly_lost, possibly_lost, still_reachable, suppressed
+$definitely_lost, $indirectly_lost, $possibly_lost, $still_reachable, $suppressed
+
+END
+
+  grep "==" case0.log 
+
+  check_core_dump dist/bin/idgs
   #echo "########################"
 }
 
@@ -35,19 +49,19 @@ case1() {
   echo "start server 1"
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case1_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case1_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
   echo "start server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf 1>case1_2.log 2>&1  &
+  dist/bin/idgs -c conf/cluster.conf 1>case1_2.log 2>&1  &
   SRV_PID2=$!
   sleep 3
   echo "start server 3"
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
-  dist/bin/idgs-aio -c framework/conf/cluster.conf 1>case1_3.log 2>&1  &
+  dist/bin/idgs -c conf/cluster.conf 1>case1_3.log 2>&1  &
   SRV_PID3=$!
   
   sleep 4
@@ -61,7 +75,7 @@ case1() {
   echo "kill server 3"
   safekill $SRV_PID3 
   
-  check_core_dump dist/bin/idgs-aio
+  check_core_dump dist/bin/idgs
   #echo "########################"
 }
 
@@ -77,15 +91,15 @@ case2() {
   echo "start all 3 servers."
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case2_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case2_1.log 2>&1 &
   SRV_PID1=$!
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf 1>case2_2.log 2>&1  &
+  dist/bin/idgs -c conf/cluster.conf 1>case2_2.log 2>&1  &
   SRV_PID2=$!
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
-  dist/bin/idgs-aio -c framework/conf/cluster.conf 1>case2_3.log 2>&1  &
+  dist/bin/idgs -c conf/cluster.conf 1>case2_3.log 2>&1  &
   SRV_PID3=$!
   
   echo "sleep 8s"
@@ -94,7 +108,7 @@ case2() {
   echo "kill all 3 servers."
   safekill $SRV_PID1 $SRV_PID2 $SRV_PID3
   
-  check_core_dump dist/bin/idgs-aio
+  check_core_dump dist/bin/idgs
   #echo "########################"
 }
 

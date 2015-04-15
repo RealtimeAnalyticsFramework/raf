@@ -17,7 +17,6 @@ fi
 echo "WORKSPACE: $WORKSPACE"
 
 killall -9 idgs 2>/dev/null 1>&2
-killall -9 idgs-aio 2>/dev/null 1>&2
 
 echo "############################## Begin Setup Globle environment ##################"
 
@@ -28,80 +27,28 @@ export GLOG_v=5
 export GLOG_vmodule="main=0"
 export GTEST_COLOR="yes"
 
+export IDGS_LOG_DIR=$WORKSPACE/idgs
+export MAVEN_OPTS="-Dhive.log.dir=$WORKSPACE/idgs -Dhive.querylog.location=$WORKSPACE/idgs -Dhive.exec.scratchdir=$WORKSPACE/idgs"
+
+VALGRIND=""
+if [ -f `which valgrind` ] ; then
+  #VALGRIND="valgrind --leak-check=full --suppressions=build/valgrind/dlopen.txt --suppressions=build/valgrind/idgs.txt"
+  VALGRIND="valgrind --suppressions=build/valgrind/dlopen.txt --suppressions=build/valgrind/idgs.txt"
+  echo "valgrind"
+fi
+
+
 echo "############################## End Setup Globle environment ##################"
 
-ansiescape2html() {
-  sed -e 's/ /\&nbsp;/g' -e 'a \ <br>' -e 's/\x1b\[0;32m/\<span style="color: green" \>/g' -e 's/\x1b\[0;31m/\<span style="color: red" \>/g' -e 's/\x1b\[m/\<\/span\>/g' -e 's/^\(W.*\)$/\<span style="color: brown" \>\1<\/span>/g' -e 's/^\(E.*\)$/\<span style="color: red" \>\1<\/span>/g'
-}
-
-index_log() {
-  echo "<html><head><title>Log of Test Cases</title></head><body>"
- 
-  # skipped IT case
-  echo "<h2>Cases Skipped</h2>"
-  echo "<pre>"
-  grep "^#case" build/it.sh
-  echo "</pre>"
-
-  echo "<hr>"
-  echo "<h2>Last Case: $IT_CASE_NAME</h2>"
-
-  # logs
-  echo "<h2>Logs</h2>"
-
-  ls *.log 2>/dev/null | sed -e '1,$s/^\(.*\)$/<a href="\1.html">\1.html<\/a><br>/'
-
-  # core dump
-  echo "<h2>Core Dump</h2>"
-  echo "<pre>"
-  for CF in `ls core* 2>/dev/null`; do
-    echo "<h3>"
-    file $CF
-    echo "</h3>"
-    EXE=`file $CF | sed 's/.*from \(.*\)/\1/' | sed "s/[\']//g" | awk '{print $1;}'`
-    EXE=`basename $EXE`
-    EXE=`find ./dist -name "$EXE"`
-    gdb -ex "thread apply all bt" -ex quit $EXE $CF
-    echo "<hr>"
-  done
-  echo "</pre>"
-
-  # changes
-  if [ -f "../lastsuccess.timestamp" ] ; then 
-    echo "<h2>Changes</h2>"
-    echo "<pre>"
-    LAST_SUCCESS=`cat ../lastsuccess.timestamp`
-    #cvs diff -D "$LAST_SUCCESS" -d -b -B -y -W 240 --suppress-common-lines
-    cvs diff -D "$LAST_SUCCESS" -d -b -B 2>/dev/null | sed -e "s/</\&lt;/g" -e "s/>/\&gt;/g"
-    echo "</pre>"
-  fi
-
-  echo "</body> </html>"
-}
-
-it_log() {
-  rm -rf it_log 2>/dev/null
-  mkdir it_log
-  index_log >index.html
-  for LF in `ls *.log 2>/dev/null`; do
-    cat $LF | ansiescape2html >it_log/$LF.html 
-  done
-  mv index.html it_log
-}
-
-atexit_func() {
-  jobs -p | xargs kill -9  >/dev/null 2>&1
-  it_log
-}
-
-trap "atexit_func" EXIT
+# register EXIT trap
+. build/archive_test_log.sh
 
 #
 # safekill child proceses
 # arguments:
 #  $1: pid
 #
-KILL_TIMEOUT=15
+KILL_TIMEOUT=60
 export KILL_TIMEOUT
 safekill() {
   #WPID=`/bin/kill -p $@`
@@ -117,6 +64,38 @@ safekill() {
   export TPID
 
   /bin/kill -s SIGINT $WPID
+  wait $WPID
+ 
+  # kill timer process 
+  kill $TPID 2>/dev/null
+  wait $TPID 1>/dev/null 2>&1
+  TRC=$?
+  #echo "timer process return $TRC"
+  if [ $TRC -eq 1 ] ; then
+    echo "force shutdown";
+    # dump logs and exit
+    return 1
+  fi
+
+  return 0 
+}
+
+imm_safekill() {
+  WPID="$@"
+  export WPID
+
+  # start timer
+  (sleep $KILL_TIMEOUT; echo "[DEAD LOCK]; force to kill $WPID"; /bin/kill -9 $WPID; exit 1) &
+  # record timer pid
+  TPID=$!
+  export TPID
+
+  KRC=1
+  while [[ $KRC -eq 1 ]]
+  do
+    KRC=`ps --no-heading $WPID | wc -l` 
+    /bin/kill -s SIGINT $WPID
+  done
   wait $WPID
  
   # kill timer process 
@@ -156,7 +135,7 @@ run_test() {
         echo "####################### log content ###############################"
       fi
     else
-      check_core_dump dist/bin/idgs-aio
+      check_core_dump dist/bin/idgs
       exit $RC_CODE
     fi
 
@@ -188,8 +167,8 @@ for CASE in `ls build/itcase/*.sh`; do
 done
 
 ensure_corosync(){
-  # echo "restart corosync"
-  service corosync stop >/dev/null
+  echo "ensure corosync"
+  # service corosync stop >/dev/null
   service corosync start >/dev/null
 }
 
@@ -200,10 +179,13 @@ ensure_corosync(){
 it_case() {
   IT_CASE_NAME=$1
   jobs -p | xargs kill -9  >/dev/null 2>&1
-  killall -9 idgs 2>/dev/null 1>&2
-  killall -9 idgs-aio 2>/dev/null 1>&1
+
+  # killall -9 idgs 2>/dev/null 1>&2
+
   rm -f *.log 2>/dev/null
   rm -f core* 2>/dev/null
+  rm -f hive_job_log*.txt
+
   ensure_corosync
   export GLOG_v=5
   $1
@@ -249,6 +231,7 @@ case10
 case11
 case12
 case20
+case47
 
 # rdd
 case17
@@ -256,6 +239,7 @@ case18
 case23
 case25
 case26
+#case43
 
 # tpc
 case19
@@ -279,7 +263,9 @@ case32
 
 case33
 case34
-case35
+
+# DAG
+case45
 
 # java client
 case36
@@ -291,6 +277,19 @@ case39
 case40
 case41
 case42
+
+# jdbc
+case44
+
+# rdd store listener
+case46
+
+# migration
+case48
+case49
+
+# buckup
+#case50
 
 #===================================================================================== 
 END`

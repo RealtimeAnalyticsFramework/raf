@@ -10,7 +10,6 @@
 #include "idgs/rdd/transform/transformer.h"
 #include "idgs/tpc/tpc_svc_const.h"
 
-
 namespace idgs {
 namespace tpc {
 namespace transform {
@@ -24,14 +23,14 @@ public:
     return SSB_Q1_1_TRANSFORMER;
   }
 
-
   SsbQ1_1Transformer(const SsbQ1_1Transformer& other) = delete;
   SsbQ1_1Transformer(SsbQ1_1Transformer&& other) = delete;
   SsbQ1_1Transformer& operator()(const SsbQ1_1Transformer& other) = delete;
   SsbQ1_1Transformer& operator()(SsbQ1_1Transformer&& other) = delete;
 
-  idgs::rdd::pb::RddResultCode transform(const idgs::actor::ActorMessagePtr& msg,
-      const std::vector<idgs::rdd::BaseRddPartition*>& input, idgs::rdd::RddPartition* output);
+  virtual idgs::rdd::pb::RddResultCode transform(idgs::rdd::transform::TransformerContext* ctx,
+      const idgs::rdd::BaseRddPartition* input, idgs::rdd::PairRddPartition* output) override;
+
 };
 
 } /* namespace transform */

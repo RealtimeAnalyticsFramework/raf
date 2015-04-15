@@ -11,6 +11,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // defined(__GNUC__) || defined(__clang__) $
 #include "arithmetic_expr.h"
 
+#include <math.h>
+
 using namespace protobuf;
 
 namespace idgs {
@@ -20,9 +22,9 @@ PbVariant AddExpression::evaluate(ExpressionContext* ctx) const {
   double result = 0;
   if (children.size() > 0) {
     auto it = children.begin();
-    result = (double) (*it)->evaluate(ctx);
-    for (++it; it != children.end(); ++it) {
-      result = result + (double) (*it)->evaluate(ctx);
+    result = (double) (* it)->evaluate(ctx);
+    for (++ it; it != children.end(); ++ it) {
+      result = result + (double) (* it)->evaluate(ctx);
     }
   }
 
@@ -33,9 +35,9 @@ PbVariant SubtractExpression::evaluate(ExpressionContext* ctx) const {
   double result = 0;
   if (children.size() > 0) {
     auto it = children.begin();
-    result = (double) (*it)->evaluate(ctx);
-    for (++it; it != children.end(); ++it) {
-      result = result - (double) (*it)->evaluate(ctx);
+    result = (double) (* it)->evaluate(ctx);
+    for (++ it; it != children.end(); ++ it) {
+      result = result - (double) (* it)->evaluate(ctx);
     }
   }
 
@@ -46,9 +48,9 @@ PbVariant MultiplyExpression::evaluate(ExpressionContext* ctx) const {
   double result = 0;
   if (children.size() > 0) {
     auto it = children.begin();
-    result = (double) (*it)->evaluate(ctx);
-    for (++it; it != children.end(); ++it) {
-      result = result * (double) (*it)->evaluate(ctx);
+    result = (double) (* it)->evaluate(ctx);
+    for (++ it; it != children.end(); ++ it) {
+      result = result * (double) (* it)->evaluate(ctx);
     }
   }
 
@@ -60,8 +62,8 @@ PbVariant DivideExpression::evaluate(ExpressionContext* ctx) const {
   if (children.size() > 0) {
     auto it = children.begin();
     result = (double) (*it)->evaluate(ctx);
-    for (++it; it != children.end(); ++it) {
-      double value = (double) (*it)->evaluate(ctx);
+    for (++ it; it != children.end(); ++ it) {
+      double value = (double) (* it)->evaluate(ctx);
       if (value == 0) {
         throw std::overflow_error("Divide by zero exception");
       } else {
@@ -74,20 +76,27 @@ PbVariant DivideExpression::evaluate(ExpressionContext* ctx) const {
 }
 
 PbVariant ModulusExpression::evaluate(ExpressionContext* ctx) const {
-  int32_t result = 0;
-  if (children.size() > 0) {
-    auto it = children.begin();
-    result = (int32_t) (*it)->evaluate(ctx);
-    for (++it; it != children.end(); ++it) {
-      int32_t value = (int32_t) (*it)->evaluate(ctx);
-      if (value == 0) {
-        throw std::overflow_error("Divide by zero exception");
-      } else {
-        result = result % value;
-      }
-    }
+  auto value1 = leftChild->evaluate(ctx);
+  if (value1.type > 6) {
+    LOG(ERROR) << "expression mod(a, b), a must be a number";
+    throw std::invalid_argument("Invalid argument exception");
   }
 
+  auto value2 = rightChild->evaluate(ctx);
+  if (value2.type > 6) {
+    LOG(ERROR) << "expression mod(a, b), b must be a number";
+    throw std::invalid_argument("Invalid argument exception");
+  }
+
+  double a = (double) value1;
+  double b = (double) value2;
+
+  if (!b) {
+    LOG(ERROR) << "expression mod(a, b), b is 0";
+    throw std::overflow_error("Divide by zero exception");;
+  }
+
+  double result = fmod(a, b);
   return PbVariant(result);
 }
 
@@ -95,6 +104,49 @@ PbVariant HashExpression::evaluate(ExpressionContext* ctx) const {
   size_t result = 0;
   for (auto& expr : children) {
     result = result * 99989 + expr->evaluate(ctx).hashcode();
+  }
+
+  return PbVariant(result);
+}
+
+PbVariant BitAndExpression::evaluate(ExpressionContext* ctx) const {
+  int32_t result = 0;
+  if (!children.empty()) {
+    result = (int32_t) children[0]->evaluate(ctx);
+    for (int32_t i = 1; i < children.size(); ++ i) {
+      result = result & (int32_t)children[i]->evaluate(ctx);
+    }
+  }
+
+  return PbVariant(result);
+}
+
+PbVariant BitOrExpression::evaluate(ExpressionContext* ctx) const {
+  int32_t result = 0;
+  if (!children.empty()) {
+    result = (int32_t) children[0]->evaluate(ctx);
+    for (int32_t i = 1; i < children.size(); ++ i) {
+      result = result | (int32_t)children[i]->evaluate(ctx);
+    }
+  }
+
+  return PbVariant(result);
+}
+
+PbVariant BitNotExpression::evaluate(ExpressionContext* ctx) const {
+  int32_t result = (int32_t) child->evaluate(ctx);
+  result = ~result;
+
+  return PbVariant(result);
+}
+
+PbVariant BitXorExpression::evaluate(ExpressionContext* ctx) const {
+  int32_t result = 0;
+  if (!children.empty()) {
+    result = (int32_t) children[0]->evaluate(ctx);
+    for (int32_t i = 1; i < children.size(); ++ i) {
+      result = result ^ (int32_t)children[i]->evaluate(ctx);
+    }
   }
 
   return PbVariant(result);

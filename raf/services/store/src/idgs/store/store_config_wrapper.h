@@ -15,7 +15,7 @@ namespace idgs {
 namespace store {
 class StoreListener;
 
-struct PartitionStatus {
+struct PartitionInfo {
   uint32_t partitionId;
   uint32_t memberId;
 };
@@ -33,39 +33,44 @@ public:
 
   /// @brief  Put the store config into wrapper.
   /// @param  storeConfig The config of store.
-  void setStoreConfig(const ::idgs::store::pb::StoreConfig& storeConfig);
+  ResultCode setStoreConfig(const ::idgs::store::pb::StoreConfig& storeConfig);
 
   /// @brief  Get the config of store.
   /// @return Config of store.
   const ::idgs::store::pb::StoreConfig& getStoreConfig() const;
-
-  /// @brief  Get the listener config of the store with listener name.
-  /// @param  listenerName The name of listener.
-  /// @param  listenerConfig The return value of listener config.
-  /// @return Status code of result.
-//  ResultCode getListenerConfig(const std::string& listenerName, idgs::store::pb::ListenerConfig& listenerConfig);
-
-  /// @brief  Get the parameter of listener with listener name and parameter name.
-  /// @param  listenerName The name of listener.
-  /// @param  paramName The name of listener parameter.
-  /// @param  paramValue The return value of parameter.
-  /// @return Status code of result.
-//  ResultCode getListenerParam(const std::string& listenerName, const std::string& paramName, std::string& paramValue);
 
   /// @brief  Add the listener config and wrap it.
   /// @param  listenerConfig The listener config to wrap and store.
   /// @return Status code of result.
   ResultCode addListenerConfig(const idgs::store::pb::ListenerConfig& listenerConfig);
 
-  ResultCode parseKey(const std::string& buff, std::shared_ptr<google::protobuf::Message>& message);
-  ResultCode parseValue(const std::string& buff, std::shared_ptr<google::protobuf::Message>& message);
-  ResultCode calculatePartitionStatus(const std::shared_ptr<google::protobuf::Message>& message, PartitionStatus* ps);
+  ResultCode calculatePartitionInfo(const std::shared_ptr<google::protobuf::Message>& message, PartitionInfo* ps);
 
   const std::vector<StoreListener*>& getStoreListener() const;
 
+  void addStoreListener(const StoreListener* listener);
+
+  ResultCode buildStoreListener();
+
+  void setMessageTemplate(const google::protobuf::Message* key, const google::protobuf::Message* value);
+
+  ResultCode parseKey(const protobuf::SerdesMode& mode, const std::string& buff, std::shared_ptr<google::protobuf::Message>& message);
+
+  ResultCode parseValue(const protobuf::SerdesMode& mode, const std::string& buff, std::shared_ptr<google::protobuf::Message>& message);
+
+  std::shared_ptr<google::protobuf::Message> newKey();
+
+  std::shared_ptr<google::protobuf::Message> newValue();
+
+  const google::protobuf::Message* getKeyTemplate() const;
+
+  const google::protobuf::Message* getValueTemplate() const;
+
+  void setSchema(const std::string& schemaName);
+
+  const std::string& getSchema() const;
+
 private:
-//  std::map<std::string, std::map<std::string, std::string>> paramMap;
-//  std::map<std::string, idgs::store::pb::ListenerConfig> listenerMap;
 
   std::vector<StoreListener*> listeners;
 
@@ -76,8 +81,12 @@ private:
   google::protobuf::Message* valueTemplate = NULL;
 
   idgs::expr::Expression* partitioner = NULL;
+
+  std::string schema;
 };
 // class StoreConfigWrapper
+
+typedef std::shared_ptr<StoreConfigWrapper> StoreConfigWrapperPtr;
 
 }// namespace store
 } // namespace idgs

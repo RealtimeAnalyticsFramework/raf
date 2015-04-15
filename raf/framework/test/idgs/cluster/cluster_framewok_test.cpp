@@ -16,16 +16,23 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 using namespace idgs::cluster;
 using namespace idgs;
 
+ClusterFramework clusterFramework;
+
 TEST(cluster_framewok_test, loadCfgFile) {
   // load cfg file
-  ResultCode rc = ::idgs::util::singleton<ClusterFramework>::getInstance().loadCfgFile("framework/conf/cluster.conf");
+  ResultCode rc = clusterFramework.loadCfgFile("conf/cluster.conf");
   TEST_CHECK_RC(rc, "load config.");
   ASSERT_EQ(RC_SUCCESS, rc);
 }
 
 TEST(cluster_framewok_test, init) {
   // init
-  ResultCode rc = ::idgs::util::singleton<ClusterFramework>::getInstance().init();
+  ResultCode rc = clusterFramework.init();
   ASSERT_EQ(RC_SUCCESS, rc);
 }
 
+TEST(cluster_framewok_test, shutdown) {
+  // init
+  clusterFramework.terminate();
+//  idgs_application()->getRpcFramework()->shutdown();
+}

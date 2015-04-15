@@ -32,6 +32,7 @@ static string formatBoolValue(const string& value) {
 MessageHelper::MessageHelper() :
     sourceTree(), pbErrorCollector(), importer(&sourceTree, &pbErrorCollector), factory(importer.pool()), dynamicFactory(&dynamicPool) {
   sourceTree.MapPath("", "");
+  sourceTree.MapPath("/", "/");
 
   // force to load primitive types' descriptor
   ::idgs::pb::Boolean::descriptor();
@@ -53,17 +54,24 @@ idgs::ResultCode MessageHelper::registerDynamicMessage(const FileDescriptorProto
 
 ResultCode MessageHelper::registerDynamicMessage(const string& protoFile) {
   // register protobuf message in proto file.
-  const FileDescriptor* fDescriptor = importer.Import(protoFile);
-  if (fDescriptor) {
-    // discription
-    DVLOG(2) << "Loading proto file : " << fDescriptor->name() << ".";
-    for (int32_t i = 0; i < fDescriptor->message_type_count(); ++i) {
-      DVLOG(2) << "Register proto message : " << fDescriptor->message_type(i)->full_name() << ".";
-    }
+  // todo : process under windows
+  auto ret = access(protoFile.c_str(), F_OK);
 
-    return RC_SUCCESS;
+  // whether file not found
+  if (!ret) {
+    const FileDescriptor* fDescriptor = importer.Import(protoFile);
+    if (fDescriptor) {
+      // discription
+      for (int32_t i = 0; i < fDescriptor->message_type_count(); ++i) {
+        DVLOG(7) << "Register proto message : " << fDescriptor->message_type(i)->full_name() << ".";
+      }
+
+      return RC_SUCCESS;
+    } else {
+      return RC_LOAD_PROTO_ERROR;
+    }
   } else {
-    return RC_LOAD_PROTO_ERROR;
+    return RC_FILE_NOT_FOUND;
   }
 }
 
@@ -139,13 +147,13 @@ const Message* MessageHelper::getPbPrototype(const std::string& typeName) {
   // create dynamic descriptor
   descriptor = importer.pool()->FindMessageTypeByName(typeName);
   if (descriptor) {
-    DVLOG(2) << "Creating dynamic proto message by " << typeName << ".";
+    DVLOG(7) << "Creating dynamic proto message by " << typeName << ".";
     result = factory.GetPrototype(descriptor);
   } else {
     // create static descriptor
     descriptor = DescriptorPool::generated_pool()->FindMessageTypeByName(typeName);
     if (descriptor) {
-      DVLOG(2) << "Creating static proto message by " << typeName << ".";
+      DVLOG(7) << "Creating static proto message by " << typeName << ".";
       result = MessageFactory::generated_factory()->GetPrototype(descriptor);
     } else {
       descriptor = dynamicPool.FindMessageTypeByName(typeName);
@@ -161,13 +169,19 @@ const Message* MessageHelper::getPbPrototype(const std::string& typeName) {
   return result;
 }
 
+void MessageHelper::addPbPrototype(const google::protobuf::Message* msg) {
+  if (msg) {
+    auto& type = msg->GetDescriptor()->full_name();
+    prototypeCache.insert(make_pair(type, const_cast<Message*>(msg)));
+  }
+}
+
 bool MessageHelper::isMessageRegistered(const string& typeName) {
   return (getPbPrototype(typeName) != NULL);
 }
 
 void MessageErrorCollector::AddError(const std::string& filename, int line, int column, const std::string& message) {
-  google::LogMessage(filename.c_str(), line, google::GLOG_WARNING).stream() << ':' << column << ": error: " << message
-      << '.';
+  google::LogMessage(filename.c_str(), line, google::GLOG_WARNING).stream() << ':' << column << ": error: " << message << '.';
   // LOG(WARNING) << "Load proto file " << filename << ':' << line <<  ':' << column << ": error: " << message << '.';
 }
 
@@ -341,7 +355,10 @@ ResultCode MessageHelper::setMessageValue(Message* msg, const FieldDescriptor* f
     break;
   }
   case FieldDescriptor::CPPTYPE_STRING: {
-    ref->SetString(msg, field, (string) var);
+    {
+      std::string temp = (string) var;
+      ref->SetString(msg, field, temp);
+    }
     break;
   }
   case FieldDescriptor::CPPTYPE_DOUBLE: {

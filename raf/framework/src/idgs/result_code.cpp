@@ -11,7 +11,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "idgs/result_code.h"
-#include "idgs/util/singleton.h"
+
 using namespace std;
 
 namespace idgs {
@@ -42,7 +42,9 @@ namespace idgs {
 
       // data store error codes
       messages[RC_CONFIG_FILE_NOT_FOUND]              = "Config file not found";
+      messages[RC_SCHEMA_NOT_FOUND]                   = "Schema not found";
       messages[RC_STORE_NOT_FOUND]                    = "Store not found";
+      messages[RC_STORE_EXISTED]                      = "Store has already existed.";
       messages[RC_LISTENER_CONFIG_NOT_FOUND]          = "Listener config not found";
       messages[RC_LISTENER_PARAM_NOT_FOUND]           = "Parameter of listerer not found";
       messages[RC_DATA_NOT_FOUND]                     = "Data not found";
@@ -56,6 +58,8 @@ namespace idgs {
       messages[RC_PARTITION_NOT_READY]                = "Partition is not ready.";
       messages[RC_NOT_LOCAL_STORE]                    = "This member is not local store.";
       messages[RC_INVALID_STORE_LISTENER]             = "Listener of store is invalide.";
+      messages[RC_INVALID_BACKUP_COUNT]               = "Backup count of store must be less then max count.";
+      messages[RC_PARSE_CONFIG_ERROR]                 = "Parse config file or content error";
 
       // cluster error codes
       messages[RC_CLUSTER_ERR_CFG]                    = "cluster config error";
@@ -121,12 +125,14 @@ namespace idgs {
 
 
   const std::string& getErrorDescription(ResultCode code) {
-    const std::string& msg = ::idgs::util::singleton<ResultCodeDescription>::getInstance().getErrorDescription(code);
+    static ResultCodeDescription desc;
+    const std::string& msg = desc.getErrorDescription(code);
     return msg;
   }
 
   std::string dumpErrorDescription() {
-    std::string msg = ::idgs::util::singleton<ResultCodeDescription>::getInstance().toString();
+    static ResultCodeDescription desc;
+    std::string msg = desc.toString();
     return msg;
   }
 

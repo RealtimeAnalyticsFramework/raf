@@ -16,7 +16,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 namespace idgs {
 
 template <typename Target, typename Source>
-inline Target sinmple_lexical_cast(const Source &arg) {
+inline Target simple_lexical_cast(const Source &arg) {
   std::stringstream ss;
   ss << arg;
   Target result;
@@ -24,16 +24,16 @@ inline Target sinmple_lexical_cast(const Source &arg) {
   return result;
 }
 
-struct sys {
+namespace sys {
 
   /// @brief is prime
-  static bool isPrime(size_t number);
+  bool isPrime(size_t number);
 
   /// @brief  Get current timestamp.
   /// @return Current timestamp.
-  static unsigned long getCurrentTime();
+  unsigned long getCurrentTime();
 
-  static std::string formatTime(double spent_time);
+  std::string formatTime(double spent_time);
 
 
 
@@ -45,14 +45,14 @@ struct sys {
   /// @code
   /// // Example
   /// string value = "123";
-  /// int32_t i;
+  /// int i;
   /// i = sys::convert<int>(value);
   /// @endcode
-  template<typename out_type, typename in_value>
-  static inline ResultCode convert(const in_value& value, out_type& result) {
+  template<typename OUT_TYPE, typename IN_TYPE>
+  inline ResultCode convert(const IN_TYPE& value, OUT_TYPE& result) {
 #if defined(USE_BOOST)
     try {
-      result = boost::lexical_cast<out_type>(value);
+      result = boost::lexical_cast<OUT_TYPE>(value);
       return RC_SUCCESS;
     } catch (boost::bad_lexical_cast& e) {
       LOG(ERROR) << "Error in convert data : " << e.what();
@@ -62,12 +62,54 @@ struct sys {
       return RC_DATA_CONVERT_ERROR;
     }
 #else // defined(USE_BOOST)
-    result = sinmple_lexical_cast<out_type>(value);
+    result = simple_lexical_cast<OUT_TYPE>(value);
     return RC_SUCCESS;
 #endif // defined(USE_BOOST)
   }
 
-  static void saveFile(const std::string& fileName, const std::string& content);
+  template<>
+  inline ResultCode convert<int, std::string>(const std::string& str, int& out) {
+    out = std::stoi(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<long, std::string>(const std::string& str, long& out) {
+    out = std::stol(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<long long, std::string>(const std::string& str, long long& out) {
+    out = std::stoll(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<unsigned long, std::string>(const std::string& str, unsigned long& out) {
+    out = std::stoul(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<unsigned long long, std::string>(const std::string& str, unsigned long long& out) {
+    out = std::stoull(str);
+    return RC_OK;
+  }
+
+  template<>
+  inline ResultCode convert<float, std::string>(const std::string& str, float& out) {
+    out = std::stof(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<double, std::string>(const std::string& str, double& out) {
+    out = std::stod(str);
+    return RC_OK;
+  }
+  template<>
+  inline ResultCode convert<long double, std::string>(const std::string& str, long double& out) {
+    out = std::stold(str);
+    return RC_OK;
+  }
+
+  void saveFile(const std::string& fileName, const std::string& content);
 };
 
 struct str {
@@ -93,6 +135,9 @@ struct str {
   /// @return Lowered string
   static std::string toLower(const std::string& str);
 };
+
+ResultCode parseIdgsConfig(google::protobuf::Message* message, const std::string& filePath);
+
 } // namespace idgs
 
 /// dump a vector to stream

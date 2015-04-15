@@ -9,9 +9,7 @@
 #include "idgs/client/client_pool.h"
 #include "idgs/rdd/rdd_const.h"
 
-using namespace std;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd;
 
 namespace idgs {
@@ -21,7 +19,7 @@ namespace rdd {
 ResultCode RddClient::createStoreDelegateRDD(const DelegateRddRequestPtr& request, DelegateRddResponsePtr& response,
     int time_out) {
   ResultCode code = RC_SUCCESS;
-  shared_ptr < TcpClientInterface > client = singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in get client, cause by " << getErrorDescription(code);
     return code;
@@ -31,7 +29,7 @@ ResultCode RddClient::createStoreDelegateRDD(const DelegateRddRequestPtr& reques
     request->set_rdd_name(request->store_name() + "-DelegateRDD");
   }
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(CREATE_STORE_DELEGATE_RDD);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(RDD_SERVICE_ACTOR);
@@ -40,7 +38,8 @@ ResultCode RddClient::createStoreDelegateRDD(const DelegateRddRequestPtr& reques
   clientActorMsg->setSourceMemberId(CLIENT_MEMBER);
   clientActorMsg->setPayload(request);
 
-  ClientActorMessagePtr resp = client->sendRecv(clientActorMsg, &code, time_out);
+  ClientActorMessagePtr resp;
+  code = client->sendRecv(clientActorMsg, resp, time_out);
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in create store delegate RDD, cause by " << getErrorDescription(code);
   } else if (!resp->parsePayload(response.get())) {
@@ -56,13 +55,13 @@ ResultCode RddClient::createStoreDelegateRDD(const DelegateRddRequestPtr& reques
 ResultCode RddClient::createRdd(const RddRequestPtr& request, RddResponsePtr& response, const AttachMessage& attach,
     int time_out) {
   ResultCode code = RC_SUCCESS;
-  shared_ptr < TcpClientInterface > client = singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in get client, cause by " << getErrorDescription(code);
     return code;
   }
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(CREATE_RDD);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(RDD_SERVICE_ACTOR);
@@ -76,10 +75,10 @@ ResultCode RddClient::createRdd(const RddRequestPtr& request, RddResponsePtr& re
     for (; it != attach.end(); ++it) {
       clientActorMsg->setAttachment(it->first, it->second);
     }
-    clientActorMsg->toBuffer();
   }
 
-  ClientActorMessagePtr resp = client->sendRecv(clientActorMsg, &code, time_out);
+  ClientActorMessagePtr resp;
+  code = client->sendRecv(clientActorMsg, resp, time_out);
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in sending message to server, cause by " << getErrorDescription(code);
   } else if (!resp->parsePayload(response.get())) {
@@ -100,7 +99,7 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
   }
 
   ResultCode code = RC_SUCCESS;
-  shared_ptr<TcpClientInterface> client = singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in get client, cause by " << getErrorDescription(code);
     return code;
@@ -114,7 +113,7 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
     }
   }
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(RDD_ACTION_REQUEST);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(RDD_SERVICE_ACTOR);
@@ -128,18 +127,22 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
     for (; it != attach.end(); ++ it) {
       clientActorMsg->setAttachment(it->first, it->second);
     }
-    clientActorMsg->toBuffer();
+//    clientActorMsg->toBuffer();
   }
 
-  ClientActorMessagePtr resp = client->sendRecv(clientActorMsg, &code, time_out);
+  ClientActorMessagePtr resp;
+  code = client->sendRecv(clientActorMsg, resp, time_out);
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in sending message to server, cause by " + getErrorDescription(code);
+    return code;
   } else if (!resp->parsePayload(response.get())) {
     LOG(ERROR) << "Cannot parse action response";
+    return RC_ERROR;
   } else {
     if (resp->getRawAttachments().find(ACTION_RESULT) != resp->getRawAttachments().end()) {
       if (!resp->parseAttachment(ACTION_RESULT, result.get())) {
         LOG(ERROR) << "parse action result error, message: " << resp->toString();
+        return RC_ERROR;
       }
     }
   }
@@ -152,7 +155,7 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
 ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponsePtr& response, ActionResultPtr& result,
     const ActorId& rddId, const AttachMessage& attach, int time_out) {
   ResultCode code;
-  shared_ptr < TcpClientInterface > client = singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in get client, cause by " << getErrorDescription(code);
     return code;
@@ -166,7 +169,7 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
     }
   }
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(RDD_ACTION_REQUEST);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(rddId.actor_id());
@@ -183,15 +186,20 @@ ResultCode RddClient::sendAction(const ActionRequestPtr& request, ActionResponse
     clientActorMsg->toBuffer();
   }
 
-  ClientActorMessagePtr resp = client->sendRecv(clientActorMsg, &code, time_out);
+  ClientActorMessagePtr resp;
+  code = client->sendRecv(clientActorMsg, resp, time_out);
+
   if (code != RC_SUCCESS) {
     LOG(ERROR)<< "Error in sending message to server, cause by " + getErrorDescription(code);
+    return code;
   } else if (!resp->parsePayload(response.get())) {
     LOG(ERROR) << "Cannot parse action response";
+    return RC_ERROR;
   } else {
     if (resp->getRawAttachments().find(ACTION_RESULT) != resp->getRawAttachments().end()) {
       if (!resp->parseAttachment(ACTION_RESULT, result.get())) {
         LOG(ERROR) << "Cannot find of parse action result";
+        return RC_ERROR;
       }
     }
   }
@@ -213,14 +221,26 @@ ResultCode RddClient::init(const std::string& clientConfig) {
 
   if (setting.clientConfig == "") {
     LOG(ERROR)<< "Error in load client setting, cause by client config file is not found";
+    return RC_ERROR;
   }
 
-  ResultCode code = singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  ResultCode code = getTcpClientPool().loadConfig(setting);
   if (code != idgs::RC_SUCCESS) {
     LOG(ERROR)<< "Error in load client setting, cause by " << idgs::getErrorDescription(code);
   }
   return code;
 }
+
+const idgs::store::StoreConfigWrapperPtr& RddClient::getStoreConfigWrapper(const std::string& storeName) const {
+  auto store = getTcpClientPool().getDataStore()->getStore(storeName);
+  if (!store) {
+    static idgs::store::StoreConfigWrapperPtr null;
+    return null;
+  }
+
+  return store->getStoreConfigWrapper();
+}
+
 }
 }
 }

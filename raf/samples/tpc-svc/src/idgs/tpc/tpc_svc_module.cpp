@@ -15,6 +15,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_module.h"
 
 #include "idgs/tpc/actor/line_crud_actor.h"
+#include "idgs/tpc/actor/migration_verify_actor.h"
+#include "idgs/tpc/actor/sync_verify_actor.h"
 #include "idgs/tpc/transform/ssb_Q1_transformer.h"
 #include "idgs/tpc/transform/tpch_Q6_transformer.h"
 #include "idgs/tpc/action/ssb_Q1_action.h"
@@ -39,10 +41,26 @@ struct TpcModule : public idgs::Module {
   virtual int start();
   virtual int stop();
   idgs::Application* app;
+
+private:
+  LineCrudActor* lineCrudActor;
+  MigrationVerifyActor* migrationVerifyActor;
+  SyncVerifyActor* syncVerifyActor;
 };
 
 TpcModule::~TpcModule() {
+  if (lineCrudActor) {
+    delete lineCrudActor;
+    lineCrudActor = NULL;
+  }
 
+  if (migrationVerifyActor) {
+    migrationVerifyActor = NULL;
+  }
+
+  if (syncVerifyActor) {
+    syncVerifyActor = NULL;
+  }
 }
 
 static const std::string& TPC_MODULE_DESCRIPTOR_NAME = "tpc";
@@ -53,35 +71,43 @@ int TpcModule::init(const char* config_path, idgs::Application* theApp){
   app = theApp;
 
   /// Create LineCrud Actor
-  LineCrudActor* actor = new LineCrudActor;
-  actor->init();
-  app->getActorframework()->Register(actor->getActorId(), actor); /// Register Actor
+  lineCrudActor = new LineCrudActor;
+  lineCrudActor->init();
+  app->registerServiceActor(lineCrudActor); /// Register Actor
+
+  migrationVerifyActor = new MigrationVerifyActor;
+  app->registerServiceActor(migrationVerifyActor);
+
+  syncVerifyActor = new SyncVerifyActor;
+  app->registerServiceActor(syncVerifyActor);
 
   /// Register module descriptor
-  std::shared_ptr<ModuleDescriptorWrapper> module_descriptor(new ModuleDescriptorWrapper);
+  std::shared_ptr<ModuleDescriptorWrapper> module_descriptor = std::make_shared<ModuleDescriptorWrapper>();
   module_descriptor->setName(TPC_MODULE_DESCRIPTOR_NAME);
   module_descriptor->setDescription("tpc module descriptor");
 
-  module_descriptor->addActorDescriptor(actor->getDescriptor());
-  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerModuleDescriptor(module_descriptor->getName(), module_descriptor);
+  module_descriptor->addActorDescriptor(lineCrudActor->getDescriptor());
+  module_descriptor->addActorDescriptor(MigrationVerifyActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(SyncVerifyActor::generateActorDescriptor());
+  idgs_application()->getActorDescriptorMgr()->registerModuleDescriptor(module_descriptor->getName(), module_descriptor);
 
-  TransformerMgr& transformerMgr = idgs_rdd_module()->getTransformManager();
+  TransformerMgr& transformerMgr = *idgs_rdd_module()->getTransformManager();
 
-  TransformerPtr tpchQ6Transformer(new TpchQ6Transformer);
+  TransformerPtr tpchQ6Transformer = std::make_shared<TpchQ6Transformer>();
   transformerMgr.put(TPCH_Q6_TRANSFORMER, tpchQ6Transformer);
 
-  TransformerPtr ssbQ1Transformer(new SsbQ1_1Transformer);
+  TransformerPtr ssbQ1Transformer = std::make_shared<SsbQ1_1Transformer>();
   transformerMgr.put(SSB_Q1_1_TRANSFORMER, ssbQ1Transformer);
 
-  ActionMgr& actionMgr = idgs_rdd_module()->getActionManager();
+  ActionMgr& actionMgr = *idgs_rdd_module()->getActionManager();
 
-  ActionPtr tpchQ6Action(new TpchQ6Action);
+  ActionPtr tpchQ6Action = std::make_shared<TpchQ6Action>();
   actionMgr.put(TPCH_Q6_ACTION, tpchQ6Action);
 
-  ActionPtr ssbQ1Action(new SsbQ1_1Action);
+  ActionPtr ssbQ1Action = std::make_shared<SsbQ1_1Action>();
   actionMgr.put(SSB_Q1_1_ACTION, ssbQ1Action);
 
-  ActionPtr partition_count_action(new PartitionCountAction);
+  ActionPtr partition_count_action = std::make_shared<PartitionCountAction>();
   actionMgr.put(PARTITION_COUNT_ACTION, partition_count_action);
 
   return RC_OK;
@@ -96,20 +122,31 @@ int TpcModule::stop(void){
   function_footprint();
   LOG(INFO) << "stop module tpc_svc";
 
-  TransformerMgr& transformerMgr = idgs_rdd_module()->getTransformManager();
+  TransformerMgr& transformerMgr = *idgs_rdd_module()->getTransformManager();
   transformerMgr.remove(TPCH_Q6_TRANSFORMER);
   transformerMgr.remove(SSB_Q1_1_TRANSFORMER);
 
-  ActionMgr& actionMgr = idgs_rdd_module()->getActionManager();
+  ActionMgr& actionMgr = *idgs_rdd_module()->getActionManager();
   actionMgr.remove(TPCH_Q6_ACTION);
   actionMgr.remove(SSB_Q1_1_ACTION);
 
-  DVLOG(3) << "begin unregister actor";
-  app->getActorframework()->unRegisterStatelessActor("linecrud_actor"); /// unregister actor
-  DVLOG(3) << "end unregister actor";
+  DVLOG(3) << "begin terminate actor";
+  if (lineCrudActor) {
+    lineCrudActor->terminate();
+  }
+
+  if (migrationVerifyActor) {
+    migrationVerifyActor->terminate();
+  }
+
+  if (syncVerifyActor) {
+    syncVerifyActor->terminate();
+  }
+
+  DVLOG(3) << "end terminate actor";
 
   DVLOG(3) << "begin unregister module descriptor";
-  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().unRegisterModuleDescriptor(TPC_MODULE_DESCRIPTOR_NAME);/// unregister module descriptor
+  idgs_application()->getActorDescriptorMgr()->unRegisterModuleDescriptor(TPC_MODULE_DESCRIPTOR_NAME);/// unregister module descriptor
   DVLOG(3) << "end unregister module actor";
 
   return RC_OK;

@@ -11,7 +11,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 #include <gtest/gtest.h>
 #include "employee.pb.cc"
-#include "protobuf/json_message.h"
+#include "protobuf/protobuf_json.h"
+#include "idgs/util/utillity.h"
+
 
 using namespace protobuf;
 using namespace idgs;
@@ -28,11 +30,17 @@ TEST(json_proto, from_string) {
   DVLOG(2) << "json string : " << json;
 
   Employee emp;
-  ResultCode status = JsonMessage().parseJsonFromString(&emp, json);
+  ResultCode status = (ResultCode)ProtobufJson::parseJsonFromString(&emp, json);
   if (status != RC_SUCCESS) {
     DVLOG(2) << "Parse json error. Caused by " << getErrorDescription(status);
     return;
   }
+
+  std::cout << std::string(4, ' ');
+  ProtobufJson::toJsonStream(std::cout, &emp, true, 2);
+  std::cout << std::endl;
+  ProtobufJson::toJsonStream(std::cout, &emp, false);
+  std::cout << std::endl;
 
   ASSERT_EQ(234000, emp.id());
   ASSERT_EQ("Tom", emp.name());
@@ -51,11 +59,11 @@ TEST(json_proto, from_string) {
   ASSERT_EQ("2004-2008", emp.edu(1).when());
   ASSERT_EQ("bj", emp.edu(1).school());
 
-  string toJson = JsonMessage().toJsonString(&emp);
+  string toJson = ProtobufJson::toJsonString(&emp);
   ASSERT_EQ(json, toJson);
 
   Employee emp1;
-  status = JsonMessage().parseJsonFromString(&emp1, toJson);
+  status = (ResultCode)ProtobufJson::parseJsonFromString(&emp1, toJson);
   if (status != RC_SUCCESS) {
     DVLOG(2) << "Parse json error. Caused by " << getErrorDescription(status);
     return;
@@ -97,10 +105,10 @@ TEST(json_proto, from_object) {
   edu->set_when("2000-2004");
   edu->set_school("ncut");
 
-  string toJson = JsonMessage().toJsonString(&emp);
+  string toJson = ProtobufJson::toJsonString(&emp);
 
   Employee emp1;
-  ResultCode status = JsonMessage().parseJsonFromString(&emp1, toJson);
+  ResultCode status = (ResultCode)ProtobufJson::parseJsonFromString(&emp1, toJson);
   if (status != RC_SUCCESS) {
     DVLOG(2) << "Parse json error. Caused by " << getErrorDescription(status);
     return;
@@ -124,7 +132,7 @@ TEST(json_proto, from_object) {
 
 TEST(json_proto, from_file) {
   Employee emp;
-  ResultCode status = JsonMessage().parseJsonFromFile(&emp, "framework/test/test.json");
+  ResultCode status = (ResultCode)idgs::parseIdgsConfig(&emp, "framework/test/test.json");
   if (status != RC_SUCCESS) {
     DVLOG(2) << "Parse json error. Caused by " << getErrorDescription(status);
     return;

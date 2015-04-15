@@ -11,22 +11,26 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "idgs/cluster/cluster_cfg_parser.h"
-#include "protobuf/json_message.h"
 #include "idgs/util/utillity.h"
 #include "idgs/net/network_interface.h"
 #include "cluster_const.h"
 
-using namespace idgs::pb;
-
 namespace idgs {
 namespace cluster {
 
-static ResultCode checkConfig(ClusterConfig& config) {
+static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
+  char* temp;
+  {
+    if ((temp = getenv(ENV_VAR_GROUP))) {
+      config.set_group_name(temp);
+    }
+  } /// end check thread_count
+
   {
     uint32_t thread_count = config.thread_count();
-    if (getenv(ENV_VAR_THREAD_COUNT)) {
+    if ((temp = getenv(ENV_VAR_THREAD_COUNT))) {
       try {
-        thread_count = atoi(getenv(ENV_VAR_THREAD_COUNT));
+        thread_count = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_THREAD_COUNT << " should be an integer number";
@@ -39,11 +43,12 @@ static ResultCode checkConfig(ClusterConfig& config) {
     }
     config.set_thread_count(thread_count);
   } /// end check thread_count
+
   {
     uint32_t io_thread_count = config.io_thread_count();
-    if (getenv(ENV_VAR_IO_THREAD_COUNT)) {
+    if ((temp = getenv(ENV_VAR_IO_THREAD_COUNT))) {
       try {
-        io_thread_count = atoi(getenv(ENV_VAR_IO_THREAD_COUNT));
+        io_thread_count = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_IO_THREAD_COUNT << " should be an integer number";
@@ -60,9 +65,9 @@ static ResultCode checkConfig(ClusterConfig& config) {
   /// max idle thread
   {
     uint32_t max_idle_thread = config.max_idle_thread();
-    if (getenv(ENV_VAR_MAX_IDLE_THREAD)) {
+    if ((temp = getenv(ENV_VAR_MAX_IDLE_THREAD))) {
       try {
-        max_idle_thread = atoi(getenv(ENV_VAR_MAX_IDLE_THREAD));
+        max_idle_thread = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_MAX_IDLE_THREAD << " should be an integer number";
@@ -82,9 +87,9 @@ static ResultCode checkConfig(ClusterConfig& config) {
   /// repartition batch
   {
     uint32_t repartition_batch = config.repartition_batch();
-    if (getenv(ENV_VAR_REPARTITION_BATCH)) {
+    if ((temp = getenv(ENV_VAR_REPARTITION_BATCH))) {
       try {
-        repartition_batch = atoi(getenv(ENV_VAR_REPARTITION_BATCH));
+        repartition_batch = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_REPARTITION_BATCH << " should be an integer number";
@@ -101,28 +106,35 @@ static ResultCode checkConfig(ClusterConfig& config) {
   {
     /// mtu
     uint32_t mtu = config.mtu();
-    if (getenv(ENV_VAR_MTU)) {
+    if ((temp = getenv(ENV_VAR_MTU))) {
       try {
-        mtu = atoi(getenv(ENV_VAR_MTU));
+        mtu = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_MTU << " should be an integer number";
         return RC_CLUSTER_ERR_CFG;
       }
     }
-    if (mtu < 0) {
-      LOG(ERROR)<< "cluster config error, mtu can not less than 0";
-      return RC_CLUSTER_ERR_CFG;
-    }
+//    if (mtu < 0) {
+//      LOG(ERROR)<< "cluster config error, mtu can not less than 0";
+//      return RC_CLUSTER_ERR_CFG;
+//    }
     config.set_mtu(mtu);
   } /// end check mtu
 
   {
-    /// mtu
+    /// group name
+    if ((temp = getenv(ENV_VAR_GROUP_NAME))) {
+      config.set_group_name(temp);
+    }
+  } /// end check mtu
+
+  {
+    /// tcp batch
     uint32_t tcp_batch = config.tcp_batch();
-    if (getenv(ENV_VAR_TCP_BATCH)) {
+    if ((temp = getenv(ENV_VAR_TCP_BATCH))) {
       try {
-        tcp_batch = atoi(getenv(ENV_VAR_TCP_BATCH));
+        tcp_batch = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
         LOG(ERROR) << ENV_VAR_TCP_BATCH << " should be an integer number";
@@ -134,7 +146,7 @@ static ResultCode checkConfig(ClusterConfig& config) {
       return RC_CLUSTER_ERR_CFG;
     }
     config.set_tcp_batch(tcp_batch);
-  } /// end check mtu
+  } /// end check tcp_batch
 
   {
     if (config.reserved_member_size() <= 0) {
@@ -142,6 +154,7 @@ static ResultCode checkConfig(ClusterConfig& config) {
       return RC_CLUSTER_ERR_CFG;
     }
   } //// end check reserved_member_size
+
   {
     uint32_t partitionCount = config.partition_count();
     if (getenv(ENV_VAR_PARTITION_COUNT)) {
@@ -159,33 +172,36 @@ static ResultCode checkConfig(ClusterConfig& config) {
     }
     if (!sys::isPrime(partitionCount)) {
       LOG(ERROR)<< "cluster config error, partition_count: " << partitionCount << " is not a prime number";
-      return RC_CLUSTER_ERR_CFG;
+//      return RC_CLUSTER_ERR_CFG;
     }
     config.set_partition_count(partitionCount);
   } //// end check partition_count
   {
-    if (config.max_backup_count() <= 0) {
-      LOG(ERROR)<< "cluster config error, max_backup_count can not less than 0";
+    if (config.max_replica_count() < 1) {
+      LOG(ERROR)<< "cluster config error, max_replica_count can not less than 1";
       return RC_CLUSTER_ERR_CFG;
     }
-  } //// end max_backup_count
+  } //// end max_replica_count
+
   {
-    if (str::trim(config.member().group_name()).length() <= 0) {
+    if (str::trim(config.group_name()).length() <= 0) {
       LOG(ERROR)<< "cluster config error, member's group_name can not be empty";
       return RC_CLUSTER_ERR_CFG;
     }
   } //// end group_name
+
   {
-    std::string ip = config.member().publicaddress().host();
+    std::string ip = config.member().public_address().host();
     if (getenv(ENV_VAR_IP)) {
       ip = getenv(ENV_VAR_IP);
+      ip = str::trim(ip);
     }
     if (str::trim(ip).length() <= 0 || str::trim(ip).compare("0.0.0.0")/* default */ == 0) {
       std::vector<std::string> interface_addrs;
       idgs::net::network::getInterfaceAddress(interface_addrs);
       ip = interface_addrs.at(0);
     }
-    uint32_t port = config.member().publicaddress().port();
+    uint32_t port = config.member().public_address().port();
     if (getenv(ENV_VAR_PORT)) {
       try {
         port = atoi(getenv(ENV_VAR_PORT));
@@ -203,7 +219,7 @@ static ResultCode checkConfig(ClusterConfig& config) {
       LOG(ERROR)<< "cluster config error, port can not great than 65535";
       return RC_CLUSTER_ERR_CFG;
     }
-    std::string innerIp = config.member().inneraddress().host();
+    std::string innerIp = config.member().inner_address().host();
     if (getenv(ENV_VAR_INNERIP)) {
       innerIp = getenv(ENV_VAR_INNERIP);
     }
@@ -212,7 +228,7 @@ static ResultCode checkConfig(ClusterConfig& config) {
       idgs::net::network::getInterfaceAddress(interface_addrs);
       innerIp = interface_addrs.at(0);
     }
-    uint32_t innerPort = config.member().inneraddress().port();
+    uint32_t innerPort = config.member().inner_address().port();
     if (getenv(ENV_VAR_INNERPORT)) {
       try {
         innerPort = atoi(getenv(ENV_VAR_INNERPORT));
@@ -233,10 +249,10 @@ static ResultCode checkConfig(ClusterConfig& config) {
     if (ip == innerIp && port == innerPort) {
       ++innerPort;
     }
-    config.mutable_member()->mutable_publicaddress()->set_host(ip);
-    config.mutable_member()->mutable_publicaddress()->set_port(port);
-    config.mutable_member()->mutable_inneraddress()->set_host(innerIp);
-    config.mutable_member()->mutable_inneraddress()->set_port(innerPort);
+    config.mutable_member()->mutable_public_address()->set_host(ip);
+    config.mutable_member()->mutable_public_address()->set_port(port);
+    config.mutable_member()->mutable_inner_address()->set_host(innerIp);
+    config.mutable_member()->mutable_inner_address()->set_port(innerPort);
   } /// end check ip, port, innerIp, innerPort
   {
     uint32_t weight = config.member().weight();
@@ -292,7 +308,7 @@ static ResultCode checkConfig(ClusterConfig& config) {
     for (int i = 0; i < config.modules_size(); ++i) {
       std::string env_var_name = ENV_VAR_MODULE_PREFIX + config.modules(i).name();
       const char* env_var_value = getenv(env_var_name.c_str());
-      DVLOG(1) << env_var_name << " = " << env_var_value;
+      DVLOG_IF(1, env_var_value != NULL) << env_var_name << " = " << env_var_value;
       if (env_var_value) {
         std::string temp = idgs::str::toLower(std::string(env_var_value));
         if(temp == "false" || temp == "f" || temp == "no" || temp == "n"  ) {
@@ -319,15 +335,15 @@ static ResultCode checkConfig(ClusterConfig& config) {
   return RC_OK;
 }
 
-ResultCode ClusterCfgParser::parse(ClusterConfig& config, const char* xmlFile) {
+ResultCode ClusterCfgParser::parse(idgs::pb::ClusterConfig& config, const char* xmlFile) {
   LOG(INFO)<< "load cluster config file, file path: " << xmlFile;
-  ResultCode rs = protobuf::JsonMessage().parseJsonFromFile(&config, std::string(xmlFile));
+  ResultCode rs = (ResultCode)idgs::parseIdgsConfig(&config, std::string(xmlFile));
   if(rs != RC_OK) {
     LOG(ERROR) << "parse config file error, error msg: " << getErrorDescription(rs);
     return rs;
   }
   rs = checkConfig(config);
-  DVLOG(3) << config.DebugString();
+  DVLOG(7) << config.DebugString();
   return rs;
 }
 

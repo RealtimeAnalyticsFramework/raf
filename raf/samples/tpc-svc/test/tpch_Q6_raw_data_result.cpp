@@ -20,7 +20,6 @@ double getTpchRawResult(const string& filename) {
   ifstream fs(filename);
   int32_t len = 1024;
   double sum = 0;
-  int32_t cnt = 0;
   while (!fs.eof()) {
     char line[len];
     fs.getline(line, len - 1);

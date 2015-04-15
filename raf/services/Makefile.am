@@ -1,2 +1,3 @@
-SUBDIRS = store rdd admin
+SUBDIRS = store rddng 
+#persist  admin
 

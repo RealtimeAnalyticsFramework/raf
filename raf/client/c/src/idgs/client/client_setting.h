@@ -7,31 +7,15 @@
  */
 #pragma once
 
-#include "idgs/store/pb/store_service.pb.h"
 
 namespace idgs {
 namespace client {
 class ClientSetting {
 public:
-  ClientSetting() :
-      silient(false) {
-    msgs.resize(20);
-    msgs[idgs::store::pb::SRC_SUCCESS] = "Success";
-    msgs[idgs::store::pb::SRC_KEY_EXIST] = "Key is already exists.";
-    msgs[idgs::store::pb::SRC_KEY_NOT_EXIST] = "Key is not exists";
-    msgs[idgs::store::pb::SRC_VERSION_CONFLICT] = "Version conflict.";
-    msgs[idgs::store::pb::SRC_TABLE_NOT_EXIST] = "Table not found.";
-    msgs[idgs::store::pb::SRC_DATA_NOT_FOUND] = "Data not found.";
-    msgs[idgs::store::pb::SRC_PARTITION_NOT_FOUND] = "Partition not found.";
-    msgs[idgs::store::pb::SRC_PARTITION_NOT_READY] = "Partition is not ready.";
-    msgs[idgs::store::pb::SRC_INVALID_KEY] = "Invalid key.";
-    msgs[idgs::store::pb::SRC_INVALID_VALUE] = "Invalid value.";
-    msgs[idgs::store::pb::SRC_INVALID_FILTER] = "Invalid filter.";
-    msgs[idgs::store::pb::SRC_UNKNOWN_ERROR] = "Unknown error.";
+  ClientSetting(): silient(false) {
   }
 
   ~ClientSetting() {
-    msgs.clear();
   }
 
   std::string clientConfig;
@@ -40,7 +24,6 @@ public:
   std::string scriptFile;
   bool silient = false;
 
-  std::vector<std::string> msgs;
 };
-}
-} /* namespace idgs */
+} // namespace client
+} // namespace idgs

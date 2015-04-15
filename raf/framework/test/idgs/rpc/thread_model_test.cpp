@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 #include <gtest/gtest.h>
-#include "idgs/actor/rpc_framework.h"
 
 
 TEST(ThreadModel, init)

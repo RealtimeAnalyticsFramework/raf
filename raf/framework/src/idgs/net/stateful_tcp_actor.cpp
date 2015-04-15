@@ -78,19 +78,24 @@ asio::ip::tcp::socket& StatefulTcpActor::socket() {
 }
 
 void StatefulTcpActor::startReceiveHeader() {
-  RpcBuffer* readBuffer = new RpcBuffer();
+  std::shared_ptr<RpcBuffer> readBuffer = std::make_shared<RpcBuffer>();
 
-  asio::async_read(socket(),
-      asio::buffer(reinterpret_cast<void*>(readBuffer->getHeader()), sizeof(idgs::net::TcpHeader)),
-      asio::transfer_all(),
-      [this, readBuffer] (const asio::error_code& error, const std::size_t& ) {
-    this->handle_read_header(error, readBuffer);
+  try {
+    asio::async_read(socket(),
+        asio::buffer(reinterpret_cast<void*>(readBuffer->getHeader()), sizeof(idgs::net::TcpHeader)),
+        asio::transfer_all(),
+        [this, readBuffer] (const asio::error_code& error, const std::size_t& ) {
+      this->handle_read_header(error, readBuffer);
+    }
+    );
+  } catch (std::exception& e) {
+    LOG(WARNING) << "Failed to receive message header: " << e.what();
+    dump_exception_callstack();
   }
-  );
 }
 
 
-void StatefulTcpActor::handle_read_header(const asio::error_code& error, RpcBuffer* readBuffer) {
+void StatefulTcpActor::handle_read_header(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer) {
   if (!error && readBuffer->decodeHeader()) {
     DVLOG(3) << "Recv header size: " << sizeof(TcpHeader);
     asio::async_read(socket(), asio::buffer(readBuffer->getBody(), readBuffer->getBodyLength()),
@@ -101,18 +106,18 @@ void StatefulTcpActor::handle_read_header(const asio::error_code& error, RpcBuff
     );
   } else {
     LOG_IF(ERROR, error != asio::error::eof) << "handle read header data error, caused by " << error.message() << ", close current socket";
+    VLOG(2) << "handle read header data error, caused by " << error.message() << ", close current socket";
     /// close socket
-    delete readBuffer;
     terminate();
   }
 }
 
-void StatefulTcpActor::handle_read_body(const asio::error_code& error, RpcBuffer* readBuffer) {
+void StatefulTcpActor::handle_read_body(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer) {
   if (!error) {
     /// start to recv next header
     startReceiveHeader();
     DVLOG(3) << "Recv body size: " << readBuffer->getBodyLength() <<  ", content: " << dumpBinaryBuffer2(readBuffer->getBody(), readBuffer->getBodyLength());
-    std::shared_ptr<ActorMessage> actorMsg(new ActorMessage());
+    std::shared_ptr<ActorMessage> actorMsg = std::make_shared<ActorMessage>();
     actorMsg->setRpcBuffer(readBuffer);
     actorMsg->setMessageOrietation(ActorMessage::OUTER_TCP);
     actorMsg->setTcpActorId(getActorId());
@@ -125,7 +130,6 @@ void StatefulTcpActor::handle_read_body(const asio::error_code& error, RpcBuffer
     idgs::actor::relayMessage(actorMsg);
   } else {
     LOG(ERROR) << "handle read body error , caused by " << error.message();
-    delete readBuffer;
     terminate();
   }
 }
@@ -143,11 +147,21 @@ void StatefulTcpActor::handle_write(const asio::error_code& error, const idgs::a
 }
 
 void StatefulTcpActor::realSend() {
-  if(writing.test_and_set()) {
-    DVLOG(5) << "writing";
+  idgs::actor::ActorMessagePtr message;
+
+#if !defined(RETRY_LOCK_TIMES)
+#define RETRY_LOCK_TIMES 5
+#endif // !defined(RETRY_LOCK_TIMES)
+  int i = 0;
+  for (; i < RETRY_LOCK_TIMES; ++i) {
+    if(!writing.test_and_set()) {
+      break;
+    }
+  }
+  if(i == RETRY_LOCK_TIMES) {
     return;
   }
-  idgs::actor::ActorMessagePtr message;
+
   bool ret = popMessage(&message);
   if (!ret) {
     writing.clear();
@@ -156,8 +170,6 @@ void StatefulTcpActor::realSend() {
 
 
   try {
-    idgs::ResultCode rc;
-
     std::vector<asio::const_buffer> outBuffers = {
         asio::buffer(reinterpret_cast<void*>(message->getRpcBuffer()->getHeader()), sizeof(idgs::net::TcpHeader)),
         asio::buffer(message->getRpcBuffer()->getBody(), message->getRpcBuffer()->getBodyLength())
@@ -174,6 +186,7 @@ void StatefulTcpActor::realSend() {
     });
   } catch (std::exception& e) {
     LOG(ERROR) << "send message error, caused by " << e.what() << ", message: " << message->toString();
+    dump_exception_callstack();
     writing.clear();
   } catch (...) {
     LOG(ERROR) << "send message error " << ", message: " << message->toString();

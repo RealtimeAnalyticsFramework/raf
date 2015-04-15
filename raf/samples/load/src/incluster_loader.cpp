@@ -10,9 +10,8 @@
 #endif // GNUC_ $
 #include "incluster_loader.h"
 #include "idgs/util/utillity.h"
-#include "idgs/application.h"
-#include "idgs/store/datastore_const.h"
 #include "idgs/signal_handler.h"
+#include "idgs/store/store_module.h"
 
 using namespace idgs::store;
 using namespace idgs::store::pb;
@@ -35,34 +34,33 @@ InClusterLoader::~InClusterLoader() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& InClusterLoader::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = { { DATA_STORE_INSERT_RESPONSE,
+  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = { { OP_INSERT_RESPONSE,
       static_cast<idgs::actor::ActorMessageHandler>(&InClusterLoader::handleInsertResponse) }, };
   return handlerMap;
 }
 
 idgs::ResultCode InClusterLoader::startMember() {
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
+  Application* app = idgs_application();
 
-  DVLOG(1) << "Loading configuration.";
-  CHECK_RC(app.init(settings->client_cfg_file));
+  DVLOG(3) << "Loading configuration.";
+  CHECK_RC(app->init(settings->client_cfg_file));
 
-  DVLOG(1) << "Server is starting.";
-  CHECK_RC(app.start());
+  DVLOG(3) << "Server is starting.";
+  CHECK_RC(app->start());
 
   return idgs::RC_OK;
 }
 
 idgs::ResultCode InClusterLoader::stopMember() {
   // unregister itself
-  ::idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->unRegisterStatelessActor(
-      ACOTR_ID);
+  idgs_application()->getRpcFramework()->getActorManager()->unregisterServiceActor(ACOTR_ID);
 
   // unregister actor descriptor
-  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(descriptor->getName());
+  idgs_application()->getActorDescriptorMgr()->removeActorDescriptor(descriptor->getName());
 
-  DVLOG(1) << "Server is shutting down.";
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
-  CHECK_RC(app.stop());
+  DVLOG(3) << "Server is shutting down.";
+  Application* app = idgs_application();
+  CHECK_RC(app->stop());
 
   return idgs::RC_OK;
 }
@@ -71,9 +69,9 @@ idgs::ResultCode InClusterLoader::runMember() {
   SignalHandler sh;
   sh.setup();
 
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
+  Application* app = idgs_application();
   // dead loop
-  while (app.isRunning()) {
+  while (app->isRunning()) {
     sleep(1);
   }
   return RC_OK;
@@ -84,11 +82,10 @@ idgs::ResultCode InClusterLoader::init(LoaderSettings* settings) {
 
   // register actor descriptor
   this->descriptor = generateActorDescriptor();
-  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerActorDescriptor(descriptor->getName(),
-      descriptor);
+  idgs_application()->getActorDescriptorMgr()->registerActorDescriptor(descriptor->getName(), descriptor);
 
   // register itself
-  ::idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->Register(ACOTR_ID, this);
+  idgs_application()->getRpcFramework()->getActorManager()->registerServiceActor(ACOTR_ID, this);
 
   LOG(INFO)<< "Start member.";
   CHECK_RC(startMember());
@@ -96,6 +93,8 @@ idgs::ResultCode InClusterLoader::init(LoaderSettings* settings) {
   LOG(INFO)<< "Sleep 3 seconds.";
   std::chrono::seconds dura(3);
   std::this_thread::sleep_for(dura);
+
+  datastore = idgs_store_module()->getDataStore();
   return idgs::RC_OK;
 }
 
@@ -114,16 +113,18 @@ void InClusterLoader::import() {
 
 ::idgs::actor::ActorDescriptorPtr InClusterLoader::generateActorDescriptor() {
   static std::shared_ptr<ActorDescriptorWrapper> descriptor;
-  if (descriptor)
+  if (descriptor) {
     return descriptor;
-  descriptor.reset(new ::ActorDescriptorWrapper);
+  }
+
+  descriptor = std::make_shared<ActorDescriptorWrapper>();
 
   descriptor->setName(ACOTR_ID);
   descriptor->setDescription("TPCH data loader");
   descriptor->setType(::idgs::pb::AT_STATELESS);
 
   ::idgs::actor::ActorOperationDescriporWrapper insertName;
-  insertName.setName(idgs::store::DATA_STORE_INSERT_RESPONSE);
+  insertName.setName(idgs::store::OP_INSERT_RESPONSE);
   insertName.setDescription("Insert response.");
   insertName.setPayloadType("idgs.store.pb.InsertResponse");
   descriptor->setInOperation(insertName.getName(), insertName);
@@ -132,7 +133,7 @@ void InClusterLoader::import() {
 }
 
 void InClusterLoader::handleInsertResponse(const idgs::actor::ActorMessagePtr& msg) {
-  DVLOG(5) << "Get response: " << msg->toString();
+  DVLOG_FIRST_N(5, 20) << "Get response: " << msg->toString();
   idgs::store::pb::InsertResponse* resp = dynamic_cast<idgs::store::pb::InsertResponse*>(msg->getPayload().get());
   if (resp->result_code() != idgs::store::pb::SRC_SUCCESS) {
     LOG(ERROR)<< "Insert data error, caused by code " << resp->result_code();
@@ -154,7 +155,7 @@ ActorMessagePtr InClusterLoader::genInsertActorMsg(const std::string& store_name
     return ActorMessagePtr(NULL);
   }
   ActorMessagePtr actorMsg = createActorMessage();
-  std::shared_ptr < InsertRequest > payload(new InsertRequest());
+  std::shared_ptr < InsertRequest > payload = std::make_shared<InsertRequest>();
   actorMsg->setOperationName(OP_INSERT);
   payload->set_store_name(store_name);
   payload->set_options(option);
@@ -204,14 +205,12 @@ idgs::ResultCode InClusterLoader::sendRequest() {
         ofs << "YVALUE" << "=" << ((double) records.load() * 1000 / (end - startTime)) << std::endl;
         ofs.close();
         LOG(INFO)<< "Total records = " << records.load() << ", TPS = " << ((double)records.load() * 1000 / (end - startTime));
-        Application& app = ::idgs::util::singleton<Application>::getInstance();
-        app.shutdown();
+        idgs_application()->shutdown();
       } else {
         if (!cancelTimer) {
           cancelTimer = new idgs::cancelable_timer(15, []() {
             std::cerr << "Timeout: program exit.";
-            Application& app = ::idgs::util::singleton<Application>::getInstance();
-            app.shutdown();
+            idgs_application()->shutdown();
           });
         }
       }
@@ -222,7 +221,7 @@ idgs::ResultCode InClusterLoader::sendRequest() {
       LOG(ERROR)<< "unknown err.";
     }
     if (line.empty()) {
-      LOG(WARNING)<< "read an empty line, ignored";
+//      LOG(WARNING)<< "read an empty line, ignored";
       continue;
     }
     idgs::ResultCode result;
@@ -252,7 +251,7 @@ idgs::ResultCode InClusterLoader::sendRequest() {
       ulong t = records.fetch_add(1);
       if ((t % LOG_PER_RECORDS) == 0 && t > 0) {
         unsigned long now = idgs::sys::getCurrentTime();
-        LOG(INFO)<< "total line inserted = "<< t << " tps = " << ((double)LOG_PER_RECORDS * 1000 / (now - lastTime));
+        LOG(INFO)<< "store " << store_name << " total line inserted = "<< t << " tps = " << ((double)LOG_PER_RECORDS * 1000 / (now - lastTime));
         lastTime = now;
       }
     }

@@ -10,9 +10,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #define SYS_BACKTRACE
 
 #include <gtest/gtest.h>
-#include <vector>
 #include "idgs/net/network_interface.h"
-#include "idgs/result_code.h"
 
 TEST(network_interface, dump) {
   std::vector<std::string> addrs;

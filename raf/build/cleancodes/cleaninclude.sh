@@ -17,6 +17,10 @@ if [ "$PCH_HEADER" = "" ] ; then
   PCH_HEADER=""
 fi
 
+# yes or no
+#CHECK_HEADER_COMPILABLE=no
+CHECK_HEADER_COMPILABLE=no
+
 #
 # remove header file from source file
 # $1 source file
@@ -61,16 +65,20 @@ samename() {
 # check whether the souce file compilable
 # $1: source file
 checkheader() {
+   if test "x$CHECK_HEADER_COMPILABLE" = "xno"; then
+     return 0
+   fi
    local file=$1
    if [[ $file == *.cpp ]] ; then
      return 0
    fi 
    cat <<END >temptest.cpp
 #include "$file"
-static void temp_test() {
+void temp_test() {
 }
 END
-  $CXX $CXXFLAGS -c temptest.cpp -o temptest.o 1>/dev/null 2>&1
+  #echo $CXX $CXXFLAGS -c temptest.cpp -o temptest.o
+  $CXX $CXXFLAGS -c temptest.cpp -o temptest.o 1>temptest.log 2>&1
   ECODE=$?
   rm -f temptest.cpp  temptest.o
   return $ECODE
@@ -81,6 +89,22 @@ END
 #
 for file in $*
 do
+   # compile the header file before change.
+   if checkheader $file ; then
+     XX=0
+   else
+     echo "========================================================"
+     echo "#failed to compile $file"
+     if [ $ECODE -ne 0 ] ; then
+       cat temptest.log
+     fi
+     echo "========================================================"
+     if test "x$CHECK_HEADER_COMPILABLE" = "xyes"; then
+       continue
+     fi
+     #exit 1
+   fi
+       
     includes=`grep "^[ \t]*#include" $file | awk '{print $2;}' | sed 's/[\"\<\>]//g'`
     for i in $includes
     do
@@ -95,14 +119,6 @@ do
           fi
         fi
 
-        # compile the header file before change.
-        if checkheader $file ; then
-          XX=0
-        else
-          echo "failed to compile $file"
-          exit 1
-        fi
-       
         touch $file # just to be sure it recompiles
         removeinclude $file $i
 
@@ -110,7 +126,7 @@ do
           XX=0
         else
           replaceinclude $file
-          echo "failed to compile $file"
+          echo "failed to compile $file without $i"
           continue
         fi
 	

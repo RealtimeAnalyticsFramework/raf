@@ -39,8 +39,8 @@ bool executeScript(const string& filename);
 ClientSetting setting;
 
 int main(int argc, char **argv) {
-  setting.clientConfig = "samples/shell/client.conf";
-  setting.storeConfig = "services/store/test/data_store.conf";
+  setting.clientConfig = "conf/client.conf";
+  setting.storeConfig = "conf/data_store.conf";
   setting.scriptFile = "";
 
   google::InstallFailureSignalHandler();
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  ResultCode code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  ResultCode code = getTcpClientPool().loadConfig(setting);
   if (code != RC_SUCCESS) {
     DLOG(ERROR) << "Initial ClientPool error: " << getErrorDescription(code);
     exit(1);
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
   cout << "idgs(client)>";
 
   // catch input from console
-  char ch, prech;
+  char ch, prech = 0;
   stringstream command;
   while (1) {
     ch = getchar();
@@ -145,11 +145,12 @@ int main(int argc, char **argv) {
 
     prech = ch;
   }
-  ::idgs::util::singleton<TcpClientPool>::getInstance().close();
+  getTcpClientPool().close();
 }
 
 bool parsePbJsonPayload(std::string& outPut, ClientActorMessagePtr msg) {
-  outPut = protobuf::JsonMessage::toIndentJsonString(msg->getRpcMessage()->payload());
+  // outPut = protobuf::ProtobufJson::toIndentJsonString(msg->getRpcMessage()->payload());
+  outPut = msg->getRpcMessage()->payload();
   return true;
 }
 
@@ -173,7 +174,7 @@ bool execute(const string& cmd) {
     cout << "Error : " << getErrorDescription(code);
     return false;
   }
-  std::shared_ptr<TcpClientInterface> client = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   if (code != RC_SUCCESS) {
     DLOG(ERROR) << "Get TcpSynchronousClient error: " << getErrorDescription(code);;
     exit(1);
@@ -186,7 +187,8 @@ bool execute(const string& cmd) {
   }
 
   // send message, wait and get response message
-  ClientActorMessagePtr tcpResponse = client->sendRecv(clientActorMsg, &code);
+  ClientActorMessagePtr tcpResponse;
+  code = client->sendRecv(clientActorMsg, tcpResponse);
 
   if (code != RC_SUCCESS) {
     cout << "execute the command error: " << getErrorDescription(code) << endl;
@@ -207,7 +209,7 @@ bool execute(const string& cmd) {
 
 
 
-bool executeScript(const string& filename/*, const ClientSetting& setting, std::shared_ptr<TcpClientInterface> client*/) {
+bool executeScript(const string& filename/*, const ClientSetting& setting, auto client*/) {
   // whether file exists
   if (access(filename.c_str(), 0) != 0) {
     cout << "File not found." << endl;

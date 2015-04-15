@@ -24,14 +24,13 @@ public:
     return TPCH_Q6_TRANSFORMER;
   }
 
-
   TpchQ6Transformer(const TpchQ6Transformer& other) = delete;
   TpchQ6Transformer(TpchQ6Transformer&& other) = delete;
   TpchQ6Transformer& operator()(const TpchQ6Transformer& other) = delete;
   TpchQ6Transformer& operator()(TpchQ6Transformer&& other) = delete;
 
-  idgs::rdd::pb::RddResultCode transform(const idgs::actor::ActorMessagePtr& msg,
-      const std::vector<idgs::rdd::BaseRddPartition*>& input, idgs::rdd::RddPartition* output);
+  virtual idgs::rdd::pb::RddResultCode transform(idgs::rdd::transform::TransformerContext* ctx,
+      const idgs::rdd::BaseRddPartition* input, idgs::rdd::PairRddPartition* output) override;
 };
 
 } /* namespace transform */

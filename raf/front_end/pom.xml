@@ -3,8 +3,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>idgs</groupId>
-  <artifactId>idgs-root</artifactId>
-  <version>0.0.1</version>
+  <artifactId>idgs-core</artifactId>
+  <version>0.1.0</version>
   <packaging>pom</packaging>
 
   <name>IDGS frontend ROOT</name>
@@ -12,8 +12,9 @@
 
 
   <modules>
-      <module>javaclient</module>
-      <module>sql_engine</module>
+      <module>idgs-java</module>
+      <module>idgs-sql</module>
+      <module>idgs-jdbc</module>
       <module>install</module>
   </modules>
 

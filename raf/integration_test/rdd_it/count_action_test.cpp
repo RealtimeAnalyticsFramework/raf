@@ -10,26 +10,27 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 
 TEST(count_action_test, count) {
   /// create store delegate
-  ResultCode code = singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf");
+  RddClient client;
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "init rdd client error, caused by " << getErrorDescription(code);
   }
   const std::string store_name = "ssb_lineorder";
   LOG(INFO)<< "create store delegate, store_name: " << store_name;
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+  request->set_schema_name("ssb");
   request->set_store_name(store_name);
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   auto delegate_actor_id = response->rdd_id();
   LOG_IF(FATAL, delegate_actor_id.actor_id().empty() || delegate_actor_id.actor_id().compare("Unknown Actor") == 0) << delegate_actor_id.DebugString();
   /// sleep for a while
@@ -37,13 +38,13 @@ TEST(count_action_test, count) {
 
   /// do count action
   {
-    ActionRequestPtr action_request(new ActionRequest);
-    ActionResponsePtr action_response(new ActionResponse);
-    ActionResultPtr action_result(new idgs::rdd::pb::CountActionResult);
+    ActionRequestPtr action_request = std::make_shared<ActionRequest>();
+    ActionResponsePtr action_response = std::make_shared<ActionResponse>();
+    ActionResultPtr action_result = std::make_shared<idgs::rdd::pb::CountActionResult>();
 
     action_request->set_action_id("test_count_action1");
     action_request->set_action_op_name(idgs::rdd::COUNT_ACTION);
-    auto rc  = singleton<RddClient>::getInstance().sendAction(action_request, action_response, action_result, delegate_actor_id);
+    auto rc  = client.sendAction(action_request, action_response, action_result, delegate_actor_id);
     ASSERT_EQ(RC_SUCCESS, rc);
     CountActionResult* result = dynamic_cast<CountActionResult*>(action_result.get());
     auto count = result->size();
@@ -54,25 +55,15 @@ TEST(count_action_test, count) {
 
   /// do count action with filter
   {
-    ActionRequestPtr action_request(new ActionRequest);
-    ActionResponsePtr action_response(new ActionResponse);
-    ActionResultPtr action_result(new idgs::rdd::pb::CountActionResult);
+    ActionRequestPtr action_request = std::make_shared<ActionRequest>();
+    ActionResponsePtr action_response = std::make_shared<ActionResponse>();
+    ActionResultPtr action_result = std::make_shared<idgs::rdd::pb::CountActionResult>();
     /// lo_orderkey ==10
-    auto filter_expr = action_request->mutable_filter();
-    filter_expr->set_type(EQ);
-    /// field expr: lo_orderkey
-    auto expr = filter_expr->add_expression();
-    expr->set_type(FIELD);
-    expr->set_value("lo_orderkey");
-    /// const expr: 10
-    expr = filter_expr->add_expression();
-    expr->set_type(CONST);
-    expr->set_const_type(UINT64);
-    expr->set_value("1");
+    MOVE_EXPR(action_request->mutable_filter(), EQ(FIELD("lo_orderkey"), CONST("1", UINT64)));
 
     action_request->set_action_id("test_count_action3");
     action_request->set_action_op_name(idgs::rdd::COUNT_ACTION);
-    auto rc  = singleton<RddClient>::getInstance().sendAction(action_request, action_response, action_result, delegate_actor_id);
+    auto rc  = client.sendAction(action_request, action_response, action_result, delegate_actor_id);
     ASSERT_EQ(RC_SUCCESS, rc);
     CountActionResult* result = dynamic_cast<CountActionResult*>(action_result.get());
     auto count = result->size();

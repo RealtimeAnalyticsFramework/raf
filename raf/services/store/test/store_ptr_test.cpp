@@ -22,21 +22,21 @@ using namespace google::protobuf;
 TEST(StorePtr, TreeMap) {
   std::map<StoreKey<Message>, StoreValue<Message>, idgs::store::less> treemap;
 
-  shared_ptr<CustomerKey> key1(new CustomerKey);
+  shared_ptr<CustomerKey> key1 = make_shared<CustomerKey>();
   key1->set_c_custkey(100000);
   StoreKey<Message> storeKey1(key1);
 
-  shared_ptr<Customer> value1(new Customer);
+  shared_ptr<Customer> value1 = make_shared<Customer>();
   value1->set_c_name("Customer");
   StoreValue<Message> storeValue1(value1);
 
   treemap[storeKey1] = storeValue1;
 
-  shared_ptr<CustomerKey> key2(new CustomerKey);
+  shared_ptr<CustomerKey> key2 = make_shared<CustomerKey>();
   key2->set_c_custkey(100000);
   StoreKey<Message> storeKey2(key2);
 
-  shared_ptr<Customer> value2(new Customer);
+  shared_ptr<Customer> value2 = make_shared<Customer>();
   StoreValue<Message> storeValue2(value2);
 
   storeValue2 = treemap[storeKey2];
@@ -48,21 +48,21 @@ TEST(StorePtr, TreeMap) {
 TEST(StorePtr, HashMap) {
   std::unordered_map<StoreKey<Message>, StoreValue<Message>, hash_code, equals_to> hashmap;
 
-  shared_ptr<CustomerKey> key1(new CustomerKey);
+  shared_ptr<CustomerKey> key1 = make_shared<CustomerKey>();
   key1->set_c_custkey(100000);
   StoreKey<Message> storeKey1(key1);
 
-  shared_ptr<Customer> value1(new Customer);
+  shared_ptr<Customer> value1 = make_shared<Customer>();
   value1->set_c_name("Customer");
   StoreValue<Message> storeValue1(value1);
 
   hashmap[storeKey1] = storeValue1;
 
-  shared_ptr<CustomerKey> key2(new CustomerKey);
+  shared_ptr<CustomerKey> key2 = make_shared<CustomerKey>();
   key2->set_c_custkey(100000);
   StoreKey<Message> storeKey2(key2);
 
-  shared_ptr<Customer> value2(new Customer);
+  shared_ptr<Customer> value2 = make_shared<Customer>();
   StoreValue<Message> storeValue2(value2);
 
   storeValue2 = hashmap[storeKey2];

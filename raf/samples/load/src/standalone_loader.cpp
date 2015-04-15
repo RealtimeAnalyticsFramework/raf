@@ -40,8 +40,8 @@ ClientActorMessagePtr StandaloneLoader::genInsertClientActorMsg(const std::strin
     LOG(ERROR)<< "parseLine error, error code: " << *rc << ", error message: " << getErrorDescription(*rc);
     return ClientActorMessagePtr(NULL);
   }
-  ClientActorMessagePtr actorMsg(new ClientActorMessage);
-  std::shared_ptr<InsertRequest> pay_load(new InsertRequest());
+  ClientActorMessagePtr actorMsg = std::make_shared<ClientActorMessage>();
+  std::shared_ptr<InsertRequest> pay_load = std::make_shared<InsertRequest>();
   actorMsg->setOperationName(OP_INSERT);
   pay_load->set_store_name(store_name);
   pay_load->set_options(option);

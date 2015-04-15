@@ -14,7 +14,7 @@ namespace client {
 
 typedef std::map<std::string, PbMessagePtr> AttachmentMap;
 
-/// @brief parse a console string to ClientActorMessage
+// @brief parse a console string to ClientActorMessage
 class Command {
 public:
   std::string actorId;
@@ -31,21 +31,18 @@ public:
   idgs::ResultCode toActorMsg(ClientActorMessagePtr& msg);
   std::string toString();
 
-  /// @todo remove
-  static PbMessagePtr parseToMessage(const std::string& msgType, const std::string& msgValue, idgs::ResultCode& rc);
   /// parse payload to protobuf message
   /// @todo remove
   virtual PbMessagePtr parsePayload(idgs::ResultCode& rc) {
     return PbMessagePtr(NULL);
   }
-  ;
+
 
   /// parse attachments to protobuf message
   /// @todo remove
   virtual AttachmentMap parseAttachment(idgs::ResultCode& rc) {
     return AttachmentMap();
   }
-  ;
 };
-} /// end namespace client
-} /// end namespace idgs
+} // end namespace client
+} // end namespace idgs

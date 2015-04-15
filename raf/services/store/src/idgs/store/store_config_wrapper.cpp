@@ -11,10 +11,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "idgs/store/store_config_wrapper.h"
-#include "protobuf/message_helper.h"
+
+#include "idgs/application.h"
+
+#include "idgs/store/listener/store_listener_factory.h"
+
 #include "protobuf/hash_code.h"
-#include "idgs/cluster/cluster_framework.h"
-#include "idgs/store/store_listener_factory.h"
 
 using namespace idgs::store::pb;
 
@@ -34,67 +36,66 @@ StoreConfigWrapper::~StoreConfigWrapper() {
     delete partitioner;
     partitioner = NULL;
   }
-}
 
-void StoreConfigWrapper::setStoreConfig(const ::idgs::store::pb::StoreConfig& storeConfig) {
-  this->storeConfig.CopyFrom(storeConfig);
-
-  for (int32_t i = 0; i < storeConfig.listener_configs_size(); ++i) {
-    addListenerConfig(storeConfig.listener_configs(i));
+  for (int32_t i = 0; i < listeners.size(); ++ i) {
+    auto listener = listeners[i];
+    if (listener != NULL) {
+      delete listener;
+    }
   }
 
-  keyTemplate = const_cast<google::protobuf::Message*>(idgs::util::singleton<protobuf::MessageHelper>::getInstance().getPbPrototype(storeConfig.key_type()));
-  valueTemplate = const_cast<google::protobuf::Message*>(idgs::util::singleton<protobuf::MessageHelper>::getInstance().getPbPrototype(storeConfig.value_type()));
+  listeners.clear();
+}
+
+ResultCode StoreConfigWrapper::setStoreConfig(const ::idgs::store::pb::StoreConfig& storeConfig) {
+  if (!keyTemplate) {
+    return RC_INVALID_KEY;
+  }
+
+  if (!valueTemplate) {
+    return RC_INVALID_VALUE;
+  }
+
+  this->storeConfig.CopyFrom(storeConfig);
 
   if(storeConfig.has_partitioner()) {
     std::shared_ptr<google::protobuf::Message> tempKey(keyTemplate->New());
     std::shared_ptr<google::protobuf::Message> tempValue(valueTemplate->New());
-    auto rc = idgs::expr::ExpressionFactory::build(&partitioner, storeConfig.partitioner(), tempKey, tempValue);
-    if (rc != RC_OK) {
+    ResultCode code = idgs::expr::ExpressionFactory::build(&partitioner, storeConfig.partitioner(), tempKey, tempValue);
+    if (code != RC_SUCCESS) {
       LOG(ERROR) << "failed to parse store partitioner: " << storeConfig.partitioner().DebugString();
       // LOG(ERROR) << idgs::util::stacktrace();
+      return code;
     }
   }
+
+  return RC_SUCCESS;
+}
+
+ResultCode StoreConfigWrapper::buildStoreListener() {
+  for (int32_t i = 0; i < storeConfig.listener_configs_size(); ++i) {
+    ResultCode code = addListenerConfig(storeConfig.listener_configs(i));
+    if (code != RC_SUCCESS) {
+      return code;
+    }
+  }
+
+  return RC_SUCCESS;
 }
 
 const ::idgs::store::pb::StoreConfig& StoreConfigWrapper::getStoreConfig() const {
   return storeConfig;
 }
 
-//ResultCode StoreConfigWrapper::getListenerConfig(const string& listenerName, ListenerConfig& listenerConfig) {
-//  if (listenerMap.find(listenerName) == listenerMap.end()) {
-//    return RC_LISTENER_CONFIG_NOT_FOUND;
-//  }
-//
-//  listenerConfig = listenerMap[listenerName];
-//  return RC_SUCCESS;
-//}
-//
-//ResultCode StoreConfigWrapper::getListenerParam(const string& listenerName, const string& paramName,
-//    string& paramValue) {
-//  if (paramMap.find(listenerName) == paramMap.end()) {
-//    return RC_LISTENER_CONFIG_NOT_FOUND;
-//  }
-//
-//  if (paramMap[listenerName].find(paramName) == paramMap[listenerName].end()) {
-//    return RC_LISTENER_PARAM_NOT_FOUND;
-//  }
-//
-//  paramValue = paramMap[listenerName][paramName];
-//  return RC_SUCCESS;
-//}
-//
 ResultCode StoreConfigWrapper::addListenerConfig(const ListenerConfig& listenerConfig) {
-//  listenerMap[listenerConfig.name()] = listenerConfig;
-
+  auto self = shared_from_this();
   std::map<std::string, std::string> props;
   for (int32_t i = 0; i < listenerConfig.params_size(); ++i) {
-//    paramMap[listenerConfig.name()][listenerConfig.params(i).name()] = listenerConfig.params(i).value();
     props[listenerConfig.params(i).name()] = listenerConfig.params(i).value();
   }
 
   StoreListener* listener = NULL;
-  auto code = StoreListenerFactory::build(listenerConfig.name(), shared_from_this(), &listener, props);
+  auto code = StoreListenerFactory::build(listenerConfig.name(), self, &listener, props);
   if (code != RC_SUCCESS) {
     return code;
   }
@@ -109,9 +110,18 @@ const std::vector<StoreListener*>& StoreConfigWrapper::getStoreListener() const 
   return listeners;
 }
 
-ResultCode StoreConfigWrapper::parseKey(const std::string& buff, std::shared_ptr<google::protobuf::Message>& message) {
+void StoreConfigWrapper::addStoreListener(const StoreListener* listener) {
+  listeners.push_back(const_cast<StoreListener*>(listener));
+}
+
+void StoreConfigWrapper::setMessageTemplate(const google::protobuf::Message* key, const google::protobuf::Message* value) {
+  keyTemplate = const_cast<google::protobuf::Message*>(key);
+  valueTemplate = const_cast<google::protobuf::Message*>(value);
+}
+
+ResultCode StoreConfigWrapper::parseKey(const protobuf::SerdesMode& mode, const std::string& buff, std::shared_ptr<google::protobuf::Message>& message) {
   message.reset(keyTemplate->New());
-  auto r = protobuf::ProtoSerdes<0>::deserialize(buff, message.get());
+  auto r = protobuf::ProtoSerdesHelper::deserialize(mode, buff, message.get());
   if (r) {
     return RC_OK;
   } else {
@@ -119,22 +129,51 @@ ResultCode StoreConfigWrapper::parseKey(const std::string& buff, std::shared_ptr
   }
 }
 
-ResultCode StoreConfigWrapper::parseValue(const std::string& buff, std::shared_ptr<google::protobuf::Message>& message) {
+ResultCode StoreConfigWrapper::parseValue(const protobuf::SerdesMode& mode, const std::string& buff, std::shared_ptr<google::protobuf::Message>& message) {
   message.reset(valueTemplate->New());
-  auto r = protobuf::ProtoSerdes<0>::deserialize(buff, message.get());
+  auto r = protobuf::ProtoSerdesHelper::deserialize(mode, buff, message.get());
   if (r) {
     return RC_OK;
   } else {
-    return RC_INVALID_KEY;
+    return RC_INVALID_VALUE;
   }
 }
-ResultCode StoreConfigWrapper::calculatePartitionStatus(const std::shared_ptr<google::protobuf::Message>& key, PartitionStatus* ps) {
+
+std::shared_ptr<google::protobuf::Message> StoreConfigWrapper::newKey() {
+  std::shared_ptr<google::protobuf::Message> message;
+  message.reset(keyTemplate->New());
+  return message;
+}
+
+std::shared_ptr<google::protobuf::Message> StoreConfigWrapper::newValue() {
+  std::shared_ptr<google::protobuf::Message> message;
+  message.reset(valueTemplate->New());
+  return message;
+}
+
+const google::protobuf::Message* StoreConfigWrapper::getKeyTemplate() const {
+  return keyTemplate;
+}
+
+const google::protobuf::Message* StoreConfigWrapper::getValueTemplate() const {
+  return valueTemplate;
+}
+
+void StoreConfigWrapper::setSchema(const std::string& schemaName) {
+  schema = schemaName;
+}
+
+const std::string& StoreConfigWrapper::getSchema() const {
+  return schema;
+}
+
+ResultCode StoreConfigWrapper::calculatePartitionInfo(const std::shared_ptr<google::protobuf::Message>& key, PartitionInfo* ps) {
   size_t hash;
   if(unlikely(!ps)) {
     return RC_ERROR;
   }
   if (partitioner) {
-    idgs::expr::ExpressionContext ctx;
+    idgs::expr::ExpressionContext& ctx = idgs::expr::getTlExpressionContext();
     ctx.setKey(&key);
     hash = partitioner->evaluate(&ctx).hashcode();
   } else {
@@ -142,15 +181,15 @@ ResultCode StoreConfigWrapper::calculatePartitionStatus(const std::shared_ptr<go
   }
 
   // calculate partition ID
-  static auto& cf = ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance();
-  int32_t partSize = cf.getPartitionCount();
+  static auto cf = idgs_application()->getClusterFramework();
+  int32_t partSize = cf->getPartitionCount();
   ps->partitionId = (hash % partSize);
 
   // member Id is only available in run time.
-  auto& table = cf.getPartitionManager()->getPartitionTable();
+  auto& table = cf->getPartitionManager()->getPartitionTable();
   if(likely(table.size() > ps->partitionId)) {
-    idgs::cluster::PartitionWrapper* partition = cf.getPartitionManager()->getPartition(ps->partitionId);
-    if(likely(partition->getMemberCount() > 0)) {
+    idgs::cluster::PartitionWrapper* partition = cf->getPartitionManager()->getPartition(ps->partitionId);
+    if(likely(partition->getReplicaCount() > 0)) {
       ps->memberId = partition->getPrimaryMemberId();
       return RC_OK;
     }

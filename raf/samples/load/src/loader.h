@@ -11,10 +11,10 @@
 #include <fstream>
 #include <mutex>
 
-#include "idgs/store/pb/store_service.pb.h"
 #include "idgs/store/store_config_wrapper.h"
 #include "loader_setting.h"
 #include "idgs/store/parsed_store_descriptor.h"
+#include "idgs/store/data_store.h"
 
 namespace idgs {
 namespace client {
@@ -25,7 +25,7 @@ class Loader {
 public:
   Loader() :
       startTime(0), lastTime(0), records(0), settings(NULL), file_index(0), mapper_config(
-          new idgs::store::pb::StoreFileMapperConfig), isParseLine(true) {
+          new idgs::store::pb::StoreFileMapperConfig), isParseLine(true), datastore(NULL) {
   }
 
   virtual ~Loader() {
@@ -85,6 +85,8 @@ protected:
 
   /// whether parse line
   bool isParseLine;
+
+  idgs::store::DataStore* datastore;
 
 };
 }

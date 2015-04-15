@@ -10,7 +10,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 #include "gtest/gtest.h"
 
-#include "idgs/store/store_listener_factory.h"
+#include "idgs/store/listener/store_listener_factory.h"
 
 namespace idgs {
 namespace store {
@@ -38,27 +38,27 @@ public:
     return idgs::RC_SUCCESS;
   }
 
-  virtual ListenerResultCode insert(const idgs::actor::ActorMessagePtr& msg) override {
+  virtual ListenerResultCode insert(ListenerContext* ctx) override {
     LOG(INFO) << "insert data to store " << storeName;
     return LRC_END;
   }
 
-  virtual ListenerResultCode get(const idgs::actor::ActorMessagePtr& msg) override {
+  virtual ListenerResultCode get(ListenerContext* ctx) override {
     LOG(INFO) << "get data from store " << storeName;
     return LRC_END;
   }
 
-  virtual ListenerResultCode update(const idgs::actor::ActorMessagePtr& msg) override {
+  virtual ListenerResultCode update(ListenerContext* ctx) override {
     LOG(INFO) << "update data to store " << storeName;
     return LRC_END;
   }
 
-  virtual ListenerResultCode remove(const idgs::actor::ActorMessagePtr& msg) override {
+  virtual ListenerResultCode remove(ListenerContext* ctx) override {
     LOG(INFO) << "remove data to store " << storeName;
     return LRC_END;
   }
 
-  virtual ListenerResultCode truncate(const idgs::actor::ActorMessagePtr& msg) override {
+  virtual ListenerResultCode truncate(ListenerContext* ctx) override {
     LOG(INFO) << "truncate store " << storeName;
     return LRC_END;
   }
@@ -86,8 +86,7 @@ TEST(store_listener, registered) {
 
   idgs::store::StoreListener* listener = new idgs::store::TestListener;
   listener->init(props);
-  auto code = idgs::store::StoreListenerFactory::registerStoreListener(listener);
-  EXPECT_EQ(idgs::RC_SUCCESS, code);
+  idgs::store::StoreListenerFactory::registerStoreListener(listener);
 
   idgs::store::TestListener* testListener = dynamic_cast<idgs::store::TestListener*>(listener);
   EXPECT_TRUE(testListener != NULL);
@@ -109,5 +108,10 @@ TEST(store_listener, build_listener) {
   EXPECT_EQ("root", testListener->user);
   EXPECT_EQ("intel.123", testListener->password);
 
-  listener->truncate(idgs::actor::ActorMessagePtr());
+  idgs::store::ListenerContext ctx;
+  listener->insert(&ctx);
+  listener->update(&ctx);
+  listener->get(&ctx);
+  listener->remove(&ctx);
+  listener->truncate(&ctx);
 }

@@ -32,12 +32,11 @@ it_rpc_schedule_test_server_SOURCES = \
 
 LDADD=  \
        -lidgsclient \
-       -lidgsadmin \
-       -lidgsrdd \
+       -lidgsrddng \
        -lidgsdatastore \
        -lidgsframework \
        -lgtest -lgtest_main \
-       -ltbb       
+       @IDGS_LDADD@
 
 AM_LDFLAGS = @IDGS_LDFLAGS@
        

@@ -5,42 +5,47 @@ import "idgs/pb/expr.proto";
 option java_outer_classname = "PbStoreConfig";
 
 message Param {
-  required string name = 1;  //listener param name	
+  required string name  = 1;  //listener param name	
   required string value = 2; //listener param value
 }
 
+enum ListernerProcessType {
+  WRITE_THROUGH = 1;
+  WRITE_BEHIND  = 2;
+}
+
 message ListenerConfig {
-  required string name = 1;  //listener name
-  required string type = 2;  //listener type
+  required string name                         = 1;  //listener name
+  required string type                         = 2;  //listener type
+  optional ListernerProcessType process_type   = 3 [default = WRITE_THROUGH];                // Process type of listeners 
 	
-  repeated Param params = 3; //listener params
+  repeated Param params                        = 4; //listener params
 }
 
 enum StoreType {
-  ORDERED = 0;
+  ORDERED   = 0;
   UNORDERED = 1;
 }
 
 enum PartitionType {
-  PARTITION_TABLE = 0;  REPLICATED = 1;
-  CONSISTENCE_HASH = 2;
-  CUSTOM = 3;
+  PARTITION_TABLE  = 0;  
+  REPLICATED       = 1;
+  CONSISTENT_HASH  = 2;
 }
+
 
 message StoreConfig {
-  required string name = 1;                      // Name of store
-  required StoreType store_type = 2;             // Ordered store allow query a range; unordered store may be a little faster O(1)
-  required PartitionType partition_type = 3;     // Partition type, which is independent of storeType; 
-  required string key_type = 4;                  // Message name in protobuf
-  required string value_type = 5;                // Message name in protobuf
-  required int32 backup_count = 6 [default=0];   // The count of backup node
-  optional idgs.pb.Expr partitioner = 7;         // partitioner, calculate hashcode based on part of key.
-  repeated ListenerConfig listener_configs = 8;  // All registered listeners, including indexes, backing stores and others;
-}
-
-enum ListernerProsessType {
-  WRITE_THROUGH = 1;
-  WRITE_BEHIND  = 2;
+  required string name                     =  1;                // Name of store
+  required StoreType store_type            =  2;                // Ordered store allow query a range; unordered store may be a little faster O(1)
+  optional PartitionType partition_type    =  3 [default = PARTITION_TABLE];                // Partition type, which is independent of storeType; 
+  required string key_type                 =  4;                // Message name in protobuf
+  required string value_type               =  5;                // Message name in protobuf
+  optional int32 replica_count             =  6 [default = 2];    // The count of backup node
+  optional idgs.pb.Expr partitioner        =  7;                // partitioner, calculate hashcode based on part of key.
+  
+  repeated ListenerConfig listener_configs =  8;                // All registered listeners, including indexes, backing stores and others;
+  optional int32 migration_batch_size      = 10 [default = 100];  // batch size when migration
+  optional string field_seperator          = 11;                // seperator of each field in file 
 }
 
 message StoreSchema {
@@ -48,9 +53,10 @@ message StoreSchema {
   repeated StoreConfig store_config  = 2;
   optional string proto_filename     = 3;
   optional string proto_content      = 4;
-  optional ListernerProsessType type = 5;
 }
 
 message DataStoreConfig {
-  repeated StoreSchema schemas = 1;
+  repeated StoreSchema schemas    = 1;
+  repeated string schema_files    = 2;           // config files for StoreSchema
+  repeated string schema_contents = 3;           // config content for StoreSchema
 }

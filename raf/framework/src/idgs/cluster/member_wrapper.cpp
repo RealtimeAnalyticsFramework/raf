@@ -14,31 +14,40 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/cluster/member_wrapper.h"
 
 using namespace std;
-using namespace idgs::pb;
 
 namespace idgs {
 
 namespace cluster {
 
 MemberWrapper::MemberWrapper() {
-  setStatus(INITIAL);
+  setState(idgs::pb::MS_INITIAL);
+  totalPartitionCount = 0;
+  expect_part_count = 0;
 }
 
+size_t MemberWrapper::getPartitionCount(size_t pos) {
+  for (auto i = partitionCount.size(); i <= pos; ++i) {
+    partitionCount.push_back(0);
+  }
+
+  return partitionCount[pos];
+}
+
+
 void MemberWrapper::setPartitionCount(size_t pos, size_t partition_count) {
-  size_t size = partitionCount.size();
-  if (pos >= size) {
-    partitionCount.resize(size + 1);
+  for (auto i = partitionCount.size(); i <= pos; ++i) {
+    partitionCount.push_back(0);
   }
   partitionCount[pos] = partition_count;
 }
 
-bool MemberWrapper::canBalanced() const {
-  return getId() >= 0 && isLocalStore() && (isJoined() || isPrepared() || isActive());
+bool MemberWrapper::isAvailable() const {
+  return getId() >= 0 && isLocalStore() && getState() >= idgs::pb::MS_JOINED ;
 }
 
 bool MemberWrapper::isLocalMember(const idgs::pb::Member& cfg_member) const {
-  return member.publicaddress().host() == cfg_member.publicaddress().host()
-      && member.publicaddress().port() == cfg_member.publicaddress().port();
+  return member.public_address().host() == cfg_member.public_address().host()
+      && member.public_address().port() == cfg_member.public_address().port();
 }
 
 ostream& operator << (ostream& os, const MemberWrapper& mw) {
@@ -54,15 +63,32 @@ std::string MemberWrapper::toString() const {
 
 std::string MemberWrapper::toShortString() const {
   stringstream s;
-  auto publicAddr = member.publicaddress();
-  auto innerAddr = member.inneraddress();
+  auto publicAddr = member.public_address();
+  auto innerAddr = member.inner_address();
   s << getId();
   if(publicAddr.host().compare(innerAddr.host())) {
     s << ", " << "[" << publicAddr.host() << ":" << publicAddr.port() << "," << innerAddr.host() << ":" << innerAddr.port() << "]";
   } else {
     s << ", " << "[" << publicAddr.host() << ":" << publicAddr.port() << "," << innerAddr.port() << "]";
   }
-  s << ", " << pb::MemberStatus_Name(getStatus());
+
+  /// expected partition count
+  s << ", " << expect_part_count;
+
+  /// actual partition count
+  s << ", [";
+  bool first = true;
+  for (auto& c : partitionCount) {
+    if (first) {
+      first = false;
+    } else {
+      s << ", ";
+    }
+    s << c;
+  }
+  s << "]";
+
+  s << ", " << pb::MemberState_Name(getState());
   s << ", " << "store" << "(" << (isLocalStore() ? "Y" : "N") << ")";
   s << ", " << "leading" << "(" << (isLeading() ? "Y" : "N") << ")";
   return s.str();

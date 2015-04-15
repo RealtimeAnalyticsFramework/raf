@@ -38,20 +38,20 @@ pid_t startApp(ApplicationSetting& setting, StatelessActor* actor, int time_sec,
   pid_t pid = fork();
 
   if (pid == 0) { // child process
-    Application* app = new Application();
+    idgs::Application& app = * idgs_application();
     ResultCode rc;
 
     LOG(INFO) << "Loading configuration.";
-    rc = app->init(setting.clusterConfig);
+    rc = app.init(setting.clusterConfig);
     if (rc != RC_SUCCESS) {
       LOG(ERROR) << "Failed to initialize server: " << getErrorDescription(rc);
       exit(1);
     }
 
-    app->regsiterActor(actor);
+    app.registerServiceActor(actor);
 
     LOG(INFO) << "Server is starting.";
-    rc = app->start();
+    rc = app.start();
     if (rc != RC_SUCCESS) {
       LOG(ERROR) << "Failed to start server: " << getErrorDescription(rc);
       exit(1);
@@ -71,13 +71,12 @@ pid_t startApp(ApplicationSetting& setting, StatelessActor* actor, int time_sec,
 }
 
 void sendMessage(ResultCode& code, string test_server_id, ClientActorMessagePtr& response) {
-  std::shared_ptr<TcpClientInterface> client;
-  client = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = getTcpClientPool().getTcpClient(code);
   ASSERT_EQ(code, RC_SUCCESS);
 
   std::string env_port = getenv(ENV_VAR_PORT);
 
-  ASSERT_EQ(env_port, client->getServerAddress().port());
+  ASSERT_EQ(env_port, client->getServerEndpoint().port());
 
   idgs::client::ClientActorMessagePtr clientActorMsg(
       new idgs::client::ClientActorMessage);
@@ -86,12 +85,12 @@ void sendMessage(ResultCode& code, string test_server_id, ClientActorMessagePtr&
   clientActorMsg->setOperationName("test");
   clientActorMsg->setSourceActorId("client_actor_id");
   clientActorMsg->setDestMemberId(ANY_MEMBER);
-  clientActorMsg->setChannel(TC_AUTO);
   clientActorMsg->setSourceMemberId(CLIENT_MEMBER);
   clientActorMsg->getRpcMessage()->set_payload("payload");
 
   DVLOG(2) << " try to send actor message";
-  response = client->sendRecv(clientActorMsg, &code);
+  code = client->sendRecv(clientActorMsg, response);
+  DVLOG(2) << " after sending actor message";
 }
 
 

@@ -8,18 +8,77 @@
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
-#include "client_pool.h"
-#include "idgs/store/data_store.h"
-#include "idgs/actor/actor_descriptor_mgr.h"
 
-using namespace protobuf;
-using namespace idgs::store;
+#include "idgs/client/client_pool.h"
+#include "idgs/client/asio_tcp_client.h"
+#include "idgs/util/singleton.h"
+#include "idgs/util/utillity.h"
+
+
 
 namespace idgs {
 namespace client {
+class PooledTcpClient : public TcpClient {
+public:
+  friend class TcpClientPool;
 
-TcpClientPool::TcpClientPool() :
-    clientConfig(new idgs::client::pb::ClientConfig), availableServers(0) {
+  virtual idgs::ResultCode initialize() override {
+    if (client.get() == NULL) {
+      return RC_ERROR;
+    }
+    return client->initialize();
+  }
+  virtual const idgs::client::pb::Endpoint& getServerEndpoint() const override {
+    return client->getServerEndpoint();
+  }
+  virtual void setId(int id_) override {
+    client->setId(id_);
+  }
+  virtual int getId() const override {
+    return client->getId();
+  }
+  virtual bool isOpen() const override {
+    return client->isOpen();
+  }
+
+  virtual idgs::ResultCode send(ClientActorMessagePtr& actorMsg, int timeout_sec = 10) override {
+    return client->send(actorMsg, timeout_sec);
+  }
+  virtual idgs::ResultCode receive(ClientActorMessagePtr& msg, int timeout_sec = 10) override {
+    return client->receive(msg, timeout_sec);
+  }
+  virtual idgs::ResultCode sendRecv(ClientActorMessagePtr& actorMsg, ClientActorMessagePtr& response, int timeout_sec = 10) override {
+    return client->sendRecv(actorMsg, response, timeout_sec);
+  }
+
+  virtual idgs::ResultCode close() override {
+    if (client) {
+      DVLOG(2) << "client " << client.get() << " is recycled by pool";
+      pool.putBack(client);
+      client.reset();
+    }
+    return RC_OK;
+  }
+
+  ~PooledTcpClient() {
+    function_footprint();
+    close();
+  }
+
+private:
+  PooledTcpClient(TcpClientPool& pool_, TcpClientPtr _client) :
+      pool(pool_), client(_client) {
+  }
+
+private:
+  TcpClientPool& pool;
+  TcpClientPtr client;
+};
+
+
+
+TcpClientPool::TcpClientPool() : availableServers(0) {
+  clientConfig = std::make_shared<idgs::client::pb::ClientConfig>();
   idgs::expr::ExpressionFactory::init();
   isLoaded.store(NOT_INITIALIZED);
 }
@@ -33,10 +92,11 @@ TcpClientPool::~TcpClientPool() {
 
 idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
   idgs::ResultCode code = RC_CLIENT_POOL_IS_AREADY_INIT;
-  if (isLoaded.compare_and_swap(INITIALIZED, NOT_INITIALIZED) == NOT_INITIALIZED) {
-    clientConfig.reset(new idgs::client::pb::ClientConfig);
-    JsonMessage parser;
-    code = parser.parseJsonFromFile(clientConfig.get(), setting.clientConfig);
+  State expectedState = NOT_INITIALIZED;
+  if (isLoaded.compare_exchange_strong(expectedState, INITIALIZED)) {
+    clientConfig = std::make_shared<idgs::client::pb::ClientConfig>();
+    LOG(INFO) << "Loading client config: " << setting.clientConfig;
+    code = (ResultCode)idgs::parseIdgsConfig(clientConfig.get(), setting.clientConfig);
 
     if (code != RC_SUCCESS) {
       DLOG(ERROR)<< "Failed to parse configuration " << setting.clientConfig << " error: " << getErrorDescription(code);
@@ -44,7 +104,7 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
     }
 
     if (setting.storeConfig != "") {
-      code = ::idgs::util::singleton<DataStore>::getInstance().loadCfgFile(setting.storeConfig);
+      code = datastore.loadCfgFile(setting.storeConfig);
       if (code != RC_SUCCESS) {
         DLOG(ERROR)<< "Pars data store configuration " << setting.storeConfig << " error: " << getErrorDescription(code);;
         return code;
@@ -52,6 +112,7 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
     }
 
     bool isSynchClient = !clientConfig->async_client();
+    VLOG_IF(2, isSynchClient) << "Synchronous client is not supported";
     availableServers.reserve(clientConfig->server_addresses_size());
 
     DVLOG(2) << "The client configured server number is " << clientConfig->server_addresses_size();
@@ -60,11 +121,7 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
       DVLOG(2) << "try to connect to server: " << clientConfig->server_addresses(i).address() << ":"
                   << clientConfig->server_addresses(i).port();
       TcpClientPtr client;
-      if (isSynchClient) {
-        client.reset(new TcpSynchronousClient(clientConfig->server_addresses(i)));
-      } else {
-        client.reset(new TcpAsynchClient(clientConfig->server_addresses(i)));
-      }
+      client = std::make_shared<AsioTcpClient>(clientConfig->server_addresses(i));
       client->setId(i);
       code = client->initialize();
       if (code != RC_SUCCESS) {
@@ -72,8 +129,8 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
         << clientConfig->server_addresses(i).address() << ":"
         << clientConfig->server_addresses(i).port() << "]" << " is not available";
       } else {
-        DVLOG(2) << "The client " << client.get() << " to server  [" << client->getServerAddress().address()
-        << ":" << client->getServerAddress().port() << "]" << " is ready";
+        DVLOG(2) << "The client " << client.get() << " to server  [" << client->getServerEndpoint().address()
+        << ":" << client->getServerEndpoint().port() << "]" << " is ready";
         availableServers.push_back(clientConfig->server_addresses(i));
       }
       client->close();
@@ -94,49 +151,31 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
       idgs::client::pb::Endpoint& server = availableServers.at(serverIndex);
 
       TcpClientPtr client;
-      if (isSynchClient) {
-        client.reset(new TcpSynchronousClient(server));
-      } else {
-        client.reset(new TcpAsynchClient(server));
-      }
+      client = std::make_shared<AsioTcpClient>(server);
 
       client->setId(step);
       code = client->initialize();
 
-      // login
-      idgs::net::ClientLogin clientLogin;
-      DVLOG(2) << "send client login " << sizeof(clientLogin) << " byte size, content is : "
-                  << dumpBinaryBuffer2(reinterpret_cast<char*>(&clientLogin), sizeof(clientLogin));
-      asio::write(*client->getSocket(), asio::buffer(reinterpret_cast<char*>(&clientLogin), sizeof(clientLogin)),
-          asio::transfer_all());
-
       if (code != RC_SUCCESS) {
         DLOG(WARNING)<< " The client " << client.get() << " to server  ["
-        << client->getServerAddress().address() << ":"
-        << client->getServerAddress().port() << "]" << " is not available";
+        << client->getServerEndpoint().address() << ":"
+        << client->getServerEndpoint().port() << "]" << " is not available";
       } else {
-        DVLOG(2) << "Put client " << client.get() << " with socket " << client->getSocket().get()
+        DVLOG(2) << "Put client " << client.get()
         << " at step " << step << " with serverIndex " << serverIndex << " with server " <<
-        client->getServerAddress().address() << ":" << client->getServerAddress().port();
+        client->getServerEndpoint().address() << ":" << client->getServerEndpoint().port();
         pool.push(client);
       }
     }
     VLOG(6) << toString();
 
     // load module descriptor
-    for (int i = 0; i < clientConfig->modules_size(); ++i) {
+    for (int i = 0; i < clientConfig->modules_size(); ++ i) {
       auto m = clientConfig->modules(i);
       auto name = m.name();
-      auto descriptor = m.descriptor_file();
       auto config = m.config_file();
-      code = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().loadModuleActorDescriptor(
-          descriptor);
-      if (code != RC_SUCCESS) {
-        LOG(ERROR)<< "Failed to load module descriptor file, " << getErrorDescription(code) << ", file: " << descriptor;
-        continue;
-      }
       if (name == "store") {
-        code = ::idgs::util::singleton<DataStore>::getInstance().loadCfgFile(config);
+        code = datastore.loadCfgFile(config);
         if (code != RC_SUCCESS) {
           LOG(ERROR)<< "Failed to parse store config file,  " << getErrorDescription(code) << ", file: " << config;
           continue;
@@ -148,22 +187,23 @@ idgs::ResultCode TcpClientPool::loadConfig(const ClientSetting& setting) {
   return code;
 }
 
-std::shared_ptr<TcpClientInterface> TcpClientPool::getTcpClient(idgs::ResultCode &code) {
+std::shared_ptr<TcpClient> TcpClientPool::getTcpClient(idgs::ResultCode &code) {
   TcpClientPtr client(NULL);
-  std::shared_ptr<TcpClientInterface> clientInterface(NULL);
+  std::shared_ptr<TcpClient> clientInterface(NULL);
   size_t try_count = 0;
   size_t count = 0;
   do {
     ++try_count;
     if (pool.try_pop(client)) {
       ++count;
-      if (!client->getSocket()->is_open()) {
-        LOG(ERROR)<< "socket "<< client->getSocket().get() << " has closed";
+      if (!client->isOpen()) {
+        LOG(ERROR)<< "socket has been closed";
         toString();
         continue;
       }
       DVLOG(2) << "get client " << client.get();
-      clientInterface.reset(new TcpClientInterface(client));
+      /// @todo let std::make_shared friend of PooledTcpClient
+      clientInterface.reset(new PooledTcpClient(*this, client));
       code = RC_SUCCESS;
       break;
     } else {
@@ -177,7 +217,8 @@ std::shared_ptr<TcpClientInterface> TcpClientPool::getTcpClient(idgs::ResultCode
 void TcpClientPool::close() {
   DVLOG(2) << "call TcpClientPool close";
   function_footprint();
-  if (isLoaded.compare_and_swap(NOT_INITIALIZED, INITIALIZED) == INITIALIZED) {
+  State expectedState = INITIALIZED;
+  if (isLoaded.compare_exchange_strong(expectedState, NOT_INITIALIZED)) {
     DVLOG(2) << " clear pool with size: " << pool.size();
     pool.clear();
     clientConfig.reset();
@@ -201,18 +242,25 @@ bool TcpClientPool::putBack(TcpClientPtr client) {
   return true;
 }
 
+idgs::store::DataStore* TcpClientPool::getDataStore() {
+  return &datastore;
+}
+
 std::string TcpClientPool::toString() {
   std::stringstream ss;
   ss << "Client Pool(size:  " << size() << ")" << std::endl;
-  typedef tbb::concurrent_bounded_queue<TcpClientPtr>::iterator iter;
-  for (iter e = pool.unsafe_begin(); e != pool.unsafe_end(); ++e) {
-    auto socket = (*e)->getSocket().get();
-    std::string flag = socket->is_open() ? " connected" : " closed";
-    ss << "client " << (*e).get()->getId() << flag << " to server: " << (*e)->getServerAddress().address() << ":"
-        << (*e)->getServerAddress().port() << std::endl;
+  for (auto e = pool.unsafe_begin(); e != pool.unsafe_end(); ++e) {
+    std::string flag = (*e)->isOpen() ? " connected" : " closed";
+    ss << "client " << (*e).get()->getId() << flag << " to server: " << (*e)->getServerEndpoint().address() << ":"
+        << (*e)->getServerEndpoint().port() << std::endl;
   }
   return ss.str();
 }
+
+TcpClientPool& getTcpClientPool() {
+  return idgs::util::singleton<TcpClientPool>::getInstance();
 }
-}
+
+} // namespace client
+} // namespace idgs
 

@@ -7,8 +7,6 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-
-#include <atomic>
 #include <asio.hpp>
 
 #include "idgs/actor/stateful_actor.h"
@@ -37,7 +35,7 @@ public:
     return nullDesc;
   }
   const std::string& getActorName() const override{
-    static const std::string actorName("statefulTcpActor");
+    static const std::string actorName("StatefulTcpActor");
     return actorName;
   }
 
@@ -58,9 +56,9 @@ private:
 
   void startReceiveHeader();
   /// alloc memory for body, and start to receive body
-  void handle_read_header(const asio::error_code& error, RpcBuffer* readBuffer);
+  void handle_read_header(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer);
 
-  void handle_read_body(const asio::error_code& error, RpcBuffer* readBuffer);
+  void handle_read_body(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer);
 
   void handle_write(const asio::error_code& error, const idgs::actor::ActorMessagePtr& message, size_t bytes_transferred);
 

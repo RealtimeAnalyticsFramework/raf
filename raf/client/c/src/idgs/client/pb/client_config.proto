@@ -16,15 +16,15 @@ message Endpoint {
 
 message Module {
   required string name = 1;
-  optional string descriptor_file = 2;
-  optional string config_file = 3;  
+  optional string config_file = 2;  
+  //optional string descriptor_file = 3;
 }
 
 message ClientConfig {
   repeated Endpoint server_addresses = 1;
   required uint32 pool_size = 2 [default = 1];
   optional uint32 thread_count = 3 [default = 1];
-  optional bool   async_client = 4 [default = true];
+  optional bool   async_client = 4 [default = false];
   
   repeated Module modules = 5;
   

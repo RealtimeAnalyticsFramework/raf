@@ -51,7 +51,9 @@ namespace idgs {
 
     //data store error codes
     RC_CONFIG_FILE_NOT_FOUND,
+    RC_SCHEMA_NOT_FOUND,
     RC_STORE_NOT_FOUND,
+    RC_STORE_EXISTED,
     RC_LISTENER_CONFIG_NOT_FOUND,
     RC_LISTENER_PARAM_NOT_FOUND,
     RC_DATA_NOT_FOUND,
@@ -65,6 +67,8 @@ namespace idgs {
     RC_PARTITION_NOT_READY,
     RC_NOT_LOCAL_STORE,
     RC_INVALID_STORE_LISTENER,
+    RC_INVALID_BACKUP_COUNT,
+    RC_PARSE_CONFIG_ERROR,
 
     // cluster error codes
     RC_CLUSTER_ERR_CFG,

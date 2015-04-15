@@ -17,96 +17,166 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/expr/logical_expr.h"
 #include "idgs/expr/compare_expr.h"
 #include "idgs/expr/string_expr.h"
-#include "idgs/expr/parsed_field_extractor.h"
+#include "idgs/expr/math_expr.h"
+#include "idgs/expr/date_expr.h"
+#include "idgs/expr/cast_expr.h"
+#include "idgs/expr/field_extractor.h"
 
 using namespace idgs::actor;
 
 namespace idgs {
 namespace expr {
 
-idgs::util::resource_manager<Expression*> ExpressionFactory::exprs;
+std::map<std::string, std::shared_ptr<Expression> > ExpressionFactory::exprs;
+
+#define REG_EXPR(T)     registerExpression(std::make_shared<T>())
+
 
 void ExpressionFactory::init() {
-  Expression* e;
 
   // const
-  e = new ConstExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(ConstExpression);
 
   // field
-  e = new ParsedFieldExtractor();
-  exprs.put(e->name(), e);
+  REG_EXPR(FieldExtractor);
 
   // logical
-  e = new AndExpression();
-  exprs.put(e->name(), e);
-  e = new OrExpression();
-  exprs.put(e->name(), e);
-  e = new NotExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(AndExpression);
+  REG_EXPR(OrExpression);
+  REG_EXPR(NotExpression);
 
   // compare
-  e = new EQExpression();
-  exprs.put(e->name(), e);
-  e = new NEExpression();
-  exprs.put(e->name(), e);
-  e = new LTExpression();
-  exprs.put(e->name(), e);
-  e = new LEExpression();
-  exprs.put(e->name(), e);
-  e = new GTExpression();
-  exprs.put(e->name(), e);
-  e = new GEExpression();
-  exprs.put(e->name(), e);
-  e = new BetweenExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(EQExpression);
+  REG_EXPR(NEExpression);
+  REG_EXPR(LTExpression);
+  REG_EXPR(LEExpression);
+  REG_EXPR(GTExpression);
+  REG_EXPR(GEExpression);
+  REG_EXPR(BetweenExpression);
+  REG_EXPR(InExpression);
+  REG_EXPR(IsNullExpression);
+  REG_EXPR(IsNotNullExpression);
 
   // branch
-  e = new IfExpression();
-  exprs.put(e->name(), e);
-  e = new VariableSetExpression();
-  exprs.put(e->name(), e);
-  e = new VariableGetExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(WhenExpression);
+  REG_EXPR(CaseExpression);
+  REG_EXPR(NvlExpression);
+  REG_EXPR(CoalesceExpression);
+  REG_EXPR(VariableSetExpression);
+  REG_EXPR(VariableGetExpression);
 
   // string
-  e = new LikeExpression();
-  exprs.put(e->name(), e);
-  e = new SubStrExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(LikeExpression);
+  REG_EXPR(SubStrExpression);
+  REG_EXPR(LengthExpression);
+  REG_EXPR(ReverseExpression);
+  REG_EXPR(ConcatExpression);
+  REG_EXPR(ConcatWSExpression);
+  REG_EXPR(UpperExpression);
+  REG_EXPR(LowerExpression);
+  REG_EXPR(TrimExpression);
+  REG_EXPR(LTrimExpression);
+  REG_EXPR(RTrimExpression);
+  REG_EXPR(SpaceExpression);
+  REG_EXPR(RepeatExpression);
+  REG_EXPR(AsciiExpression);
+  REG_EXPR(LPadExpression);
+  REG_EXPR(RPadExpression);
+  REG_EXPR(LocateExpression);
+  REG_EXPR(InStrExpression);
+  REG_EXPR(FindInSetExpression);
+  REG_EXPR(ParseURLExpression);
+  REG_EXPR(RegExpExpression);
+  REG_EXPR(RegExpReplaceExpression);
+  REG_EXPR(RegExpExtractExpression);
+  REG_EXPR(GetJsonObjectExpression);
 
   // arithmetic
-  e = new AddExpression();
-  exprs.put(e->name(), e);
-  e = new SubtractExpression();
-  exprs.put(e->name(), e);
-  e = new MultiplyExpression();
-  exprs.put(e->name(), e);
-  e = new DivideExpression();
-  exprs.put(e->name(), e);
-  e = new ModulusExpression();
-  exprs.put(e->name(), e);
-  e = new HashExpression();
-  exprs.put(e->name(), e);
+  REG_EXPR(AddExpression);
+  REG_EXPR(SubtractExpression);
+  REG_EXPR(MultiplyExpression);
+  REG_EXPR(DivideExpression);
+  REG_EXPR(ModulusExpression);
+  REG_EXPR(HashExpression);
+  REG_EXPR(BitAndExpression);
+  REG_EXPR(BitOrExpression);
+  REG_EXPR(BitNotExpression);
+  REG_EXPR(BitXorExpression);
 
+  // math
+  REG_EXPR(RoundExpression);
+  REG_EXPR(FloorExpression);
+  REG_EXPR(CeilExpression);
+  REG_EXPR(RandExpression);
+  REG_EXPR(ExpExpression);
+  REG_EXPR(LnExpression);
+  REG_EXPR(Log10Expression);
+  REG_EXPR(Log2Expression);
+  REG_EXPR(LogExpression);
+  REG_EXPR(PowExpression);
+  REG_EXPR(SqrtExpression);
+  REG_EXPR(BinExpression);
+  REG_EXPR(HexExpression);
+  REG_EXPR(UnHexExpression);
+  REG_EXPR(ConvExpression);
+  REG_EXPR(AbsExpression);
+  REG_EXPR(PModExpression);
+  REG_EXPR(SinExpression);
+  REG_EXPR(ASinExpression);
+  REG_EXPR(CosExpression);
+  REG_EXPR(ACosExpression);
+  REG_EXPR(PositiveExpression);
+  REG_EXPR(NegativeExpression);
+  REG_EXPR(DegreesExpression);
+  REG_EXPR(RadiansExpression);
+  REG_EXPR(SignExpression);
+  REG_EXPR(EExpression);
+  REG_EXPR(PIExpression);
+
+  // date
+  REG_EXPR(FromUnixTimeExpression);
+  REG_EXPR(UnixTimestampExpression);
+  REG_EXPR(ToDateExpression);
+  REG_EXPR(YearExpression);
+  REG_EXPR(MonthExpression);
+  REG_EXPR(DayExpression);
+  REG_EXPR(HourExpression);
+  REG_EXPR(MinuteExpression);
+  REG_EXPR(SecondExpression);
+  REG_EXPR(WeekOfYearExpression);
+  REG_EXPR(DateDiffExpression);
+  REG_EXPR(DateAddExpression);
+  REG_EXPR(DateSubExpression);
+
+  // cast
+  REG_EXPR(UDFToStringExpression);
+  REG_EXPR(UDFToLongExpression);
+  REG_EXPR(UDFToIntegerExpression);
+  REG_EXPR(UDFToShortExpression);
+  REG_EXPR(UDFToByteExpression);
+  REG_EXPR(UDFToFloatExpression);
+  REG_EXPR(UDFToDoubleExpression);
+  REG_EXPR(UDFToBooleanExpression);
+  REG_EXPR(UDFToBinaryExpression);
+  REG_EXPR(UDFToDecimalExpression);
 }
 
 idgs::ResultCode ExpressionFactory::build(Expression** expression, const idgs::pb::Expr& entryExp,
     const PbMessagePtr& key, const PbMessagePtr& value) {
   assert(* expression == NULL);
-  if (!entryExp.has_type()) {
+  if (!entryExp.has_name()) {
     LOG(ERROR) << "Expr: no type.";
     return idgs::RC_UNKNOWN_OPERATION;
   }
 
-  const std::string& exprName = idgs::pb::ExpressionType_Name(entryExp.type());
-  Expression* expr = exprs.get(exprName);
-  if (!expr) {
+  const std::string& exprName = entryExp.name();
+  auto it = exprs.find(exprName);
+  if (it == exprs.end()) {
     LOG(ERROR) << "Expression not found: " << exprName;
     return idgs::RC_UNKNOWN_OPERATION;
   }
 
-  *expression = expr->clone();
+  *expression = (it->second)->clone();
   if ((*expression)->parse(entryExp, key, value)) {
     return idgs::RC_SUCCESS;
   } else {
@@ -117,6 +187,22 @@ idgs::ResultCode ExpressionFactory::build(Expression** expression, const idgs::p
   }
 
   return idgs::RC_SUCCESS;
+}
+
+void ExpressionFactory::registerExpression(std::shared_ptr<Expression> expr) {
+  if (!expr) {
+    LOG(ERROR) << "registered expression is NULL";
+    return;
+  }
+
+  exprs.insert(std::make_pair(expr->name(), expr));
+  auto alias = expr->alias();
+  if (alias) {
+    auto len = sizeof(alias) / sizeof(std::string);
+    for (int i = 0; i < len; ++ i) {
+      exprs.insert(std::make_pair(alias[i], expr));
+    }
+  }
 }
 
 } /* namespace expr */

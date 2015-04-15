@@ -96,7 +96,7 @@ safekill() {
   fi
 
   if [ $WEC -ne 0 ] ; then
-    echo "$1 return $WRC"
+    echo "$1 return '$WRC'"
     #exit 1
   fi   
 

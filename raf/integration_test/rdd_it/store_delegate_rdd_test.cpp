@@ -15,35 +15,44 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "idgs/store/data_map.h"
 
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 
+namespace idgs {
+namespace rdd {
+namespace delegate_test {
+
+RddClient client;
 ActorId delegateRddId;
+
+}  // namespace delegate_test
+}  // namespace rdd
+}  // namespace idgs
+
 
 TEST(rdd_store_delegate, create) {
   TEST_TIMEOUT(8);
 
-  if (singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf") != RC_SUCCESS) {
+  if (idgs::rdd::delegate_test::client.init("conf/client.conf") != RC_SUCCESS) {
     exit(1);
   }
 
   LOG(INFO) << "create message of create store delegate";
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
 
+  request->set_schema_name("tpch");
   request->set_store_name("Orders");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  idgs::rdd::delegate_test::client.createStoreDelegateRDD(request, response);
 
   LOG(INFO) << "test result";
-  delegateRddId = response->rdd_id();
-  LOG(INFO) << "delegate rdd id : " << delegateRddId.DebugString();
+  idgs::rdd::delegate_test::delegateRddId = response->rdd_id();
+  LOG(INFO) << "delegate rdd id : " << idgs::rdd::delegate_test::delegateRddId.DebugString();
 }
 
 TEST(rdd_store_delegate, action) {
@@ -51,14 +60,14 @@ TEST(rdd_store_delegate, action) {
 
   sleep(3);
 
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new CountActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<CountActionResult>();
 
   request->set_action_id("10000000");
   request->set_action_op_name(COUNT_ACTION);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result, delegateRddId);
+  idgs::rdd::delegate_test::client.sendAction(request, response, result, idgs::rdd::delegate_test::delegateRddId);
 
   ASSERT_EQ("10000000", response->action_id());
   ASSERT_EQ(RRC_SUCCESS, response->result_code());

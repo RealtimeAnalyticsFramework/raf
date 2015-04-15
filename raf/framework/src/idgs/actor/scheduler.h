@@ -9,8 +9,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include "scheduled_future.h"
-#include <tbb/concurrent_queue.h>
 #include <thread>
+#include <atomic>
+#include <tbb/concurrent_queue.h>
 
 namespace idgs {
 namespace actor {
@@ -77,7 +78,7 @@ private:
   //std::shared_ptr<std::thread> m_pthread;
   std::thread *m_pthread;
 
-  tbb::atomic<State> m_is_started;
+  std::atomic<State> m_is_started;
   std::chrono::milliseconds dura;
 };
 

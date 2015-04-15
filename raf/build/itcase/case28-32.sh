@@ -26,24 +26,24 @@ case28() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case28_1.log 2>&1 &
+  GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case28_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case28_2.log 2>&1 &
+  GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case28_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
   SSB_Q1_LOOP=1000
   export SSB_Q1_LOOP
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
@@ -53,10 +53,10 @@ case28() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m samples/load/conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case28.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case28.log 2>&1
 
   echo "run hash join test"  
-  dist/bin/client -f integration_test/rdd_it/hash_join_data 1>it_case28.log 2>&1
+  dist/bin/idgs-cli -f integration_test/rdd_it/hash_join_data 1>it_case28.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case28.log.";
@@ -105,21 +105,21 @@ case29() {
   export idgs_member_service_local_store=true
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case29_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case29_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case29_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case29_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
@@ -128,7 +128,7 @@ case29() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case29.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case29.log 2>&1
 
   sleep 5
   
@@ -156,21 +156,21 @@ case30() {
   export idgs_member_service_local_store=true
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case30_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case30_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case30_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case30_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
@@ -180,7 +180,7 @@ case30() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case30.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case30.log 2>&1
 
   sleep 5
   
@@ -208,21 +208,21 @@ case31() {
   export idgs_member_service_local_store=true
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case31_1.log 2>&1 &
+  GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs -c conf/cluster.conf  1>case31_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case31_2.log 2>&1 &
+  GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs -c conf/cluster.conf  1>case31_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.1"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
@@ -232,7 +232,7 @@ case31() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case31.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case31.log 2>&1
   
   sleep 5
   
@@ -260,21 +260,21 @@ case32() {
   export idgs_member_service_local_store=true
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case32_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case32_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case32_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case32_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
@@ -283,7 +283,7 @@ case32() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case32.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case32.log 2>&1
 
   sleep 5
   

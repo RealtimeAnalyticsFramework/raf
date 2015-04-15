@@ -14,23 +14,40 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "customer.pb.cc"
 
+#include "idgs/application.h"
 #include "idgs/store/data_store.h"
-#include "protobuf/message_helper.h"
-#include "idgs/cluster/cluster_framework.h"
 
 using namespace idgs;
 using namespace idgs::sample::tpch::pb;
 using namespace idgs::store;
 using namespace google::protobuf;
-using namespace protobuf;
+
+namespace idgs {
+namespace store_test {
+  DataStore datastore;
+  size_t partSize;
+}
+}
+
+TEST(DataStore, init) {
+  auto cluster = idgs_application()->getClusterFramework();
+  auto code = cluster->loadCfgFile("conf/cluster.conf");
+  ASSERT_TRUE(code == RC_SUCCESS);
+
+  idgs::store_test::partSize = cluster->getPartitionCount();
+
+  code = idgs::store_test::datastore.loadCfgFile("services/store/test/test_data_store.conf");
+  ASSERT_TRUE(code == RC_SUCCESS);
+
+  code = idgs::store_test::datastore.start();
+  ASSERT_TRUE(code == RC_SUCCESS);
+}
 
 TEST(DataStore, loadCfgFile) {
-  ResultCode status = ::idgs::util::singleton<DataStore>::getInstance().loadCfgFile("services/store/test/test_data_store.conf");
-  ASSERT_TRUE(status == RC_SUCCESS);
-
-  shared_ptr<StoreConfigWrapper> storeConfigWrapper;
-  status = ::idgs::util::singleton<DataStore>::getInstance().loadStoreConfig("Customer", storeConfigWrapper);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  auto store = idgs::store_test::datastore.getStore("Customer");
+  ASSERT_TRUE(store.get() != NULL);
+  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  ASSERT_TRUE(storeConfigWrapper.get() != NULL);
 
   ASSERT_EQ("Customer", storeConfigWrapper->getStoreConfig().name());
   ASSERT_EQ(idgs::store::pb::ORDERED, storeConfigWrapper->getStoreConfig().store_type());
@@ -38,51 +55,22 @@ TEST(DataStore, loadCfgFile) {
   ASSERT_EQ("idgs.sample.tpch.pb.CustomerKey", storeConfigWrapper->getStoreConfig().key_type());
   ASSERT_EQ("idgs.sample.tpch.pb.Customer", storeConfigWrapper->getStoreConfig().value_type());
 
-//  ASSERT_EQ(storeConfigWrapper->getStoreConfig().listener_configs_size(), 2);
+  auto storePartSupp = idgs::store_test::datastore.getStore("PartSupp");
+  ASSERT_TRUE(storePartSupp.get() != NULL);
 
-//  idgs::store::pb::ListenerConfig listener_config;
-//  status = storeConfigWrapper->getListenerConfig("listener1", listener_config);
-//  ASSERT_TRUE(status == RC_SUCCESS);
-
-//  ASSERT_EQ("index", listener_config.type());
-//  ASSERT_EQ(1, listener_config.params_size());
-
-//  string param;
-//  storeConfigWrapper->getListenerParam("listener1", "cols", param);
-//  ASSERT_EQ("id0,name0", param);
-
-  status = ::idgs::util::singleton<DataStore>::getInstance().loadStoreConfig("PartSupp", storeConfigWrapper);
-  ASSERT_TRUE(status == RC_SUCCESS);
-
-  status = ::idgs::util::singleton<DataStore>::getInstance().loadStoreConfig("Number", storeConfigWrapper);
-  ASSERT_TRUE(status != RC_SUCCESS);
-}
-
-TEST(DataStore, initialize) {
-  ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().loadCfgFile("framework/conf/cluster.conf");
-  size_t partSize = ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getPartitionCount();
-
-  for (int32_t i = 0; i < partSize; ++ i) {
-    ::idgs::util::singleton<DataStore>::getInstance().migrateData(i, 0, -1, 0);
-  }
-
-  StoreKey<Message> key(shared_ptr<Customer>(new Customer));
-  StoreValue<Message> value(shared_ptr<Customer>(new Customer));
-
-  ResultCode status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key, value);
-  ASSERT_TRUE(status != RC_STORE_NOT_FOUND);
-
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Company", key, value);
-  ASSERT_TRUE(status == RC_STORE_NOT_FOUND);
+  auto storeNumber = idgs::store_test::datastore.getStore("Number");
+  ASSERT_TRUE(storeNumber.get() == NULL);
 }
 
 TEST(DataStore, insertData) {
   ResultCode status;
+  PartitionInfo ps;
+  hashcode_t hash;
 
-  shared_ptr<CustomerKey> customerKey1(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
   customerKey1->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer1(new Customer);
+  shared_ptr<Customer> customer1 = make_shared<Customer>();
   customer1->set_c_name("Tom1");
   customer1->set_c_nationkey(20);
   customer1->set_c_phone("13800138000");
@@ -90,12 +78,16 @@ TEST(DataStore, insertData) {
   StoreKey<Message> key1(customerKey1);
   StoreValue<Message> value1(customer1);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().insertData("Customer", key1, value1);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key1.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  auto store = idgs::store_test::datastore.getStore("Customer");
 
-  shared_ptr<CustomerKey> customerKey2(new CustomerKey);
+  status = store->setData(key1, value1, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
+
+  shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
   customerKey2->set_c_custkey(12010);
-  shared_ptr<Customer> customer2(new Customer);
+  shared_ptr<Customer> customer2 = make_shared<Customer>();
   customer2->set_c_name("Tom2");
   customer2->set_c_nationkey(25);
   customer2->set_c_phone("13800138000");
@@ -103,12 +95,14 @@ TEST(DataStore, insertData) {
   StoreKey<Message> key2(customerKey2);
   StoreValue<Message> value2(customer2);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().insertData("Customer", key2, value2);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key2.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->setData(key2, value2, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
-  shared_ptr<CustomerKey> customerKey3(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey3 = make_shared<CustomerKey>();
   customerKey3->set_c_custkey(987654321);
-  shared_ptr<Customer> customer3(new Customer);
+  shared_ptr<Customer> customer3 = make_shared<Customer>();
   customer3->set_c_name("Jerry");
   customer3->set_c_nationkey(40);
   customer3->set_c_phone("13800138000");
@@ -116,57 +110,71 @@ TEST(DataStore, insertData) {
   StoreKey<Message> key3(customerKey3);
   StoreValue<Message> value3(customer3);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().insertData("Customer", key3, value3);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key3.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->setData(key3, value3, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 }
 
 TEST(DataStore, getData) {
   ResultCode status;
+  PartitionInfo ps;
+  hashcode_t hash;
 
-  shared_ptr<CustomerKey> customerKey1(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
   customerKey1->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer1(new Customer);
+  shared_ptr<Customer> customer1 = make_shared<Customer>();
 
   StoreKey<Message> key1(customerKey1);
   StoreValue<Message> value1(customer1);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key1, value1);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  auto store = idgs::store_test::datastore.getStore("Customer");
+
+  hash = protobuf::HashCode::hashcode(key1.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->getData(key1, value1, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
   Customer* result = (Customer *) value1.get().get();
   ASSERT_EQ("Tom1", result->c_name());
   ASSERT_EQ(20, result->c_nationkey());
   ASSERT_EQ("13800138000", result->c_phone());
 
-  shared_ptr<CustomerKey> customerKey2(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
   customerKey2->set_c_custkey(12010);
 
-  shared_ptr<Customer> customer2(new Customer);
+  shared_ptr<Customer> customer2 = make_shared<Customer>();
 
   StoreKey<Message> key2(customerKey2);
   StoreValue<Message> value2(customer2);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key2, value2);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key2.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->getData(key2, value2, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
-  shared_ptr<CustomerKey> customerKey3(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey3 = make_shared<CustomerKey>();
   customerKey3->set_c_custkey(20000);
 
   StoreKey<Message> key3(customerKey3);
-  StoreValue<Message> value3(shared_ptr<Customer>(new Customer));
+  StoreValue<Message> value3(make_shared<Customer>());
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key3, value3);
-  ASSERT_TRUE(status == RC_DATA_NOT_FOUND);
+  hash = protobuf::HashCode::hashcode(key3.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->getData(key3, value3, &ps);
+  ASSERT_EQ(RC_DATA_NOT_FOUND, status);
 }
 
 TEST(DataStore, updateData) {
   ResultCode status;
+  PartitionInfo ps;
+  hashcode_t hash;
 
-  shared_ptr<CustomerKey> customerKey1(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
   customerKey1->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer1(new Customer);
+  shared_ptr<Customer> customer1 = make_shared<Customer>();
   customer1->set_c_name("Kate");
   customer1->set_c_nationkey(50);
   customer1->set_c_phone("13800138000");
@@ -174,19 +182,25 @@ TEST(DataStore, updateData) {
   StoreKey<Message> key1(customerKey1);
   StoreValue<Message> value1(customer1);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().updateData("Customer", key1, value1);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  auto store = idgs::store_test::datastore.getStore("Customer");
 
-  shared_ptr<CustomerKey> customerKey2(new CustomerKey);
+  hash = protobuf::HashCode::hashcode(key1.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->setData(key1, value1, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
+
+  shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
   customerKey2->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer2(new Customer);
+  shared_ptr<Customer> customer2 = make_shared<Customer>();
 
   StoreKey<Message> key2(customerKey2);
   StoreValue<Message> value2(customer2);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key2, value2);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key2.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->setData(key2, value2, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
   ASSERT_TRUE(value2.get() != NULL);
 
@@ -198,34 +212,47 @@ TEST(DataStore, updateData) {
 
 TEST(DataStore, removeData) {
   ResultCode status;
+  PartitionInfo ps;
+  hashcode_t hash;
 
-  shared_ptr<CustomerKey> customerKey1(new CustomerKey);
+  shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
   customerKey1->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer1(new Customer);
+  shared_ptr<Customer> customer1 = make_shared<Customer>();
 
   StoreKey<Message> key1(customerKey1);
   StoreValue<Message> value1(customer1);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().removeData("Customer", key1, value1);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  auto store = idgs::store_test::datastore.getStore("Customer");
 
-  shared_ptr<CustomerKey> customerKey2(new CustomerKey);
+  hash = protobuf::HashCode::hashcode(key1.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->removeData(key1, value1, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
+
+  shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
   customerKey2->set_c_custkey(11000);
 
-  shared_ptr<Customer> customer2(new Customer);
+  shared_ptr<Customer> customer2 = make_shared<Customer>();
 
   StoreKey<Message> key2(customerKey2);
   StoreValue<Message> value2(customer2);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Customer", key2, value2);
-  ASSERT_TRUE(status == RC_DATA_NOT_FOUND);
+  hash = protobuf::HashCode::hashcode(key2.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->getData(key2, value2, &ps);
+  ASSERT_EQ(RC_DATA_NOT_FOUND, status);
 }
 
 TEST(DataStore, dynamicMessage) {
   ResultCode status;
+  PartitionInfo ps;
+  hashcode_t hash;
 
-  auto SupplierKey = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.SupplierKey");
+  auto store = idgs::store_test::datastore.getStore("Supplier");
+  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+
+  auto SupplierKey = storeConfigWrapper->newKey();
   const Reflection* keyReflection = SupplierKey->GetReflection();
   const Descriptor* keyDescriptor = SupplierKey->GetDescriptor();
   const FieldDescriptor* field = NULL;
@@ -233,7 +260,7 @@ TEST(DataStore, dynamicMessage) {
   field = keyDescriptor->FindFieldByName("s_suppkey");
   keyReflection->SetInt64(SupplierKey.get(), field, 5000);
 
-  auto Supplier = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.Supplier");
+  auto Supplier = storeConfigWrapper->newValue();
   const Reflection* valueReflection = Supplier->GetReflection();
   const Descriptor* valueDescriptor = Supplier->GetDescriptor();
 
@@ -244,21 +271,23 @@ TEST(DataStore, dynamicMessage) {
   StoreKey<Message> key1(SupplierKey);
   StoreValue<Message> value1(Supplier);
 
-  status = ::idgs::util::singleton<DataStore>::getInstance().insertData("Supplier", key1, value1);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  hash = protobuf::HashCode::hashcode(key1.get());
+  ps.partitionId = (hash % idgs::store_test::partSize);
+  status = store->setData(key1, value1, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
-  Supplier = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.Supplier");
+  Supplier = storeConfigWrapper->newValue();
   StoreValue<Message> value2(Supplier);
-  status = ::idgs::util::singleton<DataStore>::getInstance().getData("Supplier", key1, value2);
-  ASSERT_TRUE(status == RC_SUCCESS);
+  status = store->getData(key1, value2, &ps);
+  ASSERT_EQ(RC_SUCCESS, status);
 
   ASSERT_EQ("Jerry", valueReflection->GetString(* value2.get(), valueDescriptor->FindFieldByName("s_name")));
   ASSERT_EQ(16, valueReflection->GetInt64(* value2.get(), valueDescriptor->FindFieldByName("s_nationkey")));
   ASSERT_EQ("comment", valueReflection->GetString(* value2.get(), valueDescriptor->FindFieldByName("s_comment")));
 
-  Supplier = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.Supplier");
+  Supplier = storeConfigWrapper->newValue();
   StoreValue<Message> value3(Supplier);
-  status = ::idgs::util::singleton<DataStore>::getInstance().removeData("Supplier", key1, value3);
+  status = store->removeData(key1, value3, &ps);
   ASSERT_TRUE(status == RC_SUCCESS);
 
   ASSERT_EQ("Jerry", valueReflection->GetString(* value3.get(), valueDescriptor->FindFieldByName("s_name")));
@@ -267,6 +296,6 @@ TEST(DataStore, dynamicMessage) {
 }
 
 TEST(DataStore, stop) {
-  ResultCode code = ::idgs::util::singleton<DataStore>::getInstance().stop();
+  ResultCode code = idgs::store_test::datastore.stop();
   ASSERT_EQ(RC_SUCCESS, code);
 }

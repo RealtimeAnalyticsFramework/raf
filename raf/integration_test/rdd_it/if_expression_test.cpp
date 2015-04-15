@@ -11,20 +11,23 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
 #include "protobuf/message_helper.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
-using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
-using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace protobuf;
 
+namespace idgs {
+namespace rdd {
+namespace if_expr_test {
+
+RddClient client;
+
 ActionResultPtr ifExprTest() {
   /// create store delegate
-  ResultCode code = singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf");
+  auto code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "init rdd client error, caused by " << getErrorDescription(code);
   }
@@ -32,20 +35,20 @@ ActionResultPtr ifExprTest() {
   const std::string store_name = "LineItem", delegateRddName = "LineItemRdd", filterRddName = "LineItemFilterRdd";
   LOG(INFO)<< "create store delegate, store_name: " << store_name;
 
-  DelegateRddRequestPtr delegateReq(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr delegateResp(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr delegateReq = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr delegateResp = std::make_shared<CreateDelegateRddResponse>();
+  delegateReq->set_schema_name("tpch");
   delegateReq->set_store_name(store_name);
   delegateReq->set_rdd_name(delegateRddName);
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(delegateReq, delegateResp);
+  client.createStoreDelegateRDD(delegateReq, delegateResp);
 
-  RddRequestPtr filterReq(new CreateRddRequest);
-  RddResponsePtr filterResp(new CreateRddResponse);
+  RddRequestPtr filterReq = std::make_shared<CreateRddRequest>();
+  RddResponsePtr filterResp = std::make_shared<CreateRddResponse>();
 
   filterReq->set_transformer_op_name(FILTER_TRANSFORMER);
   auto out = filterReq->mutable_out_rdd();
   out->set_rdd_name(filterRddName);
-  out->set_data_type(ORDERED);
   out->set_key_type_name("idgs.sample.tpch.pb.LineItemKey");
   out->set_value_type_name("idgs.rdd.test.pb.BranchLineItem");
 
@@ -62,108 +65,56 @@ ActionResultPtr ifExprTest() {
 
   auto fld = in->add_out_fields();
   auto fldExpr = fld->mutable_expr();
-  fldExpr->set_type(FIELD);
+  fldExpr->set_name("FIELD");
   fldExpr->set_value("l_quantity");
 
   // add IF expression
   fld = in->add_out_fields();
   fld->set_field_alias("quantity_desc");
-  fldExpr = fld->mutable_expr();
-  fldExpr->set_type(IF);
+  MOVE_EXPR(fld->mutable_expr(), IF(GT(FIELD("l_quantity"), CONST("24", DOUBLE)),
+                                     CONST("quantity > 24"),
+                                     AND(GT(FIELD("l_quantity"), CONST("10", DOUBLE)),
+                                           LE(FIELD("l_quantity"), CONST("24", DOUBLE))),
+                                     CONST("10 < quantity <= 24"),
+                                     CONST("quantity <= 10")
+                                    ));
 
-  // condition 1 : l_quantity > 24
-  auto condExpr = fldExpr->add_expression();
-  condExpr->set_type(GT);
+  client.createRdd(filterReq, filterResp);
 
-  auto expr = condExpr->add_expression();
-  expr->set_type(FIELD);
-  expr->set_value("l_quantity");
-
-  expr = condExpr->add_expression();
-  expr->set_type(CONST);
-  expr->set_const_type(DOUBLE);
-  expr->set_value("24");
-
-  // value 1 : quantity > 24
-  auto valueExpr = fldExpr->add_expression();
-  valueExpr->set_type(CONST);
-  valueExpr->set_const_type(STRING);
-  valueExpr->set_value("quantity > 24");
-
-  // condition 2 : 10 < quantity <= 24
-  condExpr = fldExpr->add_expression();
-  condExpr->set_type(AND);
-
-  // expression for 10 < quantity
-  auto cmpExpr = condExpr->add_expression();
-  cmpExpr->set_type(GT);
-
-  expr = cmpExpr->add_expression();
-  expr->set_type(FIELD);
-  expr->set_value("l_quantity");
-
-  expr = cmpExpr->add_expression();
-  expr->set_type(CONST);
-  expr->set_const_type(DOUBLE);
-  expr->set_value("10");
-
-  // expression for quantity <= 24
-  cmpExpr = condExpr->add_expression();
-  cmpExpr->set_type(LE);
-
-  expr = cmpExpr->add_expression();
-  expr->set_type(FIELD);
-  expr->set_value("l_quantity");
-
-  expr = cmpExpr->add_expression();
-  expr->set_type(CONST);
-  expr->set_const_type(DOUBLE);
-  expr->set_value("24");
-
-  // value 2 : 10 < quantity <= 24
-  valueExpr = fldExpr->add_expression();
-  valueExpr->set_type(CONST);
-  valueExpr->set_const_type(STRING);
-  valueExpr->set_value("10 < quantity <= 24");
-
-  // default value : quantity <= 10
-  valueExpr = fldExpr->add_expression();
-  valueExpr->set_type(CONST);
-  valueExpr->set_const_type(STRING);
-  valueExpr->set_value("quantity <= 10");
-
-  singleton<RddClient>::getInstance().createRdd(filterReq, filterResp);
-
-  ActionRequestPtr topNActionReq(new ActionRequest);
-  ActionResponsePtr topNActionResp(new ActionResponse);
-  ActionResultPtr topNActionResult(new TopNActionResult);
+  ActionRequestPtr topNActionReq = std::make_shared<ActionRequest>();
+  ActionResponsePtr topNActionResp = std::make_shared<ActionResponse>();
+  ActionResultPtr topNActionResult = std::make_shared<TopNActionResult>();
 
   topNActionReq->set_action_id("if_expression_test");
   topNActionReq->set_action_op_name(TOP_N_ACTION);
   topNActionReq->set_rdd_name(filterRddName);
 
-  shared_ptr<TopNActionRequest> topNActionParam(new TopNActionRequest);
+  shared_ptr<TopNActionRequest> topNActionParam = std::make_shared<TopNActionRequest>();
   topNActionParam->set_top_n(10);
 
   auto orderFld = topNActionParam->add_order_field();
   orderFld->set_desc(false);
   auto orderExpr = orderFld->mutable_expr();
-  orderExpr->set_type(FIELD);
+  orderExpr->set_name("FIELD");
   orderExpr->set_value("l_orderkey");
 
   orderFld = topNActionParam->add_order_field();
   orderFld->set_desc(false);
   orderExpr = orderFld->mutable_expr();
-  orderExpr->set_type(FIELD);
+  orderExpr->set_name("FIELD");
   orderExpr->set_value("l_linenumber");
 
   AttachMessage param;
   param[ACTION_PARAM] = topNActionParam;
 
-  singleton<RddClient>::getInstance().sendAction(topNActionReq, topNActionResp, topNActionResult, param);
+  client.sendAction(topNActionReq, topNActionResp, topNActionResult, param);
 
   return topNActionResult;
 }
+
+}  // namespace if_expr_test
+}  // namespace rdd
+}  // namespace idgs
 
 TEST(count_action_test, count) {
   LOG(INFO) << "select l_orderkey,";
@@ -175,17 +126,19 @@ TEST(count_action_test, count) {
   LOG(INFO) << "        end quantity_desc";
   LOG(INFO) << "  from lineitem";
 
-  ActionResultPtr topNActionResult = ifExprTest();
+  ActionResultPtr topNActionResult = idgs::rdd::if_expr_test::ifExprTest();
 
   TopNActionResult* result = dynamic_cast<TopNActionResult*>(topNActionResult.get());
 
-  auto& helper = singleton<MessageHelper>::getInstance();
+  MessageHelper helper;
   helper.registerDynamicMessage("integration_test/rdd_it/rdd_it.proto");
+
+  auto& storeConfigWrapper = idgs::rdd::if_expr_test::client.getStoreConfigWrapper("LineItem");
 
   for (int32_t i = 0; i < result->pair_size(); ++ i) {
     string key_str = result->pair(i).key();
     string value_str = result->pair(i).value();
-    auto key = helper.createMessage("idgs.sample.tpch.pb.LineItemKey");
+    auto key = storeConfigWrapper->newKey();
     ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(key_str, key.get());
     auto value = helper.createMessage("idgs.rdd.test.pb.BranchLineItem");
     ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(value_str, value.get());

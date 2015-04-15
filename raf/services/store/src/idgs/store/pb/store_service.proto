@@ -1,5 +1,7 @@
 package idgs.store.pb;
 
+import "idgs/store/pb/store_config.proto";
+
 option java_outer_classname = "PbStoreService";
 
 
@@ -10,97 +12,107 @@ enum StoreRequestOption {
 }
 
 enum StoreResultCode {
-  SRC_SUCCESS             = 0;
-  SRC_KEY_EXIST           = 1;
-  SRC_KEY_NOT_EXIST       = 2;
-  SRC_VERSION_CONFLICT    = 3;  
-  SRC_TABLE_NOT_EXIST     = 4;
-  SRC_DATA_NOT_FOUND      = 5;
-  SRC_PARTITION_NOT_FOUND = 6;  
-  SRC_PARTITION_NOT_READY = 7;
-  SRC_INVALID_KEY         = 8;  
-  SRC_INVALID_VALUE       = 9;  
-  SRC_INVALID_FILTER      = 10;
-  SRC_NOT_LOCAL_STORE     = 11;  
-  SRC_UNKNOWN_ERROR       = 12;
+  SRC_SUCCESS               = 0;
+  SRC_PARSE_CONFIG_ERROR    = 1;
+  SRC_KEY_EXIST             = 2;
+  SRC_KEY_NOT_EXIST         = 3;
+  SRC_VERSION_CONFLICT      = 4;
+  SRC_SCHEMA_NOT_FOUND      = 5;  
+  SRC_STORE_NOT_FOUND       = 6; 
+  SRC_STORE_EXISTED         = 7;
+  SRC_DATA_NOT_FOUND        = 8;
+  SRC_PARTITION_NOT_FOUND   = 9;  
+  SRC_PARTITION_NOT_READY   = 10;
+  SRC_INVALID_KEY           = 11;  
+  SRC_INVALID_VALUE         = 12;  
+  SRC_INVALID_FILTER        = 13;
+  SRC_INVALID_LISTENER_INFO = 14;
+  SRC_NOT_LOCAL_STORE       = 15;
+  SRC_NOT_SUPPORT           = 16;
+  SRC_UNKNOWN_ERROR         = 17;
 }
 
 message InsertRequest {
-  required string store_name = 1;
-  optional uint32 options = 2;  
-  optional int32 partition_id = 3 [default = -1];
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 version     = 3;
+  optional uint32 options     = 4;
+  optional int32 partition_id = 5 [default = -1];
 }
 
 message InsertResponse {
   // SRC_SUCCESS; SRC_KEY_EXIST; SRC_INVALID_KEY; SRC_INVALID_VALUE
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
-  optional uint32 version = 2;
+  optional uint32 version              = 2;
 }
 
 message UpdateRequest {
-  required string store_name = 1;
-  optional uint32 version = 2;  
-  optional uint32 options = 3;  
-  optional int32 partition_id = 4 [default = -1];
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 version     = 3;  
+  optional uint32 options     = 4;  
+  optional int32 partition_id = 5 [default = -1];
 }
 
 message UpdateResponse {
   // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY; SRC_INVALID_VALUE
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
-  optional uint32 version = 2;
+  optional uint32 version              = 2;
 }
 
 message GetRequest {
-  required string store_name = 1;
-  optional uint32 options = 2;  
-  optional int32 partition_id = 3 [default = -1];
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 version     = 3;  
+  optional uint32 options     = 4;  
+  optional int32 partition_id = 5 [default = -1];
 }
 
 message GetResponse {
   // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
-  optional uint32 version = 2;
+  optional uint32 version              = 2;
 }
 
-message RemoveRequest {
-  required string store_name = 1;
-  optional uint32 options = 2;  
-  optional int32 partition_id = 3 [default = -1];
+message DeleteRequest {
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 version     = 3;
+  optional uint32 options     = 4;  
+  optional int32 partition_id = 5 [default = -1];
 }
 
-message RemoveResponse {
+message DeleteResponse {
   // SRC_SUCCESS; SRC_KEY_NOT_EXIST; SRC_VERSION_CONFLICT; SRC_INVALID_KEY
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
-  optional uint32 version = 2;
+  optional uint32 version              = 2;
 }
 
 message SizeRequest {
-  required string store_name = 1;
-  optional uint32 partition = 2;
-  optional uint32 options = 3;  
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 partition   = 3;
+  optional uint32 options     = 4;  
 }
 
 message SizeResponse {
   // SRC_SUCCESS; 
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
-  optional uint32 partition = 2;
-  optional uint32 size = 3;
+  optional uint32 partition            = 2;
+  optional uint32 size                 = 3;
 }
 
-enum DataClearMode {
-  CLEAR_ALL = 1;
-  CLEAR_BY_STORE_NAME = 2;
+message TruncateRequest {
+  optional string schema_name = 1;
+  required string store_name  = 2;
+  optional uint32 version     = 3;
+  optional uint32 options     = 4;  
+  optional int32 partition_id = 5 [default = -1];
 }
 
-message DataClearRequest {
-  required DataClearMode mode = 1 [default = CLEAR_BY_STORE_NAME];
-  optional uint32 partition = 2;
-  optional string store_name = 3;
-}
-
-message DataClearResponse {
-  required StoreResultCode result_code = 1;
-  optional uint32 partition = 2;
+message TruncateResponse {
+  required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
+  optional uint32 partition            = 2;
 }
 
 enum ExtractTarget {
@@ -119,10 +131,11 @@ message MultiFieldExtractor {
 }
 
 message PartialUpdateRequest {
-  required string store_name          = 1;
+  optional string schema_name         = 1;
+  required string store_name          = 2;
   required FieldExtractor extractor   = 3;
-  optional uint32 version             = 5;
-  optional uint32 options             = 6;  
+  optional uint32 version             = 4;
+  optional uint32 options             = 5;  
 }
 message PartialUpdateResponse {
   required StoreResultCode result_code = 1;
@@ -130,10 +143,11 @@ message PartialUpdateResponse {
 }
 
 message PartialGetRequest {
-  required string store_name          = 1;
-  required FieldExtractor extractor   = 2;
-  optional uint32 version             = 3;
-  optional uint32 options             = 4;  
+  optional string schema_name         = 1;
+  required string store_name          = 2;
+  required FieldExtractor extractor   = 3;
+  optional uint32 version             = 4;
+  optional uint32 options             = 5;  
 }
 message PartialGetResponse {
   required StoreResultCode result_code = 1;
@@ -150,11 +164,12 @@ enum RepeatedFieldActionType {
   DELETE_NO     = 7;
 }
 message RepeatedFieldActionRequest {
-  required string store_name           = 1;
-  required FieldExtractor extractor    = 2;
-  required RepeatedFieldActionType op  = 3;
-  optional uint32 index                = 4; 
-  optional uint32 version              = 5;
+  optional string schema_name          = 1;
+  required string store_name           = 2;
+  required FieldExtractor extractor    = 3;
+  required RepeatedFieldActionType op  = 4;
+  optional uint32 index                = 5; 
+  optional uint32 version              = 6;
   optional uint32 options              = 7;  
 }
 message RepeatedFieldActionResponse {
@@ -163,7 +178,9 @@ message RepeatedFieldActionResponse {
 }
 
 message StoreListenerInfo {
-  required uint32 listener_index = 1;
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
+  required uint32 listener_index       = 2;
+  required int32 primary_member_id     = 3;
 }
 
 //
@@ -174,10 +191,54 @@ service StoreService {
   rpc insert(InsertRequest) returns (InsertResponse);
   rpc update(UpdateRequest) returns (UpdateResponse);
   rpc get(GetRequest) returns (GetResponse);
-  rpc remove(RemoveRequest) returns (RemoveResponse);
+  rpc remove(DeleteRequest) returns (DeleteResponse);
   rpc size(SizeRequest) returns (SizeResponse);
   
   rpc partialUpdate(PartialUpdateRequest) returns (PartialUpdateResponse);
   rpc partialGet(PartialGetRequest) returns (PartialGetResponse);
   rpc repeatedFiledAction(RepeatedFieldActionRequest) returns (RepeatedFieldActionResponse);
+}
+
+message ShowStoresRequest {
+  required string schema_name = 1;
+}
+
+message ShowStoresResponse {
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
+  repeated string store_name = 2; 
+}
+
+message CreateSchemaRequest {
+  optional DataStoreConfig config = 1;
+  optional string config_content  = 2;
+}
+
+message CreateSchemaResponse {
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
+}
+
+message DropSchemaRequest {
+  required string schema_name = 1;
+}
+
+message DropSchemaResponse {
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
+}
+
+message CreateStoreRequest {
+  optional StoreSchema schema    = 1;
+  optional string schema_content = 2;
+}
+
+message CreateStoreResponse {
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
+}
+
+message DropStoreRequest {
+  required string schema_name = 1;
+  required string store_name  = 2;
+}
+
+message DropStoreResponse {
+  required StoreResultCode result_code = 1 [default = SRC_SUCCESS];
 }

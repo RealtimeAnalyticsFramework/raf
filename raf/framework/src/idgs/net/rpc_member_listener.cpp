@@ -10,8 +10,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 #include "idgs/net/rpc_member_listener.h"
+
+#include "idgs/application.h"
+
 #include "idgs/net/inner_tcp_server.h"
-#include "idgs/cluster/cluster_framework.h"
 
 using namespace idgs::cluster;
 
@@ -25,41 +27,43 @@ RpcMemberListener::~RpcMemberListener() {
   function_footprint();
 }
 
-void RpcMemberListener::statusChanged(const MemberWrapper& changedMember) {
-  if(changedMember.isPrepared()) {
+void RpcMemberListener::memberStatusChanged(const MemberWrapper& changedMember) {
+  auto memberMgr = idgs_application()->getMemberManager();
+  int32_t localMemberId = memberMgr->getLocalMemberId();
+  auto localMember = memberMgr->getLocalMember();
+  if(localMemberId < 0 || (localMember->getState() != idgs::pb::MS_PREPARED && localMember->getState() != idgs::pb::MS_ACTIVE)) {
+    LOG(INFO) << "Local member is not ready.";
+    return;
+  }
+
+
+  if(changedMember.getState() == idgs::pb::MS_PREPARED) {
     auto& prepared_member = const_cast<MemberWrapper&>(changedMember);
-    auto prepared_endPoint = prepared_member.getMember().inneraddress();
+    auto prepared_endPoint = prepared_member.getMember().inner_address();
     DVLOG(3) << "Member[" << prepared_endPoint.host() << ":" << prepared_endPoint.port() << "] is prepared";
-    int32_t localMemberId = ::idgs::util::singleton<ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
-    if(localMemberId == -1) {
-      return;
-    }
-    auto localMember = ::idgs::util::singleton<ClusterFramework>::getInstance().getMemberManager()->getLocalMember();
-    /// local member loop to build connection with other prepared members
     if(prepared_member.getId() == localMemberId) {
-      auto memberTable = ::idgs::util::singleton<ClusterFramework>::getInstance().getMemberManager()->getMemberTable();
+      /// the joined is local member
+      auto memberTable = memberMgr->getMemberTable();
       for(MemberWrapper member : memberTable) {
-        if(member.getId() == prepared_member.getId()) {
-          continue; /// ignore connect to itself
+        if(member.getId() >= localMemberId) {
+          // ignore member id >= local member
+          continue;
         }
-        if(member.isPrepared() || member.isActive()) {
-          auto endPoint = member.getMember().inneraddress();
-          DVLOG(0) << "local prepared member: " << localMemberId << " will create end point with member: " << member.getId();
+        // only connect to members with smaller id
+        if((member.getState() == idgs::pb::MS_PREPARED || member.getState() == idgs::pb::MS_ACTIVE) && member.getId() >= 0) {
+          auto endPoint = member.getMember().inner_address();
+          DVLOG(0) << "local member (prepared, id: " << localMemberId << ") connect to remote member " << member.getId();
           network->putEndPoint(member.getId(), endPoint);
-          if(member.getId() < localMemberId) {
-            network->getInnerTcpServer()->getConnection(member.getId())->connect(member.getId());
-          }
+          network->getInnerTcpServer()->connect(member.getId());
         }
       } /// end for
-    } /// end if
-    /// not local member, build connection with this prepared member
-    else if(localMember && (localMember->isPrepared() || localMember->isActive())){
-      DVLOG(0) << "local member: " << localMemberId << " will create end point with prepared member: " << prepared_member.getId();
+    } else {
+      DVLOG(0) << "local member: " << localMemberId << " connect to joined member: " << prepared_member.getId();
       network->putEndPoint(prepared_member.getId(), prepared_endPoint);
       if(prepared_member.getId() < localMemberId) {
-        network->getInnerTcpServer()->getConnection(prepared_member.getId())->connect(prepared_member.getId());
+        network->getInnerTcpServer()->connect(prepared_member.getId());
       }
-    } /// end else
+    }
   }
 }
 

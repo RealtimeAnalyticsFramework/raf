@@ -18,18 +18,25 @@ extern const std::string MEMBER; //= "MEMBER";
 extern const std::string MEMBER_STATUS; //= "MEMBER_STATUS";
 extern const std::string WHOLE_MEMBERSHIP_TABLE; //= "WHOLE_MEMBERSHIP_TABLE";
 extern const std::string DELTA_MEMBER_AND_JOIN_POSITION; //= "DELTA_MEMBER_AND_JOIN_POSITION";
+extern const std::string OID_CPG_CONFIG_CHANGE; //= "CPG_CONFIG_CHANGE";
+extern const std::string OID_LIST_MEMBERS; // = "list_members";
+extern const std::string OID_GET_CLUSTER_CFG; // = "get_cluster_cfg";
 
 extern const std::string AID_PARTITION; //= "cluster.partition";
 extern const std::string WHOLE_PARTITION_TABLE; //= "WHOLE_PARTITION_TABLE";
 extern const std::string DELTA_PARTITIONS; //= "DELTA_PARTITIONS";
+extern const std::string PARTITION_STATE_CHANGED; // = "PARTITION_STATE_CHANGED";
 extern const std::string CLUSTER_MODULE_DESCRIPTOR_NAME; //= "cluster";
 extern const std::string CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION; //= "Cluster's Actor Descriptors";
+extern const std::string OID_LIST_PARTITIONS; // = "list_partitions";
 
 // environment variables
+extern const char* ENV_VAR_GROUP; //= "idgs_group";
 extern const char* ENV_VAR_THREAD_COUNT; //= "idgs_thread_count";
 extern const char* ENV_VAR_IO_THREAD_COUNT; //= "idgs_io_thread_count";
 extern const char* ENV_VAR_MAX_IDLE_THREAD; //= "idgs_max_idle_thread";
 extern const char* ENV_VAR_REPARTITION_BATCH; //= "idgs_repartition_batch";
+extern const char* ENV_VAR_GROUP_NAME; //= "idgs_group_name";
 
 extern const char* ENV_VAR_MTU; //= "idgs_mtu";
 extern const char* ENV_VAR_TCP_BATCH; //= "idgs_tcp_batch";

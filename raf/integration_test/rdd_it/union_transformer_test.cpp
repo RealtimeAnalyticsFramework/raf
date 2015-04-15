@@ -11,11 +11,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
 using namespace idgs;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::pb;
 
@@ -23,16 +22,23 @@ using namespace idgs::client::rdd;
 
 namespace idgs {
 namespace rdd {
-namespace union_transformer_test {
+namespace union_test {
 
-void createStoreDelegateRDD(const std::string& storeName, const std::string& rddName) {
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+RddClient client;
 
+ResultCode init(const std::string& config) {
+  return client.init(config);
+}
+
+void createStoreDelegateRDD(const std::string& schemaName, const std::string& storeName, const std::string& rddName) {
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+
+  request->set_schema_name(schemaName);
   request->set_store_name(storeName);
   request->set_rdd_name(rddName);
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
 
   if (response->result_code() != RRC_SUCCESS) {
     LOG(ERROR) << "Create store delegate RDD with store " << storeName << " error, caused by code " << response->result_code();
@@ -43,8 +49,8 @@ void createStoreDelegateRDD(const std::string& storeName, const std::string& rdd
 }
 
 void createUnionRDD(const std::string& rddName, const std::string& inRddName1, const std::string& inRddName2) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(UNION_TRANSFORMER);
 
@@ -54,25 +60,25 @@ void createUnionRDD(const std::string& rddName, const std::string& inRddName1, c
   FieldNamePair* field = in->add_out_fields();
   field->set_field_alias("order_key");
   auto expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_orderkey");
 
   field = in->add_out_fields();
   field->set_field_alias("line_number");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_linenumber");
 
   field = in->add_out_fields();
   field->set_field_alias("discount");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_discount");
 
   field = in->add_out_fields();
   field->set_field_alias("price");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_extendedprice");
 
   in = request->add_in_rdd();
@@ -81,30 +87,29 @@ void createUnionRDD(const std::string& rddName, const std::string& inRddName1, c
   field = in->add_out_fields();
   field->set_field_alias("order_key");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_orderkey");
 
   field = in->add_out_fields();
   field->set_field_alias("line_number");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_linenumber");
 
   field = in->add_out_fields();
   field->set_field_alias("discount");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_discount");
 
   field = in->add_out_fields();
   field->set_field_alias("price");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("lo_extendedprice");
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name(rddName);
-  out->set_data_type(ORDERED);
   out->set_key_type_name("idgs.sample.tpch.pb.CLineOrderKey");
   out->set_value_type_name("idgs.sample.tpch.pb.CLineOrder");
 
@@ -124,7 +129,7 @@ void createUnionRDD(const std::string& rddName, const std::string& inRddName1, c
   fld->set_field_name("price");
   fld->set_field_type(DOUBLE);
 
-  singleton<RddClient>::getInstance().createRdd(request, response);
+  client.createRdd(request, response);
 
   if (response->result_code() != RRC_SUCCESS) {
     LOG(ERROR) << "Create union RDD error, caused by code " << response->result_code();
@@ -135,15 +140,15 @@ void createUnionRDD(const std::string& rddName, const std::string& inRddName1, c
 }
 
 void countAction(const std::string& rddName) {
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new CountActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<CountActionResult>();
 
   request->set_action_id(COUNT_ACTION);
   request->set_action_op_name(COUNT_ACTION);
   request->set_rdd_name(rddName);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result);
+  client.sendAction(request, response, result);
 
   if (response->result_code() != RRC_SUCCESS) {
     LOG(ERROR) << "Execute count action error, caused by code " << response->result_code();
@@ -155,20 +160,11 @@ void countAction(const std::string& rddName) {
 }
 
 void sumAction(const std::string& rddName) {
-  shared_ptr<Expr> exp(new Expr);
-  exp->set_type(MULTIPLY);
+  shared_ptr<Expr> exp(MULTIPLY(FIELD("price"), FIELD("discount")));
 
-  auto discount = exp->add_expression();
-  discount->set_type(FIELD);
-  discount->set_value("discount");
-
-  auto price = exp->add_expression();
-  price->set_type(FIELD);
-  price->set_value("price");
-
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new SumActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<SumActionResult>();
 
   request->set_action_id(SUM_ACTION);
   request->set_action_op_name(SUM_ACTION);
@@ -176,7 +172,7 @@ void sumAction(const std::string& rddName) {
 
   request->mutable_expression()->CopyFrom(*exp);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result);
+  client.sendAction(request, response, result);
 
   if (response->result_code() != RRC_SUCCESS) {
     LOG(ERROR) << "Execute sum action error, caused by code " << response->result_code();
@@ -187,34 +183,32 @@ void sumAction(const std::string& rddName) {
   LOG(INFO) << "Sum total price : " << std::fixed << total;
 }
 
-} // namespace union_transformer_test
+} // namespace union_test
 } // namespace rdd
 } // namespace idgs
 
-using namespace idgs::rdd::union_transformer_test;
-
 TEST(RDD_union, count_action) {
   TEST_TIMEOUT(30);
-  if (singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf") != RC_SUCCESS) {
+  if (idgs::rdd::union_test::init("conf/client.conf") != RC_SUCCESS) {
     exit(1);
   }
 
   LOG(INFO) << "Create store delegate RDD for store LineItem.";
-  createStoreDelegateRDD("LineItem", "RDD_TB_LINE_ITEM");
+  idgs::rdd::union_test::createStoreDelegateRDD("tpch", "LineItem", "RDD_TB_LINE_ITEM");
 
   LOG(INFO) << "Create store delegate RDD for store ssb_lineorder.";
-  createStoreDelegateRDD("ssb_lineorder", "RDD_TB_LINE_ORDER");
+  idgs::rdd::union_test::createStoreDelegateRDD("ssb", "ssb_lineorder", "RDD_TB_LINE_ORDER");
 
   sleep(3);
 
   LOG(INFO) << "Create Union RDD.";
-  createUnionRDD("UNION_RDD", "RDD_TB_LINE_ITEM", "RDD_TB_LINE_ORDER");
+  idgs::rdd::union_test::createUnionRDD("UNION_RDD", "RDD_TB_LINE_ITEM", "RDD_TB_LINE_ORDER");
   sleep(2);
 
   LOG(INFO) << "Count data size after union.";
-  countAction("UNION_RDD");
+  idgs::rdd::union_test::countAction("UNION_RDD");
   sleep(2);
 
   LOG(INFO) << "Calculate sum(discount * price).";
-  sumAction("UNION_RDD");
+  idgs::rdd::union_test::sumAction("UNION_RDD");
 }

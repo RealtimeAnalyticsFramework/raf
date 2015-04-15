@@ -19,12 +19,11 @@ it_asynch_client_multi_threads_test_SOURCES = \
 	
 LDADD=  \
        -lidgsclient \
-       -lidgsadmin \
-       -lidgsrdd \
+       -lidgsrddng \
        -lidgsdatastore \
        -lidgsframework \
        -lgtest -lgtest_main \
-       -ltbb -lpthread
+       @IDGS_LDADD@
 
 AM_LDFLAGS = @IDGS_LDFLAGS@
        

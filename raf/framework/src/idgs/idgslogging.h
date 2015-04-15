@@ -11,8 +11,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include <glog/logging.h>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
 #include "idgs/pb/primitive_type.pb.h"
+#include "idgs/util/backtrace.h"
 
 
 
@@ -24,10 +24,32 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
   (true || !VLOG_IS_ON(verboselevel)) ? \
     (void) 0 : google::LogMessageVoidify() & LOG(INFO)
 
+#define DVLOG_FIRST_N(verboselevel, n) \
+  (true || !VLOG_IS_ON(verboselevel)) ? \
+    (void) 0 : google::LogMessageVoidify() & LOG(INFO)
+
 #else // defined(NDEBUG)
 #define DVLOG_IF(verboselevel, condition) VLOG_IF(verboselevel, condition)
 #define DVLOG_EVERY_N(verboselevel, n) VLOG_EVERY_N(verboselevel, n)
+
+#define SOME_KIND_OF_LOG_IF_FIRST_N(severity, condition, n, what_to_do) \
+  static int LOG_OCCURRENCES = 0; \
+  if (LOG_OCCURRENCES <= n) \
+    ++LOG_OCCURRENCES; \
+  if (condition && LOG_OCCURRENCES <= n) \
+    google::LogMessage( \
+        __FILE__, __LINE__, google::GLOG_ ## severity, LOG_OCCURRENCES, \
+        &what_to_do).stream()
+
+#define DVLOG_FIRST_N(verboselevel, n) \
+  SOME_KIND_OF_LOG_IF_FIRST_N(INFO, VLOG_IS_ON(verboselevel), (n), google::LogMessage::SendToLog)
+
 #endif // defined(NDEBUG)
+
+inline void dump_exception_callstack() {
+  auto s = idgs::util::get_expection_callstack();
+  LOG_IF(ERROR, s) << *s;
+}
 
 // handle unknown exception
 inline void catchUnknownException() {
@@ -37,9 +59,11 @@ inline void catchUnknownException() {
       std::rethrow_exception(eptr);
     } catch(const std::exception& e) {
       LOG(ERROR) << "Caught exception: " << e.what();
+      dump_exception_callstack();
     }
   } else {
     LOG(ERROR) << "Unknown Exception";
+    dump_exception_callstack();
   }
 }
 
@@ -49,7 +73,8 @@ inline std::string dumpBinaryBuffer(const std::string& buffer) {
   *(b.mutable_value()) = buffer;
   return b.DebugString();
 }
-// the same usage like Arrays.toString(byte[] ) in java, show binary
+
+
 inline std::string dumpBinaryBuffer2(const char* a, size_t length) {
   if (a == NULL)
       return "null";
@@ -59,26 +84,12 @@ inline std::string dumpBinaryBuffer2(const char* a, size_t length) {
   std::stringstream s;
   s << ('[');
   for (int i = 0; ; i++) {
-    s <<((int)a[i]);
-    if (i == iMax) {
-      s <<(']');
-      return s.str();
+    auto ch = a[i];
+    if (std::isalnum(ch)) {
+      s << ch;
+    } else {
+      s <<((int)ch);
     }
-    s <<(", ");
-  }
-  return s.str();
-}
-// the same usage like Arrays.toString(char[] ) in java, show ascii
-inline std::string dumpBinaryBuffer3(const char* a, size_t length) {
-  if (a == NULL)
-      return "null";
-  int iMax = length - 1;
-  if (iMax == -1)
-      return "[]";
-  std::stringstream s;
-  s << ('[');
-  for (int i = 0; ; i++) {
-    s << a[i];
     if (i == iMax) {
       s <<(']');
       return s.str();
@@ -94,10 +105,10 @@ inline std::string dumpBinaryBuffer3(const char* a, size_t length) {
 #else
   struct FunctionFootprintHelper {
     FunctionFootprintHelper(const std::string& file, int line_, const std::string& func) : fileName(file), line(line_), functionName(func) {
-      !(VLOG_IS_ON(3)) ? (void) 0 : google::LogMessageVoidify() & google::LogMessage(fileName.c_str(), line).stream() << functionName << " enter.";
+      !(VLOG_IS_ON(8)) ? (void) 0 : google::LogMessageVoidify() & google::LogMessage(fileName.c_str(), line).stream() << functionName << " enter.";
     }
     ~FunctionFootprintHelper() {
-      !(VLOG_IS_ON(3)) ? (void) 0 : google::LogMessageVoidify() & google::LogMessage(fileName.c_str(), line).stream() << functionName << " exit.";
+      !(VLOG_IS_ON(8)) ? (void) 0 : google::LogMessageVoidify() & google::LogMessage(fileName.c_str(), line).stream() << functionName << " exit.";
     }
   private:
     const std::string fileName;

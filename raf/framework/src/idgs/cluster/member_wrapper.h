@@ -14,25 +14,9 @@ namespace idgs {
 
 namespace cluster {
 
-static std::vector<std::string> MEMBER_STATUES_DSP = {
-  "INITIAL",
-  "TAKEN",
-  "JOINED",
-  "PREPARED",
-  "ACTIVE",
-  "INACTIVE"
-};
-
 class MemberWrapper {
 public:
   MemberWrapper();
-
-  /// copy constructor, called by containers.
-  MemberWrapper(const MemberWrapper&) = default;
-
-  /// copy assignment, called by containers.
-  MemberWrapper& operator =(const MemberWrapper& other) = default;
-
   ~MemberWrapper() = default;
 
   void setNodeId(uint32_t node_id) {
@@ -55,16 +39,28 @@ public:
     this->member = member;
   }
 
-  size_t getPartition(size_t pos) const {
-    if (partitionCount.empty() || pos > partitionCount.size()) {
-      return 0;
+  size_t getPartitionCount(size_t pos);
+
+  void resetPartitionCount() {
+    totalPartitionCount = 0;
+    for (auto& c: partitionCount) {
+      c = 0;
     }
-    return partitionCount[pos];
+  }
+  size_t getTotalPartitionCount () const {
+    return totalPartitionCount;
   }
 
-  void setPartitionCount(size_t pos, size_t partition_count);
+  void increasePartitionCount(size_t pos) {
+    ++totalPartitionCount;
+    setPartitionCount(pos, getPartitionCount(pos) + 1);
+  }
+  void decreasePartitionCount(size_t pos) {
+    --totalPartitionCount;
+    setPartitionCount(pos, getPartitionCount(pos) - 1);
+  }
 
-  uint32_t getPartitionSize() const {
+  uint32_t getPartitionReplicas() const {
     return partitionCount.size();
   }
 
@@ -80,71 +76,45 @@ public:
     return member.id();
   }
 
-  void setStatus(idgs::pb::MemberStatus status) {
-    member.set_status(status);
+  void setState(idgs::pb::MemberState status) {
+    member.set_state(status);
+  }
+  idgs::pb::MemberState getState() const {
+    return member.state();
   }
 
-  void setIsleading(bool flag) {
+  void setLeading(bool flag) {
     member.mutable_service()->set_leading(flag);
   }
-
   bool isLeading() const {
     return member.service().leading();
-  }
-
-  bool canBalanced() const;
-
-  bool isLocalMember(const idgs::pb::Member& cfg_member) const;
-
-  bool isLocalStore() const {
-    return member.service().local_store();
-  }
-
-  bool isLeave() const {
-    return pb::INACTIVE == getStatus();
-  }
-
-  bool isInitial() const {
-    return pb::INITIAL == getStatus();
-  }
-
-  bool isJoined() const {
-    return pb::JOINED == getStatus();
-  }
-
-  bool isActive() const {
-    return pb::ACTIVE == getStatus();
-  }
-
-  bool isTaken() const {
-    return pb::TAKEN == getStatus();
-  }
-
-  bool isInactive() const {
-    return pb::INACTIVE == getStatus();
-  }
-
-  bool isPrepared() const {
-    return pb::PREPARED == getStatus();
-  }
-
-  idgs::pb::MemberStatus getStatus() const {
-    return member.status();
-  }
-
-  const std::string& getGroupName() const {
-    return member.group_name();
   }
 
   friend std::ostream& operator <<(std::ostream& os, const MemberWrapper& mw);
 
   std::string toString() const;
-
   std::string toShortString() const;
 
+  bool isAvailable() const;
+  bool isLocalMember(const idgs::pb::Member& cfg_member) const;
+  bool isLocalStore() const {
+    return member.service().local_store();
+  }
+
+  void setExpectPartCount(int c) {
+    expect_part_count = c;
+  }
+  int getExpectPartCount() const {
+    return expect_part_count;
+  }
+
 private:
+  void setPartitionCount(size_t pos, size_t partition_count);
+
   idgs::pb::Member member;
   std::vector<size_t> partitionCount;
+  size_t totalPartitionCount;
+  int expect_part_count;      // expected part count for primary replica; weight / weight_per_parttion.
 }; // end class MemberWrapper
 } // end namespace cluster
 } // end namespace idgs

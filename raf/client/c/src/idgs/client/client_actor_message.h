@@ -6,9 +6,10 @@
  Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
  */
 #pragma once
-
 #include <memory>
+
 #include "idgs/pb/rpc_message.pb.h"
+#include "idgs/result_code.h"
 #include "protobuf/pb_serdes.h"
 
 namespace idgs {
@@ -93,15 +94,15 @@ public:
     rpcMessage->set_channel(value);
   }
 
-  const idgs::pb::TransportChannel getChannel() {
+  idgs::pb::TransportChannel getChannel() {
     return rpcMessage->channel();
   }
 
   void setSerdesType(const idgs::pb::PayloadSerdes& mode) {
-    rpcMessage->set_serdes_type((idgs::pb::PayloadSerdes) ((int32_t) mode));
+    rpcMessage->set_serdes_type((idgs::pb::PayloadSerdes) ((int) mode));
   }
 
-  const idgs::pb::PayloadSerdes getSerdesType() const {
+  idgs::pb::PayloadSerdes getSerdesType() const {
     return rpcMessage->serdes_type();
   }
 

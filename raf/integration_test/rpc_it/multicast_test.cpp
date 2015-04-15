@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 
-
 namespace idgs {
   namespace rpc {
     namespace multicast_test {
@@ -19,37 +18,38 @@ namespace idgs {
       const std::string multicast_operation = "multicast_operation";
       int test_server_count = 0;
 
-      class TestStatelessActor: public StatelessActor {
+      class TestStatelessActor: public idgs::actor::StatelessActor {
           typedef std::function<void(idgs::actor::ActorMessagePtr msg)> ProcessType;
         public:
           void init() {
             DLOG(INFO)<< "init actor " << test_server_id;
             this->setActorId(test_server_id);
 
-            idgs::actor::ActorOperationMap& opMap = getActorOperationMap();
+            auto& opMap = getMessageHandlerMap();
 
             ProcessType startTimerProcess =
             [&] (idgs::actor::ActorMessagePtr msg) {
               DLOG(INFO) << "TestStatelessActor receive operation: start_work_operation";
               ++test_server_count;
 
-              ActorMessagePtr multMsg(new ActorMessage());
+              idgs::actor::ActorMessagePtr multMsg = std::make_shared<idgs::actor::ActorMessage>();
               multMsg->setSourceActorId(test_server_id);
               multMsg->setDestActorId(test_server_id);
               multMsg->setOperationName(multicast_operation);
 
-              int32_t localMemId = ::idgs::util::singleton<RpcMemberListener>::getInstance().getLocalMemberId();
+              auto memberMgr = idgs_application()->getMemberManager();
+              int32_t localMemId = memberMgr->getLocalMemberId();
               multMsg->setDestMemberId(localMemId);
               multMsg->setSourceMemberId(localMemId);
-              multMsg->setChannel(TC_MULTICAST);
-              ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework()->send(multMsg);
+              multMsg->setChannel(idgs::pb::TC_MULTICAST);
+              idgs::actor::sendMessage(multMsg);
             };
 
             ProcessType multMessageProcess =
             [&] (idgs::actor::ActorMessagePtr msg) {
               DLOG(INFO) << "TestStatelessActor receive operation: multicast_operation with channel " << msg->getChannel();
 
-              if (msg->getChannel() == TC_MULTICAST) {
+              if (msg->getChannel() == idgs::pb::TC_MULTICAST) {
                 ++test_server_count;
               }
             };
@@ -60,12 +60,12 @@ namespace idgs {
             startTime(2000, start_work_operation);
           }
         private:
-          std::shared_ptr<ScheduledFuture> startTime(TimerType timer_dur, const std::string& operName) {
-            ActorMessagePtr timeOutMsg(new ActorMessage());
+          std::shared_ptr<idgs::actor::ScheduledFuture> startTime(idgs::actor::TimerType timer_dur, const std::string& operName) {
+            idgs::actor::ActorMessagePtr timeOutMsg = std::make_shared<idgs::actor::ActorMessage>();
             timeOutMsg->setSourceActorId(test_server_id);
             timeOutMsg->setDestActorId(test_server_id);
             timeOutMsg->setOperationName(operName);
-            ScheduledMessageService& service = ::idgs::util::singleton<RpcFramework>::getInstance().getScheduler();
+            idgs::actor::ScheduledMessageService& service = idgs_application()->getRpcFramework()->getScheduler();
             return service.schedule(timeOutMsg, timer_dur);
           }
         };
@@ -76,21 +76,21 @@ namespace idgs {
 
 void startServer() {
   ApplicationSetting setting;
-  setting.clusterConfig = "framework/conf/cluster.conf";
+  setting.clusterConfig = "conf/cluster.conf";
 
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
-  ResultCode rc;
+  idgs::Application& app = * idgs::idgs_application();
+  idgs::ResultCode rc;
   rc = app.init(setting.clusterConfig);
-  if (rc != RC_SUCCESS) {
+  if (rc != idgs::RC_SUCCESS) {
     LOG(ERROR) << "Failed to initialize server: " << getErrorDescription(rc);
     exit(1);
   }
   rc = app.start();
-  if (rc != RC_SUCCESS) {
+  if (rc != idgs::RC_SUCCESS) {
     LOG(ERROR) << "Failed to start server: " << getErrorDescription(rc);
     exit(1);
   }
-  SignalHandler sh;
+  idgs::SignalHandler sh;
   sh.setup();
 }
 
@@ -102,9 +102,9 @@ TEST(scheduler_test, scheduler_actor_test) {
   //////////////// Start Test ////////////////////////////////////////////////////
   TestStatelessActor *actor = new TestStatelessActor();
   actor->init();
-  RpcFramework& rpc = ::idgs::util::singleton<RpcFramework>::getInstance();
-  rpc.getActorFramework()->Register(actor->getActorId(),actor);
-  rpc.getScheduler().start();
+  RpcFramework* rpc = idgs_application()->getRpcFramework();
+  rpc->getActorManager()->Register(actor->getActorId(),actor);
+  rpc->getScheduler().start();
   DLOG(INFO) << "starting test.";
   ::sleep(3);
   DLOG(INFO) << "finish test.";
@@ -112,8 +112,7 @@ TEST(scheduler_test, scheduler_actor_test) {
 
 
   /// stop server
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
-  app.stop();
+  idgs::idgs_application()->stop();
 
   DLOG(INFO) << " Multicast Test is over";
 }

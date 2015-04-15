@@ -101,21 +101,6 @@ public:
   }
 };
 
-/// Like expression
-/// To handle operator 'like'.
-class LikeExpression: public BinaryExpression, public idgs::util::CloneEnabler<LikeExpression, Expression> {
-public:
-
-  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
-  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
-  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
-
-  virtual const std::string& name() {
-    static std::string name("LIKE");
-    return name;
-  }
-};
-
 class BetweenExpression: public NAryExpression, public idgs::util::CloneEnabler<BetweenExpression, Expression> {
 public:
 
@@ -128,6 +113,45 @@ public:
 
   virtual const std::string& name() {
     static std::string name("BETWEEN");
+    return name;
+  }
+};
+
+class InExpression: public NAryExpression, public idgs::util::CloneEnabler<InExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("IN");
+    return name;
+  }
+};
+
+class IsNullExpression: public UnaryExpression, public idgs::util::CloneEnabler<IsNullExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("ISNULL");
+    return name;
+  }
+};
+
+class IsNotNullExpression: public UnaryExpression, public idgs::util::CloneEnabler<IsNotNullExpression, Expression> {
+public:
+
+  /// @brief Evaluate the express, and the state of ctx may be changed by the express.
+  /// @param ctx The context, provide addition parameter, e.g. KEY or VALUE of the entry.
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("ISNOTNULL");
     return name;
   }
 };

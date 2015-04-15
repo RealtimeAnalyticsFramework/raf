@@ -15,16 +15,12 @@ namespace idgs {
 namespace cluster {
 
 class PartitionListener {
-
 public:
 
   virtual ~PartitionListener() {
   }
-  ;
 
   virtual void partitionChanged(const idgs::pb::DeltaPartitionEvent& evt) = 0;
-
 };
-// end interface PartitionListener
-}// end namespace cluster
+} // end namespace cluster
 } // end namespace idgs

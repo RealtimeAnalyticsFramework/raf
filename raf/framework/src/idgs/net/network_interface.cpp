@@ -6,9 +6,7 @@
  */
 
 #include "network_interface.h"
-#include "idgs/idgslogging.h"
 
-#include <sys/socket.h>
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
@@ -40,8 +38,8 @@ idgs::ResultCode network::getInterfaceAddress(std::vector<std::string>& addrs) {
       addrs.push_back(addr);
     } else if(family == AF_INET6) { /// ipv6
       if(inet_ntop(ifa->ifa_addr->sa_family, (void *)&(((struct sockaddr_in6 *) ifa->ifa_addr)->sin6_addr), addr, sizeof(addr)) == NULL) {
-        continue;
         LOG(ERROR) << "inet_ntop failed!";
+        continue;
       }
       std::string prefix(":");
       if(std::string(addr).substr(0, prefix.length()) == prefix) {

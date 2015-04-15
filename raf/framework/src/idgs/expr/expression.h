@@ -34,6 +34,11 @@ public:
 
   virtual const std::string& name() = 0;
 
+  /// alias of array for expression
+  virtual const std::string* alias() {
+    return NULL;
+  }
+
   // should be (const idgs::pb::Expr& entryExp, const ExpressionContext* ctx);
   virtual bool parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
       const idgs::actor::PbMessagePtr& value) {

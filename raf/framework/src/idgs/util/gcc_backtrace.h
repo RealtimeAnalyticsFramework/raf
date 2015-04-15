@@ -8,7 +8,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 #if defined(__GNUC__)
-
 #include <string>
 
 namespace idgs {
@@ -23,6 +22,12 @@ std::string stacktrace(int skip = 1);
 /// get human readable type name
 ///
 std::string demangle(const char* mangled_name);
+
+///
+/// get call stack of exception
+///
+std::string* get_expection_callstack();
+
 
 } // namespace util
 } // namespace idgs

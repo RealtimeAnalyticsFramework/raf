@@ -14,7 +14,7 @@ using namespace std;
 using namespace idgs::actor;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
-using namespace idgs::expr;
+using namespace idgs::rdd::transform;
 
 namespace idgs {
 namespace tpc {
@@ -26,51 +26,52 @@ SsbQ1_1Transformer::SsbQ1_1Transformer() {
 SsbQ1_1Transformer::~SsbQ1_1Transformer() {
 }
 
-RddResultCode SsbQ1_1Transformer::transform(const ActorMessagePtr& msg, const std::vector<BaseRddPartition*>& input,
-    RddPartition* output) {
-  if (input.size() != 2) {
-    return RRC_INVALID_RDD_INPUT;
-  }
-
-  if (input[0]->empty() || input[1]->empty()) {
+RddResultCode SsbQ1_1Transformer::transform(TransformerContext* ctx, const BaseRddPartition* input, PairRddPartition* output) {
+  auto param = ctx->getParamRdds().at(0);
+  if (input->empty() || param->empty()) {
     return RRC_SUCCESS;
   }
 
-  auto orderExp = output->getFilterExpression(0);
-  auto dateExp = output->getFilterExpression(1);
+  auto op = ctx->getRddOperator();
+  auto paramOp = op->paramOperators.at(0);
+  auto exprCtx = ctx->getExpressionContext();
 
-  auto valueTemplate = input[0]->getValueTemplate();
-  auto orderDes = valueTemplate->GetDescriptor();
-  auto orderRef = valueTemplate->GetReflection();
-  auto orderDateField = orderDes->FindFieldByName("lo_orderdate");
-
-  auto keyTemplate = input[1]->getKeyTemplate();
-  valueTemplate = input[1]->getValueTemplate();
+  auto keyTemplate = param->getKeyTemplate();
+  auto valueTemplate = param->getValueTemplate();
   auto dateDes = keyTemplate->GetDescriptor();
   auto dateRef = keyTemplate->GetReflection();
   auto dateField = dateDes->FindFieldByName("d_datekey");
 
   set<uint64_t> marchedDate;
-  ExpressionContext ctx;
-  input[1]->foreach(
-      [&marchedDate, dateExp, dateRef, dateField, &ctx] (const PbMessagePtr& key, const PbMessagePtr& value) {
-        ctx.setKeyValue(&key, &value);
-        if ((bool) dateExp->evaluate(&ctx)) {
-          marchedDate.insert(dateRef->GetUInt64(*key, dateField));
-        }
-      });
 
-  input[0]->foreach(
-      [marchedDate, output, orderExp, orderRef, orderDateField, dateRef, dateField, &ctx] (const PbMessagePtr& key, const PbMessagePtr& value) {
-        ctx.setKeyValue(&key, &value);
-        if ((bool) orderExp->evaluate(&ctx)) {
-          uint64_t orderdate = orderRef->GetUInt64(* value, orderDateField);
+  param->foreach([&marchedDate, paramOp, &exprCtx, dateRef, dateField] (const PbMessagePtr& key, const PbMessagePtr& value) {
+    idgs::actor::PbMessagePtr outkey, outvalue;
+    exprCtx->setKeyValue(&key, &value);
+    exprCtx->setOutputKeyValue(&outkey, &outvalue);
 
-          if(marchedDate.find(orderdate) != marchedDate.end()) {
-            output->putLocal(key, value);
-          }
-        }
-      });
+    if (paramOp->evaluate(exprCtx)) {
+      marchedDate.insert(dateRef->GetUInt64(* key, dateField));
+    }
+  });
+
+  valueTemplate = input->getValueTemplate();
+  auto orderDes = valueTemplate->GetDescriptor();
+  auto orderRef = valueTemplate->GetReflection();
+  auto orderDateField = orderDes->FindFieldByName("lo_orderdate");
+
+  input->foreach([marchedDate, output, op, &exprCtx, orderRef, orderDateField] (const PbMessagePtr& key, const PbMessagePtr& value) {
+    idgs::actor::PbMessagePtr outkey, outvalue;
+    exprCtx->setKeyValue(&key, &value);
+    exprCtx->setOutputKeyValue(&outkey, &outvalue);
+
+    if (op->evaluate(exprCtx)) {
+      uint64_t orderdate = orderRef->GetUInt64(* value, orderDateField);
+
+      if(marchedDate.find(orderdate) != marchedDate.end()) {
+        output->put(key, value);
+      }
+    }
+  });
 
   return RRC_SUCCESS;
 }

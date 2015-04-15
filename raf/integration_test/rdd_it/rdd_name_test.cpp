@@ -11,31 +11,41 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "idgs/store/data_map.h"
 
 using namespace std;
 using namespace idgs;
-using namespace idgs::util;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
+
+namespace idgs {
+namespace rdd {
+namespace rdd_name_test {
+
+RddClient client;
+
+}  // namespace rdd_name_test
+}  // namespace rdd
+}  // namespace idgs
+
 
 TEST(rdd, create_store_delegate) {
   TEST_TIMEOUT(30);
 
   string storeName = "ssb_lineorder", rddName = "ssb_lineorder_delegate";
 
-  if (singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf") != RC_SUCCESS) {
+  if (idgs::rdd::rdd_name_test::client.init("conf/client.conf") != RC_SUCCESS) {
     exit(1);
   }
 
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
 
+  request->set_schema_name("ssb");
   request->set_store_name(storeName);
   request->set_rdd_name(rddName);
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  idgs::rdd::rdd_name_test::client.createStoreDelegateRDD(request, response);
 
   EXPECT_EQ(response->result_code(), RRC_SUCCESS);
   ASSERT_NE(-3, response->rdd_id().member_id());
@@ -51,8 +61,8 @@ TEST(rdd, createRdd) {
 
   string delegateRddName = "ssb_lineorder_delegate", rddName = "ssb_lineorder_filter", transformerName = "FILTER_TRANSFORMER";
 
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(transformerName);
   auto in = request->add_in_rdd();
@@ -60,11 +70,10 @@ TEST(rdd, createRdd) {
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name(rddName);
-  out->set_data_type(ORDERED);
   out->set_key_type_name("idgs.sample.ssb.pb.LineOrderKey");
   out->set_value_type_name("idgs.sample.ssb.pb.LineOrder");
 
-  singleton<RddClient>::getInstance().createRdd(request, response);
+  idgs::rdd::rdd_name_test::client.createRdd(request, response);
 
   ASSERT_EQ(RRC_SUCCESS, response->result_code());
   ASSERT_NE(-3, response->rdd_id().member_id());
@@ -80,15 +89,15 @@ TEST(rdd, action) {
 
   string actionId = "ssb_lineorder_action", actionName = COUNT_ACTION, rddName = "ssb_lineorder_filter";
 
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new CountActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<CountActionResult>();
 
   request->set_action_id(actionId);
   request->set_action_op_name(actionName);
   request->set_rdd_name(rddName);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result);
+  idgs::rdd::rdd_name_test::client.sendAction(request, response, result);
 
   ASSERT_EQ(actionId, response->action_id());
   ASSERT_EQ(RRC_SUCCESS, response->result_code());

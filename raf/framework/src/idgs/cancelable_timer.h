@@ -7,8 +7,9 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-#include "idgs/idgslogging.h"
-#include <future>
+#include "glog/logging.h"
+#include <thread>
+#include <condition_variable>
 
 namespace idgs {
 
@@ -18,33 +19,28 @@ namespace idgs {
 
     template <class Function> cancelable_timer(int seconds, Function func):timerThread(NULL){
       LOG(INFO) << "Schedule a timer:" << seconds;
-      // lock in calling thread
-      lock.lock();
-
-      auto taskFunc = [this, seconds, func]() {
-        DVLOG(5) << "timer thread enter, timeout:" << seconds;
-        // wait in timer thread
-        std::chrono::seconds duration(seconds);
-        bool waitResult = this->lock.try_lock_for(duration);
-        if (waitResult) {
-          // caller cancel
-          this->lock.unlock();
-        } else {
-          // timeout
-          func();
-        }
-        DVLOG(5) << "timer thread exit.";
-      };
 
       // auto handle = std::async(std::launch::async, taskFunc);
-
-      timerThread = new std::thread(taskFunc);
+      timerThread = new std::thread([this, seconds, &func]() {
+        DVLOG(5) << "timer thread enter, timeout:" << seconds;
+        // wait in timer thread
+        std::unique_lock<std::mutex> lk(this->lock);
+        auto waitResult = this->cv.wait_for(lk, std::chrono::seconds(seconds));
+        if (waitResult == std::cv_status::no_timeout) {
+          // caller cancel
+          DVLOG(5) << "timer canceled.";
+        } else {
+          // timeout
+          DVLOG(5) << "timeout.";
+          func();
+        }
+      });
     }
 
     void cancel() {
       LOG(INFO) << "Timer is canceled";
       // unlock in calling thread
-      lock.unlock();
+      cv.notify_all();
       timerThread->join();
       delete timerThread;
       timerThread = NULL;
@@ -57,7 +53,9 @@ namespace idgs {
       }
     }
   private:
-    std::timed_mutex lock;
+    std::mutex lock;
+    std::condition_variable cv;
+
     std::thread* timerThread;
   };
 

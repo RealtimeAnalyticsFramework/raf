@@ -22,5 +22,15 @@ TEST(message_helper, primitive) {
   ASSERT_NE((void*)NULL, l.get());
   ((Long&)(*l)).set_value(1000);
   DVLOG(1) << l->DebugString();
+}
 
+
+TEST(message_helper, dynamic) {
+  MessageHelper mh;
+  mh.registerDynamicMessage("./framework/test/employee.proto");
+}
+
+
+TEST(message_helper, shutdown) {
+  google::protobuf::ShutdownProtobufLibrary();
 }

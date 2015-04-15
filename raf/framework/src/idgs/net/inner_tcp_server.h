@@ -40,16 +40,18 @@ public:
 
 public:
   bool setConnection(uint32_t memberId, std::shared_ptr<InnerTcpConnection> conn);
-  bool resetConnection(uint32_t memberId, std::shared_ptr<InnerTcpConnection> conn);
+  bool resetConnectionIfEq(uint32_t memberId, std::shared_ptr<InnerTcpConnection> conn);
   std::shared_ptr<InnerTcpConnection>& getConnection(uint32_t memberId);
 
-  tbb::concurrent_queue<idgs::actor::ActorMessagePtr>& getQueue(int memberId);
+  std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > getQueue(int memberId);
   int32_t sendMessage(idgs::actor::ActorMessagePtr& msg);
   std::string toString();
 
   uint32_t getTcpBatchSize() const {
     return cfg == NULL? 0 : cfg->tcp_batch();
   }
+
+  void connect(int peerId);
 
 private:
   void accept();
@@ -64,7 +66,7 @@ private:
 
   /// index is destination member id.
   std::vector<std::shared_ptr<InnerTcpConnection> > connections;
-  std::vector<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > queues;
+  std::vector<std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > > queues;
   tbb::spin_rw_mutex mutex;
 };
 

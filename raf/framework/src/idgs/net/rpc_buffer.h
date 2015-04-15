@@ -36,7 +36,6 @@ struct ClientLogin {
 /// RPC packet transfered in network
 ///
 class RpcBuffer {
-  friend class Session;
 public:
 
   RpcBuffer() :
@@ -57,7 +56,14 @@ public:
 
   void reserveBuffer() {
     bodyCapacity = header.size;
-    body = new char[bodyCapacity];
+    try {
+      body = new char[bodyCapacity];
+      if (!body) {
+        LOG(ERROR) << "Can't alloc memory";
+      }
+    } catch (std::bad_alloc& e) {
+      LOG(ERROR) << "Can't alloc memory: " << e.what();
+    }
   }
 
   char* getBody() {

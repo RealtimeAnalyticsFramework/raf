@@ -92,6 +92,8 @@ public:
   );
   Type type;
 
+  bool is_null = true;
+
   std::string debugString() {
     return std::string("type: ").append(TypeToString(type)).append(", value: ").append(toString());
   }

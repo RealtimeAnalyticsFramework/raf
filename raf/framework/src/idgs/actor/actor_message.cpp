@@ -11,7 +11,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 
 #include "idgs/actor/actor_message.h"
-#include "idgs/cluster/cluster_framework.h"
+
+#include "idgs/application.h"
 
 using namespace std;
 using namespace idgs::pb;
@@ -40,7 +41,7 @@ ActorMessage::ActorMessage(std::shared_ptr<RpcMessage> msg) :
 ActorMessage::ActorMessage(const ActorMessage& rhs) :
     payload(), rpcBuffer(), orientation(APP_ORIENTED) {
 
-  rpcMessage = std::make_shared < RpcMessage > (*((const_cast<ActorMessage&>(rhs)).getRpcMessage()));
+  rpcMessage = std::make_shared<idgs::pb::RpcMessage> (*((const_cast<ActorMessage&>(rhs)).getRpcMessage()));
 
   payload = rhs.payload;
   attachments = rhs.attachments;
@@ -56,6 +57,7 @@ idgs::ResultCode ActorMessage::toRpcBuffer() {
   // encode payload
   protobuf::SerdesMode mode = (protobuf::SerdesMode) ((int32_t) getRpcMessage()->serdes_type());
   if (payload.get() && (!rpcMessage->has_payload())) {
+    DVLOG(7) << "actor message payload: " << payload->DebugString();
     if (!protobuf::ProtoSerdesHelper::serialize(mode, payload.get(), getRpcMessage()->mutable_payload())) {
       LOG(ERROR)<< "serialize actor message payload error! " << payload->DebugString();
       code = RC_ERROR;
@@ -63,28 +65,28 @@ idgs::ResultCode ActorMessage::toRpcBuffer() {
     }
   }
 
-      // encode attachments
-  if (attachments.size() != rpcMessage->attachments_size()) {
-    for (auto it = attachments.begin(); it != attachments.end(); ++it) {
-      auto a = getRpcMessage()->add_attachments();
-      a->set_name(it->first);
-      protobuf::ProtoSerdesHelper::serialize(mode, it->second.get(), a->mutable_value());
-    }
+  // encode attachments
+//  if (attachments.size() != (size_t)rpcMessage->attachments_size()) {
+  for (auto it = attachments.begin(); it != attachments.end(); ++it) {
+    auto a = getRpcMessage()->add_attachments();
+    a->set_name(it->first);
+    protobuf::ProtoSerdesHelper::serialize(mode, it->second.get(), a->mutable_value());
   }
+//  }
 
   // encode whole message
-  int32_t size = 0;
-  size = getRpcMessage()->ByteSize();
-  freeRpcBuffer();
-  rpcBuffer = new idgs::net::RpcBuffer();
-  rpcBuffer->setBodyLength(size);
-  rpcBuffer->reserveBuffer();
-
-  if (!protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::serialize(rpcMessage.get(), rpcBuffer->getBody(), size)) {
+  std::string buff;
+  if (!protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::serialize(getRpcMessage().get(), &buff)) {
     LOG(ERROR)<< "serialize actor message error! " << getRpcMessage()->DebugString();
     code = RC_ERROR;
     return code;
   }
+  
+  freeRpcBuffer();
+  rpcBuffer = std::make_shared<idgs::net::RpcBuffer>();
+  rpcBuffer->setBodyLength(buff.size());
+  rpcBuffer->reserveBuffer();
+  memcpy(rpcBuffer->getBody(), buff.data(), buff.size());
 
   return code;
 }
@@ -96,10 +98,10 @@ std::string ActorMessage::toString() {
     ss << "RPC Message: " << rpcMessage->DebugString() << endl;
   }
   if (payload) {
-    ss << "Actor payload:" << payload->DebugString();
+    ss << ", Message payload:" << payload->DebugString();
   }
   if (!attachments.empty()) {
-    ss << "Attachemnts: " << endl;
+    ss << ", Attachemnts: " << endl;
     for (auto it = attachments.begin(); it != attachments.end(); ++it) {
       ss << "{" << it->first << "} = {" << it->second->DebugString() << "}" << endl;
     }
@@ -121,7 +123,7 @@ std::shared_ptr<ActorMessage> ActorMessage::createResponse() {
   newRpc->mutable_dest_actor()->CopyFrom(myRpc->source_actor());
   newRpc->mutable_source_actor()->set_member_id(
       myRpc->dest_actor().member_id() < 0 ?
-          ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId() :
+          idgs_application()->getMemberManager()->getLocalMemberId() :
           myRpc->dest_actor().member_id());
   newRpc->mutable_source_actor()->set_actor_id(myRpc->dest_actor().actor_id());
 
@@ -129,7 +131,6 @@ std::shared_ptr<ActorMessage> ActorMessage::createResponse() {
     newRpc->set_channel(myRpc->channel());
   }
 
-  DVLOG(2) << " myRpc->has_client_actor() " << myRpc->has_client_actor();
   if (myRpc->has_client_actor()) {
     newRpc->mutable_client_actor()->CopyFrom(myRpc->client_actor());
   }
@@ -147,7 +148,7 @@ std::shared_ptr<ActorMessage> ActorMessage::createSessionRequest() {
   newRpc->mutable_dest_actor()->CopyFrom(myRpc->dest_actor());
   newRpc->mutable_source_actor()->set_member_id(
       myRpc->source_actor().member_id() < 0 ?
-          ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId() :
+          idgs_application()->getMemberManager()->getLocalMemberId() :
           myRpc->source_actor().member_id());
   newRpc->mutable_source_actor()->set_actor_id(myRpc->source_actor().actor_id());
   if (myRpc->has_channel()) {
@@ -160,7 +161,7 @@ std::shared_ptr<ActorMessage> ActorMessage::createSessionRequest() {
   return req;
 }
 
-std::shared_ptr<ActorMessage> ActorMessage::createRouteMessage(int32_t destMemId, std::string destActorId) {
+std::shared_ptr<ActorMessage> ActorMessage::createRouteMessage(int32_t destMemId, std::string destActorId, const bool& reloadPayload) {
   std::shared_ptr<ActorMessage> route = std::make_shared < ActorMessage > (*this);
   RpcMessage* newRpc = route->getRpcMessage().get();
 
@@ -168,15 +169,17 @@ std::shared_ptr<ActorMessage> ActorMessage::createRouteMessage(int32_t destMemId
   newRpc->mutable_dest_actor()->set_member_id(destMemId);
   //set the dest actor id
   newRpc->mutable_dest_actor()->set_actor_id(destActorId);
-  //      newRpc->set_channel(TC_AUTO);
 
-  DVLOG(3) << "the route rpc message = " << route->toString();
+  if (reloadPayload && newRpc->has_payload()) {
+    newRpc->clear_payload();
+  }
+
+  DVLOG(7) << "the route rpc message = " << route->toString();
   return route;
 }
 
 std::shared_ptr<ActorMessage> ActorMessage::createMulticastMessage() {
-  int32_t sourceMemberId =
-      ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
+  int32_t sourceMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   std::shared_ptr<ActorMessage> multMsg = std::make_shared < ActorMessage > (*this);
 
   RpcMessage* rpcMsg = multMsg->getRpcMessage().get();
@@ -195,9 +198,24 @@ std::shared_ptr<google::protobuf::Message> ActorMessage::getAttachement(const st
   }
   return std::shared_ptr<google::protobuf::Message>();
 }
+
 void ActorMessage::setAttachment(const std::string & name, std::shared_ptr<google::protobuf::Message> value) {
   attachments.insert(std::pair<std::string, std::shared_ptr<google::protobuf::Message> >(name, value));
+}
 
+void ActorMessage::setAttachment(const std::string & name, std::string & value) {
+  rawAttachments.insert(std::pair<std::string, std::string>(name, value));
+  auto attachment = getRpcMessage()->add_attachments();
+  attachment->set_name(name);
+  attachment->set_value(value);
+}
+
+void ActorMessage::replaceAttachment(const std::string & name, std::shared_ptr<google::protobuf::Message> value) {
+  auto it = attachments.find(name);
+  if (it != attachments.end()) {
+    attachments.erase(it);
+  }
+  attachments.insert(std::pair<std::string, std::shared_ptr<google::protobuf::Message> >(name, value));
 }
 
 bool ActorMessage::parseAttachment1(const std::string& name, PbMessagePtr& msg) {
@@ -215,16 +233,75 @@ bool ActorMessage::parseAttachment1(const std::string& name, PbMessagePtr& msg) 
   protobuf::SerdesMode mode = static_cast<protobuf::SerdesMode>(getRpcMessage()->serdes_type());
   auto range = rawAttachments.equal_range(name);
   if (range.first == range.second) {
-    LOG(ERROR) << "No raw attachment";
+    LOG(ERROR) << "No raw attachment for name: " << name;
     return false;
   }
   for (auto it = range.first; it != range.second; ++it) {
     PbMessagePtr v(msg->New());
     bool result = protobuf::ProtoSerdesHelper::deserialize(mode, it->second, v.get());
-    if(!result) {
-      LOG(ERROR) << "Failed to deserialize raw attachment: " << mode << ", data: " << it->second;
-    } else {
+    if(result) {
       attachments.insert(std::pair<std::string, PbMessagePtr>(name, v));
+    } else {
+      LOG(ERROR) << "Failed to deserialize raw attachment: " << mode << ", data: " << it->second;
+    }
+  }
+
+  return true;
+}
+
+bool ActorMessage::parseAttachments(const std::string& keyName, const std::string& valueName, std::map<PbMessagePtr, PbMessagePtr>& map) {
+  PbMessagePtr key;
+  PbMessagePtr value;
+  for (auto it = attachments.begin(); it != attachments.end(); ++it) {
+    if (it->first == keyName) {
+      key->MergeFrom(*it->second);
+      
+    } else {
+      continue;
+    }
+    if (it != attachments.end()) {
+      ++it;
+    } else {
+      break;
+    }
+    if (it->first == valueName) {
+      value->MergeFrom(*it->second);
+    } else {
+      continue;
+    }
+    map[key] = value;
+  }
+  
+  if (map.size() == 0) {
+    bool result;
+    protobuf::SerdesMode mode = static_cast<protobuf::SerdesMode>(getRpcMessage()->serdes_type());
+
+    for (auto rawit = rawAttachments.begin(); rawit != rawAttachments.end(); ++rawit) {
+      if (rawit->first == keyName) {
+        result = protobuf::ProtoSerdesHelper::deserialize(mode, rawit->second, key.get());
+        if (result == false) {
+          continue;
+        }
+      } else {
+        continue;
+      }
+      if (rawit != rawAttachments.end()) {
+        ++rawit;
+      } else {
+        break;
+      }
+      if (rawit->first == valueName) {
+        result = protobuf::ProtoSerdesHelper::deserialize(mode, rawit->second, value.get());
+        if (result == false) {
+          continue;
+        }
+      } else {
+        continue;
+      }
+      map[key] = value;
+    }
+    if (map.size() == 0) {
+      return false;
     }
   }
 
@@ -236,16 +313,14 @@ idgs::ResultCode ActorMessage::parseRpcBuffer() {
     DVLOG(3) << "RPC buffer is NULL";
     return RC_OK;
   }
-  if (!rpcMessage) {
-    rpcMessage = std::make_shared<idgs::pb::RpcMessage>();
-  }
+
   protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::deserializeFromArray(getRpcBuffer()->getBody(),
       getRpcBuffer()->getBodyLength(), getRpcMessage().get());
 
   extractRawAttachments();
 
   setMessageOrietation(ActorMessage::APP_ORIENTED);
-  DVLOG(2) << "the RpcMessage = " << getRpcMessage()->DebugString();
+  DVLOG_FIRST_N(2, 20) << "the RpcMessage = " << getRpcMessage()->DebugString();
 
   freeRpcBuffer();
 
@@ -253,16 +328,23 @@ idgs::ResultCode ActorMessage::parseRpcBuffer() {
 }
 
 void ActorMessage::freeRpcBuffer() {
-  if (rpcBuffer) {
-    delete rpcBuffer;
-    rpcBuffer = NULL;
-  }
+  rpcBuffer.reset();
 }
 void ActorMessage::freePbMemory() {
   rpcMessage.reset();
   payload.reset();
   attachments.clear();
   rawAttachments.clear();
+}
+
+void relayMessage(ActorMessagePtr& msg) {
+  static ActorMessageQueue* q = idgs_application()->getActorMessageQueue();
+  q->push(msg);
+}
+
+void relayTimerMessage(ActorMessagePtr& msg) {
+  static ActorMessageQueue* q = idgs_application()->getActorMessageQueue();
+  q->push(msg);
 }
 
 } // namespace rpc

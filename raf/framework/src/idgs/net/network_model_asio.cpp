@@ -12,15 +12,14 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/net/network_model_asio.h"
 
+#include "idgs/application.h"
+
+#include "idgs/httpserver/http_server.h"
+
 #include "idgs/net/async_tcp_server.h"
 #include "idgs/net/inner_tcp_server.h"
-#include "idgs/net/async_udp_server.h"
 #include "idgs/net/rpc_member_listener.h"
 #include "idgs/net/network_statistics.h"
-#include "idgs/net/resend_scheduler.h"
-
-
-#include "idgs/cluster/cluster_framework.h"
 
 using namespace idgs::pb;
 using namespace idgs::actor;
@@ -35,26 +34,40 @@ NetworkModelAsio::NetworkModelAsio():
         ioService(),
         innerTcpServer(new InnerTcpServer(this, ioService)),
         outerTcpServer(new AsyncTcpServer(this, ioService)),
-        innerUdpServer(new AsyncUdpServer(this, ioService)),
+#if defined(WITH_UDT)
+        innerUdtServer(new InnerUdtServer(this)),
+#endif // defined(WITH_UDT)
         rpcMemberListener(new RpcMemberListener(this)),
-        networkStatistics(new NetworkStatistics()),
-        resendScheduler(new ResendScheduler()),
-        httpServer(new idgs::http::server::HttpServer()){
+        networkStatistics(new NetworkStatistics()) {
+  std::string webroot = "webroot";
+  std::string conf_dir = "conf/";
+  char* temp = getenv("IDGS_HOME");
+  if (temp) {
+    webroot = temp;
+    webroot = webroot + "/webroot";
+
+    conf_dir = temp;
+    conf_dir = conf_dir + "/conf/";
+  }
+  httpServer = new idgs::httpserver::HttpServer(webroot);
+  httpServer->addVirtualDir("/conf/", conf_dir);
 }
 
 NetworkModelAsio::~NetworkModelAsio() {
   function_footprint();
+  shutdown();
 }
 
 int32_t NetworkModelAsio::init(idgs::pb::ClusterConfig* cfg) {
   function_footprint();
   this->cfg = cfg;
   NetworkModelAsio::SOCKET_BUFFER_SIZE = cfg->socket_buffer_size();
-  idgs::cluster::ClusterFramework& cluster = ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance();
-  cluster.getMemberManager()->addListener(rpcMemberListener);
+  idgs_application()->getMemberManager()->addListener(rpcMemberListener);
   innerTcpServer->init(cfg);
   outerTcpServer->init(cfg);
-  innerUdpServer->init(cfg);
+#if defined(WITH_UDT)
+  innerUdtServer->init(cfg);
+#endif // defined(WITH_UDT)
   return 0;
 }
 
@@ -70,9 +83,11 @@ int32_t NetworkModelAsio::start() {
   rc = static_cast<idgs::ResultCode>(outerTcpServer->start());
   CHECK_RC(rc);
 
-/// start inner udp server
-  rc =  static_cast<idgs::ResultCode>(innerUdpServer->start());
+/// start inner udt server
+#if defined(WITH_UDT)
+  rc =  static_cast<idgs::ResultCode>(innerUdtServer->start());
   CHECK_RC(rc);
+#endif // defined(WITH_UDT)
 
 /// start IO threads
   int io_thread_count = cfg->io_thread_count();
@@ -98,18 +113,25 @@ int32_t NetworkModelAsio::start() {
 //return 1 if init success
 int32_t NetworkModelAsio::shutdown() {
   function_footprint();
+
+  if(httpServer) {
+    httpServer->stop();
+    delete httpServer;
+    httpServer = NULL;
+  }
+
   auto backup_outerTcpServer = outerTcpServer;
   auto backup_innerTcpServer = innerTcpServer;
-  auto backup_innerUdpServer = innerUdpServer;
+#if defined(WITH_UDT)
+  auto backup_udtServer = innerUdtServer;
+#endif // defined(WITH_UDT)
 
   outerTcpServer = NULL;
   innerTcpServer = NULL;
-  innerUdpServer = NULL;
 
-  if(resendScheduler) {
-    delete resendScheduler;
-    resendScheduler = NULL;
-  }
+#if defined(WITH_UDT)
+  innerUdtServer = NULL;
+#endif // defined(WITH_UDT)
 
   if(backup_outerTcpServer) {
     backup_outerTcpServer->stop();
@@ -119,9 +141,11 @@ int32_t NetworkModelAsio::shutdown() {
     backup_innerTcpServer->stop();
   }
 
-  if(backup_innerUdpServer) {
-    backup_innerUdpServer->stop();
+#if defined(WITH_UDT)
+  if (backup_udtServer) {
+    backup_udtServer->stop();
   }
+#endif // defined(WITH_UDT)
 
   LOG(INFO) << "Stopping IO threads.";
   ioService.stop();
@@ -133,12 +157,10 @@ int32_t NetworkModelAsio::shutdown() {
 
   LOG(INFO) << "Unregister cluster linster callback.";
   if (rpcMemberListener) {
-    idgs::cluster::ClusterFramework& cluster = ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance();
-    cluster.getMemberManager()->removeListener(rpcMemberListener);
+    idgs_application()->getMemberManager()->removeListener(rpcMemberListener);
     delete rpcMemberListener;
     rpcMemberListener = NULL;
   }
-
 
   if(backup_outerTcpServer) {
     delete backup_outerTcpServer;
@@ -148,31 +170,33 @@ int32_t NetworkModelAsio::shutdown() {
     delete backup_innerTcpServer;
   }
 
-  if(backup_innerUdpServer) {
-    delete backup_innerUdpServer;
+#if defined(WITH_UDT)
+  if(backup_udtServer) {
+    delete backup_udtServer;
   }
+#endif // defined(WITH_UDT)
 
   if(networkStatistics) {
     delete networkStatistics;
     networkStatistics = NULL;
   }
 
-  if (httpServer) {
-    delete httpServer;
-    httpServer = NULL;
-  }
 
   return RC_SUCCESS;
 }
 
 int32_t NetworkModelAsio::send(ActorMessagePtr msg) {
 //  DVLOG(2) << "Network layer send actor message: " << msg->toString();
-  static uint32_t MTU = ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getClusterConfig()->mtu();
-  if(!innerUdpServer || !innerTcpServer) {
+//  static uint32_t MTU = idgs_application()->getClusterFramework()->getClusterConfig()->mtu();
+
+#if defined(WITH_UDT)
+  if(!innerUdtServer || !innerTcpServer) {
+#else  // defined(WITH_UDT)
+  if(!innerTcpServer) {
+#endif // defined(WITH_UDT)
     LOG(WARNING) << "Network layer has been shutdown.";
     return RC_ERROR;
   }
-
 
 
   int32_t transfer_channel = msg->getRpcMessage()->channel();
@@ -184,14 +208,13 @@ int32_t NetworkModelAsio::send(ActorMessagePtr msg) {
 
   switch (transfer_channel) {
   case TC_AUTO: {
-    int32_t size = msg->getRpcBuffer()->getBodyLength();
-    if (size <= MTU) {
-//      msg->setChannel(TC_UNICAST);
-      return innerUdpServer->sendMessage(msg);
-    } else {
-//      msg->setChannel(TC_TCP);
-      return innerTcpServer->sendMessage(msg);
-    }
+    return innerTcpServer->sendMessage(msg);
+//    size_t size = msg->getRpcBuffer()->getBodyLength();
+//    if (size <= MTU) {
+//      return innerUdtServer->sendMessage(msg);
+//    } else {
+//      return innerTcpServer->sendMessage(msg);
+//    }
   }
   break;
   case TC_TCP: {
@@ -199,11 +222,15 @@ int32_t NetworkModelAsio::send(ActorMessagePtr msg) {
   }
   break;
   case TC_UNICAST: {
-    return innerUdpServer->sendMessage(msg);
+#if defined(WITH_UDT)
+    return innerUdtServer->sendMessage(msg);
+#else // defined(WITH_UDT)
+    return innerTcpServer->sendMessage(msg);
+#endif // defined(WITH_UDT)
   }
   break;
   case TC_MULTICAST: {
-    return ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getClusterAdapter()->multicastMessage(msg);
+    return idgs_application()->multicastMessage(msg);
   }
   break;
   default: {
@@ -243,38 +270,6 @@ void NetworkModelAsio::putEndPoint(int32_t memberId, const ::idgs::pb::EndPoint&
     }
   }
   endPointCache[memberId] = ep;
-}
-
-/// set socket options, e.g. receive/send buffer size
-void NetworkModelAsio::setUdpSocketOption(asio::ip::udp::socket& s, bool server) {
-  asio::error_code ec;
-  if (server) {
-    asio::socket_base::receive_buffer_size opt1;
-    s.get_option(opt1);
-    LOG_FIRST_N(INFO, 1) << "Default UDP socket receive buffer size: " << opt1.value();
-    if (SOCKET_BUFFER_SIZE * 2 > opt1.value()) {
-      asio::socket_base::receive_buffer_size opt2(SOCKET_BUFFER_SIZE * 2);
-      LOG_FIRST_N(INFO, 1) << "UDP Socket receive buffer size is set to " << opt2.value();
-      s.set_option(opt2, ec);
-      if(ec) {
-        LOG(ERROR) << "Failed to set UDP socket receive buffer size: " << opt2.value()
-                        << ", please tune the OS kernel: sysctl -w net.core.rmem_max=" << (SOCKET_BUFFER_SIZE * 2);
-      }
-    }
-  } else {
-    asio::socket_base::send_buffer_size opt1;
-    s.get_option(opt1);
-    LOG_FIRST_N(INFO, 1) << "Default UDP socket send buffer size: " << opt1.value();
-    if ( SOCKET_BUFFER_SIZE > opt1.value()) {
-      asio::socket_base::send_buffer_size opt2(SOCKET_BUFFER_SIZE * 2);
-      LOG_FIRST_N(INFO, 1) << "UDP Socket send buffer size is set to " << opt2.value();
-      s.set_option(opt2, ec);
-      if(ec) {
-        LOG(ERROR) << "Failed to set UDP  socket send buffer size: " << opt2.value()
-                        << ", please tune the OS kernel: sysctl -w net.core.wmem_max=" << SOCKET_BUFFER_SIZE * 2;
-      }
-    }
-  }
 }
 
 /// set socket options, e.g. receive/send buffer size

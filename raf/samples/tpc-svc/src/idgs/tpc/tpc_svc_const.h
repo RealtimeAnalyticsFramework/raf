@@ -10,21 +10,21 @@ namespace idgs {
 namespace tpc {
 
 /// TPCH Store Name
-static const std::string& TPCH_STORE_STORE_LINEITEM = "LineItem";
-static const std::string& TPCH_STORE_CUSTOMER = "Customer";
-static const std::string& TPCH_STORE_SUPPLIER = "Supplier";
-static const std::string& TPCH_STORE_PART = "Part";
-static const std::string& TPCH_STORE_NATION = "Nation";
-static const std::string& TPCH_STORE_PARTSUPP = "PartSupp";
-static const std::string& TPCH_STORE_REGION = "Region";
-static const std::string& TPCH_STORE_ORDERS = "Orders";
+//static const std::string& TPCH_STORE_STORE_LINEITEM = "LineItem";
+//static const std::string& TPCH_STORE_CUSTOMER = "Customer";
+//static const std::string& TPCH_STORE_SUPPLIER = "Supplier";
+//static const std::string& TPCH_STORE_PART = "Part";
+//static const std::string& TPCH_STORE_NATION = "Nation";
+//static const std::string& TPCH_STORE_PARTSUPP = "PartSupp";
+//static const std::string& TPCH_STORE_REGION = "Region";
+//static const std::string& TPCH_STORORDERS = "Orders";
 
 /// SSB Store Name
-static const std::string& SSB_STORE_LINEORDER = "ssb_lineorder";
-static const std::string& SSB_STORE_CUSTOMER = "ssb_customer";
-static const std::string& SSB_STORE_SUPPLIER = "ssb_supplier";
-static const std::string& SSB_STORE_PART = "ssb_part";
-static const std::string& SSB_STORE_DATE = "ssb_date";
+//static const std::string& SSB_STORE_LINEORDER = "ssb_lineorder";
+//static const std::string& SSB_STORE_CUSTOMER = "ssb_customer";
+//static const std::string& SSB_STORE_SUPPLIER = "ssb_supplier";
+//static const std::string& SSB_STORE_PART = "ssb_part";
+//static const std::string& SSB_STORE_DATE = "ssb_date";
 
 // RDD samples
 static const std::string& TPCH_Q6_TRANSFORMER = "TPCH_Q6_TRANSFORMER";

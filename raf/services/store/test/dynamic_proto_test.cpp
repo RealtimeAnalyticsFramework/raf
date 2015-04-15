@@ -11,26 +11,17 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 #include <gtest/gtest.h>
 
-#include "idgs/util/singleton.h"
 #include "protobuf/message_helper.h"
 
 using namespace idgs;
 using namespace protobuf;
 
 TEST(DynamicProto, registerDynamicMessage) {
+  MessageHelper helper;
   ResultCode resultCode;
-  resultCode = ::idgs::util::singleton<MessageHelper>::getInstance().registerDynamicMessage("services/store/test/proto/tpch.proto");
+  resultCode = helper.registerDynamicMessage("conf/tpch.proto");
   ASSERT_TRUE(resultCode == RC_SUCCESS);
 
-  auto account = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.Customer");
+  auto account = helper.createMessage("idgs.sample.tpch.pb.Customer");
   ASSERT_TRUE(account != NULL);
 }
-
-//TEST(DynamicProto, registerDynamicMessages) {
-//  ResultCode resultCode;
-//  resultCode = ::idgs::util::singleton<MessageHelper>::getInstance().registerDynamicMessages("services/store/test/proto/");
-//  ASSERT_TRUE(resultCode == RC_SUCCESS);
-
-//  auto supplier = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.tpch.pb.Supplier");
-//  ASSERT_TRUE(supplier != NULL);
-//}

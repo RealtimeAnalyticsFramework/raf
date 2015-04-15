@@ -11,7 +11,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // defined(__GNUC__) || defined(__clang__) $
 #include "compare_expr.h"
 
-using namespace std;
 using namespace protobuf;
 
 namespace idgs {
@@ -65,21 +64,13 @@ PbVariant GEExpression::evaluate(ExpressionContext* ctx) const {
   return PbVariant(result);
 }
 
-PbVariant LikeExpression::evaluate(ExpressionContext* ctx) const {
-  PbVariant lvar = leftChild->evaluate(ctx);
-  PbVariant rvar = rightChild->evaluate(ctx);
-  bool result = (((string) lvar).find_first_of(((string) rvar)) != string::npos);
-
-  return PbVariant(result);
-}
-
 bool BetweenExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size() != 4) {
     LOG(ERROR) << "Failed to parse expression. BETWEEN(between or not between, expression, left condition, right condition";
     return false;
   }
 
-  if (entryExp.expression(0).type() != pb::CONST || entryExp.expression(0).const_type() != pb::BOOL) {
+  if (entryExp.expression(0).name() != "CONST" || entryExp.expression(0).const_type() != pb::BOOL) {
     LOG(ERROR) << "Failed to parse expression. BETWEEN(between or not between, expression, left condition, right condition";
     return false;
   }
@@ -95,6 +86,32 @@ PbVariant BetweenExpression::evaluate(ExpressionContext* ctx) const {
   bool result = (field >= lvar) && (field <= rvar);
 
   return PbVariant((isNot) ? !result : result);
+}
+
+PbVariant InExpression::evaluate(ExpressionContext* ctx) const {
+  bool result = false;
+  PbVariant field = children[0]->evaluate(ctx);
+  for (int32_t i = 1; i < children.size(); ++ i) {
+    PbVariant value = children[i]->evaluate(ctx);
+    if (field == value) {
+      result = true;
+      break;
+    }
+  }
+
+  return PbVariant(result);
+}
+
+PbVariant IsNullExpression::evaluate(ExpressionContext* ctx) const {
+  PbVariant var = child->evaluate(ctx);
+  bool result = var.is_null;
+  return PbVariant(result);
+}
+
+PbVariant IsNotNullExpression::evaluate(ExpressionContext* ctx) const {
+  PbVariant var = child->evaluate(ctx);
+  bool result = !var.is_null;
+  return PbVariant(result);
 }
 
 } // namespace expr

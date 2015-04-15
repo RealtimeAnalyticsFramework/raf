@@ -30,7 +30,7 @@ protected:
   void sendMessage(idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out = 10);
 
   /// send message to indicate client
-  void sendMessage(const std::shared_ptr<idgs::client::TcpClientInterface>& client,
+  void sendMessage(const std::shared_ptr<idgs::client::TcpClient>& client,
       idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out = 10);
 
   /// send and recv
@@ -38,7 +38,7 @@ protected:
       int time_out = 10);
 
   /// send and recv
-  ClientActorMessagePtr sendRecvMessage(const std::shared_ptr<idgs::client::TcpClientInterface>& client,
+  ClientActorMessagePtr sendRecvMessage(const std::shared_ptr<idgs::client::TcpClient>& client,
       idgs::client::ClientActorMessagePtr& clientActorMsg, ResultCode* rc, int time_out = 10);
 };
 }

@@ -26,18 +26,19 @@ using namespace idgs::store;
 TEST(replicated_store, insert) {
   TEST_TIMEOUT(10);
 
-  std::shared_ptr<NationKey> key(new NationKey);
+  std::shared_ptr<NationKey> key = std::make_shared<NationKey>();
   key->set_n_nationkey(10000);
 
-  std::shared_ptr<Nation> nation(new Nation);
+  std::shared_ptr<Nation> nation = std::make_shared<Nation>();
   nation->set_n_name("China");
   nation->set_n_regionkey(35000);
   nation->set_n_comment("Intel");
 
-  std::shared_ptr<idgs::store::pb::InsertRequest> request(new idgs::store::pb::InsertRequest);
+  std::shared_ptr<idgs::store::pb::InsertRequest> request = std::make_shared<idgs::store::pb::InsertRequest>();
+  request->set_schema_name("tpch");
   request->set_store_name("Nation");
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(OP_INSERT);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(ACTORID_STORE_SERVCIE);
@@ -50,17 +51,19 @@ TEST(replicated_store, insert) {
   clientActorMsg->setAttachment(STORE_ATTACH_VALUE, nation);
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/store_it/client.conf";
+  setting.clientConfig = "conf/client.conf";
   ResultCode code;
 
-  code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  auto& pool = getTcpClientPool();
+  code = pool.loadConfig(setting);
   ASSERT_EQ(RC_SUCCESS, code);
 
-  std::shared_ptr<TcpClientInterface> client = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = pool.getTcpClient(code);
   ASSERT_EQ(RC_SUCCESS, code);
 
   // response
-  ClientActorMessagePtr tcpResponse = client->sendRecv(clientActorMsg, &code);
+  ClientActorMessagePtr tcpResponse;
+  code = client->sendRecv(clientActorMsg, tcpResponse);
   ASSERT_EQ(RC_SUCCESS, code);
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in get data to partition store, cause by " << getErrorDescription(code);
@@ -90,5 +93,5 @@ TEST(replicated_store, insert) {
   LOG(INFO) << "Success";
 
   client->close();
-  ::idgs::util::singleton<TcpClientPool>::getInstance().close();
+  getTcpClientPool().close();
 }

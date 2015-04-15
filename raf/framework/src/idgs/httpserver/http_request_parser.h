@@ -11,8 +11,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include <tuple>
 
 namespace idgs {
-namespace http {
-namespace server {
+namespace httpserver {
 
 enum ParseStatus {
   Invalid,
@@ -25,9 +24,9 @@ class HttpRequest;
 /// Parser for incoming requests.
 class HttpRequestParser {
 public:
-  /// Construct ready to parse the request method.
   HttpRequestParser();
 
+public:
   /// Reset to initial parser state.
   void reset();
 
@@ -49,15 +48,12 @@ public:
 
 private:
   ParseStatus consume(HttpRequest& req, char input);
-
   static bool isChar(int c);
-
   static bool isCtl(int c);
-
   static bool isTspecial(int c);
-
   static bool isDigit(int c);
 
+private:
   enum state
   {
     method_start,
@@ -84,6 +80,5 @@ private:
   } state_;
 };
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

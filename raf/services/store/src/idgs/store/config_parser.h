@@ -7,10 +7,8 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-#include <string>
 
 #include "idgs/result_code.h"
-#include "store_config_wrappers.h"
 #include "idgs/store/pb/store_config.pb.h"
 
 namespace idgs {
@@ -21,25 +19,29 @@ namespace store {
 class StoreConfigParser {
 public:
 
-  /// @brief Constructor
-  StoreConfigParser();
+  /// @brief  Make the config file structuring.
+  /// @param  path    The config file path.
+  /// @param  config  Structuring of store config.
+  /// @return Status code of result.
+  static ResultCode parseStoreConfigFromFile(const std::string& path, pb::DataStoreConfig* config);
 
-  /// @brief Destructor
-  virtual ~StoreConfigParser();
+  /// @brief  Make the config content structuring.
+  /// @param  path    The content of config.
+  /// @param  config  Structuring of store config.
+  /// @return Status code of result.
+  static ResultCode parseStoreConfigFromString(const std::string& content, pb::DataStoreConfig* config);
 
-  /// Copy constructor, called by containers.
-  /// This should be singleton, copy constructor should be deleted.
+  /// @brief  Make the config content structuring.
+  /// @param  path    The content of config.
+  /// @param  config  Structuring of store config.
+  /// @return Status code of result.
+  static ResultCode parseStoreConfig(pb::DataStoreConfig* config);
+
+private:
   StoreConfigParser(const StoreConfigParser& other) = delete;
   StoreConfigParser(StoreConfigParser&& other) = delete;
   StoreConfigParser& operator()(const StoreConfigParser& other) = delete;
   StoreConfigParser& operator()(StoreConfigParser&& other) = delete;
-
-  /// @brief  Parse the config file and wrap all store configs to StoreConfigWrappers.
-  /// @param  configFilePath The config file path.
-  /// @param  storeConfigWrappers The Object to wrap all store infos from config file.
-  /// @return Status code of result.
-  ResultCode parseStoreConfig(const std::string& configFilePath, StoreConfigWrappers& storeConfigWrappers);
-
 };
 // class ConfigParser
 

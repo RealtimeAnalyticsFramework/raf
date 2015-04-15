@@ -1,20 +1,20 @@
 #
 # Makefile for demo
 #
-bin_PROGRAMS=client
-client_SOURCES = \
+bin_PROGRAMS = idgs-cli
+
+idgs_cli_SOURCES = \
 	src/client_main.cpp
 
-LDADD = @IDGS_LDFLAGS@ \
+LDADD = \
 	-lidgsclient \
-	-lidgsadmin \
-	-lidgsrdd \
+	-lidgsrddng \
 	-lidgsdatastore \
 	-lidgsframework \
-	-ltbb
+	@IDGS_LDADD@
 
+AM_LDFLAGS= @IDGS_LDFLAGS@
 
-# the macro IDGS_CXXFLAGS is defined in configure.ac
 AM_CXXFLAGS= @IDGS_CXXFLAGS@
 
 

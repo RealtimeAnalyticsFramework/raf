@@ -6,9 +6,7 @@
  Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
  */
 #include "loader.h"
-#include "protobuf/message_helper.h"
 #include "idgs/util/utillity.h"
-#include "idgs/store/data_store.h"
 
 using namespace idgs::store;
 using namespace google::protobuf;
@@ -56,21 +54,27 @@ void Loader::config() {
     if (!isParseLine) {
       continue;
     }
-    StoreConfigWrapperPtr store_config_wrapper_ptr;
-    ResultCode rs = ::idgs::util::singleton<idgs::store::DataStore>::getInstance().loadStoreConfig(store_name,
-        store_config_wrapper_ptr);
-    if (rs != idgs::RC_OK) {
-      LOG(ERROR)<< "load store config  error, " << getErrorDescription(rs) << ", store name: " << store_name;
+
+    if (!datastore) {
+      LOG(ERROR) << "no data store found.";
+      return;
     }
+
+    auto store = datastore->getStore(store_name);
+    if (!store) {
+      LOG(ERROR) << "store " << store_name << " is not found.";
+      return;
+    }
+
+    auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
     ParsedStoreDescriptor descriptor;
     descriptor.mapper->CopyFrom(*it);
     const std::string& key_type = store_config_wrapper_ptr->getStoreConfig().key_type();
     const std::string& value_type = store_config_wrapper_ptr->getStoreConfig().value_type();
     descriptor.key_type = key_type;
     descriptor.value_type = value_type;
-    PbMessagePtr key_type_msg = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(key_type);
-    PbMessagePtr value_type_msg = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(
-        value_type);
+    PbMessagePtr key_type_msg = store_config_wrapper_ptr->newKey();
+    PbMessagePtr value_type_msg = store_config_wrapper_ptr->newValue();
     if (it->fields_size() > 0) { /// user defined fields
       descriptor.fieldDescriptor.reserve(it->fields_size());
       for (auto ft = it->fields().begin(); ft != it->fields().end(); ++ft) {
@@ -108,7 +112,7 @@ void Loader::config() {
 }
 
 idgs::ResultCode Loader::loadMapperConfig() {
-  idgs::ResultCode rc = protobuf::JsonMessage().parseJsonFromFile(mapper_config, settings->mapper_cfg_file);
+  idgs::ResultCode rc = (ResultCode)idgs::parseIdgsConfig(mapper_config, settings->mapper_cfg_file);
   if (rc != RC_OK) {
     LOG(ERROR)<< "parse mapper file error, " << idgs::getErrorDescription(rc) << ", file path:" << settings->mapper_cfg_file;
     return rc;
@@ -121,9 +125,17 @@ KeyValueMessagePair Loader::parseLine(const std::string& store_name, const std::
   const ParsedStoreDescriptor& descriptor = store_descriptor_cache.at(store_name);
   vector<string> result;
   idgs::str::split(line, descriptor.mapper->seperator(), result);
-  PbMessagePtr key = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(descriptor.key_type);
-  PbMessagePtr value = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(
-      descriptor.value_type);
+
+  auto store = datastore->getStore(store_name);
+  if (!store) {
+    LOG(ERROR)<< "Store " << store_name << " is not found.";
+    *rc = RC_STORE_NOT_FOUND;
+    return KeyValueMessagePair(NULL, NULL);
+  }
+
+  auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+  PbMessagePtr key = store_config_wrapper_ptr->newKey();
+  PbMessagePtr value = store_config_wrapper_ptr->newValue();
   if (!key.get()) {
     LOG(ERROR)<< "Parse line error, key message is null, store descriptor: " << descriptor.toString();
     *rc = RC_PARSE_LINE_ERROR;
@@ -152,19 +164,18 @@ KeyValueMessagePair Loader::parseLine(const std::string& store_name, const std::
     *rc = RC_PARSE_LINE_ERROR;
     return KeyValueMessagePair(NULL, NULL);
   }
+  protobuf::MessageHelper helper;
   for (size_t index = 0, size = result.size(); index < size; ++index) {
     const ParsedStoreFieldDescriptor& field_descriptor = descriptor.fieldDescriptor.at(index);
     if (field_descriptor.type == KEY_TYPE) {
-      *rc = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().setMessageValue(key.get(),
-          field_descriptor.descriptor, result.at(index));
+      *rc = helper.setMessageValue(key.get(), field_descriptor.descriptor, result.at(index));
       if (*rc != RC_SUCCESS) {
         LOG(ERROR)<< "set Message KEY's field value error, error code: " << *rc
         << ", field index: " << index << ", field name: " << field_descriptor.descriptor->name() << ", field value: " << result[index] << ", line: " << line;
         return KeyValueMessagePair(NULL, NULL);
       }
-    }
-    else if(field_descriptor.type == VALUE_TYPE) {
-      *rc = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().setMessageValue(value.get(), field_descriptor.descriptor, result.at(index));
+    } else if(field_descriptor.type == VALUE_TYPE) {
+      *rc = helper.setMessageValue(value.get(), field_descriptor.descriptor, result.at(index));
       if(*rc != RC_SUCCESS) {
         LOG(ERROR) << "set Message VALUE's field value error, error code: " << *rc
         << ", field index: " << index << ", field name: " << field_descriptor.descriptor->name() << ", field value: " << result[index] << ", line: " << line;

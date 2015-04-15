@@ -24,7 +24,7 @@ Expression::~Expression() {
 bool NullaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
     const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size()) {
-    LOG(ERROR) << "Invalid subexpression: " << entryExp.type();
+    LOG(ERROR) << "Invalid subexpression: " << entryExp.name();
     return false;
   }
 
@@ -34,7 +34,7 @@ bool NullaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
 bool UnaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
     const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size() != 1) {
-    LOG(ERROR) << "Invalid subexpression: " << entryExp.type();
+    LOG(ERROR) << "Invalid subexpression: " << entryExp.name();
     return false;
   }
 
@@ -51,7 +51,7 @@ bool UnaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
 bool BinaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
     const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size() != 2) {
-    LOG(ERROR) << "Invalid subexpression: " << entryExp.type();
+    LOG(ERROR) << "Invalid subexpression: " << entryExp.name();
     return false;
   }
 
@@ -73,7 +73,7 @@ bool BinaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
 bool TernaryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
     const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size() != 3) {
-    LOG(ERROR) << "Invalid subexpression: " << entryExp.type();
+    LOG(ERROR) << "Invalid subexpression: " << entryExp.name();
     return false;
   }
 
@@ -108,7 +108,7 @@ bool NAryExpression::parseSubExpression(const idgs::pb::Expr& entryExp,
     idgs::ResultCode rc = ExpressionFactory::build(&expr, entryExp.expression(i), key, value);
     if (rc != idgs::RC_SUCCESS) {
       LOG(ERROR) << "Failed to parse expression, type is "
-          << idgs::pb::ExpressionType_Name(entryExp.expression(i).type()) << ", caused by "
+          << entryExp.expression(i).name() << ", caused by "
           << idgs::getErrorDescription(rc);
       return false;
     }

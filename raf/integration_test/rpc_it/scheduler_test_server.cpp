@@ -27,7 +27,7 @@ namespace idgs {
   namespace net {
     namespace tcp_test {
 
-      tbb::atomic<int> test_server_count;
+      std::atomic<int> test_server_count;
       const std::string test_server_id = "test_server_id";
       const std::string start_work_operation = "start_work_operation";
       const std::string start_work_operation_resp = "start_work_operation_succesfully";
@@ -43,7 +43,7 @@ namespace idgs {
         public:
           TestStatelessActor() {
             setActorId(test_server_id);
-            ActorDescriptorPtr descriptor(new ActorDescriptorWrapper);
+            ActorDescriptorPtr descriptor = std::make_shared<ActorDescriptorWrapper>();
             descriptor->setName("test_server_id");
             descriptor->setDescription("");
             descriptor->setType(AT_STATELESS);
@@ -52,7 +52,7 @@ namespace idgs {
             dataSyncRequest.setDescription("");
             dataSyncRequest.setPayloadType("idgs.pb.Long");
             descriptor->setInOperation(dataSyncRequest.getName(), dataSyncRequest);
-            ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerActorDescriptor(descriptor->getName(), descriptor);
+            idgs_application()->getActorDescriptorMgr()->registerActorDescriptor(descriptor->getName(), descriptor);
             this->descriptor = descriptor;
           }
 
@@ -64,14 +64,14 @@ namespace idgs {
 
           void startTimerProcess (const idgs::actor::ActorMessagePtr& msg) {
             DLOG(INFO) << "TestStatelessActor receive operation: start_work_operation";
-            test_server_count.fetch_and_add(1);
+            test_server_count.fetch_add(1);
 
             ActorMessagePtr response = msg->createResponse();
 
             response->getRpcMessage()->set_operation_name(start_work_operation_resp);
 
             //Store the last message
-            this->lastMsg.reset(new ActorMessage(*response));
+            this->lastMsg = std::make_shared<ActorMessage>(*response);
 
             idgs::actor::sendMessage(response);
 
@@ -82,12 +82,12 @@ namespace idgs {
 
           void sendRespTimerOutProcess(const idgs::actor::ActorMessagePtr& msg) {
             DLOG(INFO) << "TestStatelessActor is time out";
-            test_server_count.fetch_and_add(1);
+            test_server_count.fetch_add(1);
             DLOG(INFO) << this << "Last Message: " << this->lastMsg->toString();
 
             ActorMessagePtr newMsg = this->lastMsg->createSessionRequest();
             newMsg->getRpcMessage()->set_operation_name(sending_reponse_succ);
-            std::shared_ptr<idgs::pb::Long> L(new idgs::pb::Long());
+            std::shared_ptr<idgs::pb::Long> L = std::make_shared<idgs::pb::Long>();
             L->set_value(test_server_count.load());
             newMsg->setPayload(L);
 
@@ -103,12 +103,12 @@ namespace idgs {
 
           void newMsgComesProcess (const idgs::actor::ActorMessagePtr& msg) {
             DLOG(INFO) << "New Client Request comes ";
-            test_server_count.fetch_and_add(1);
+            test_server_count.fetch_add(1);
             lastTimer->cancel();
             DLOG(INFO) << "the timer " << lastTimer->getDispachTime() << ":" << lastTimer.get() << " is canceled";
             ActorMessagePtr newMsg = msg->createResponse();
             newMsg->getRpcMessage()->set_operation_name(sending_total);
-            std::shared_ptr<idgs::pb::Long> L(new idgs::pb::Long());
+            std::shared_ptr<idgs::pb::Long> L = std::make_shared<idgs::pb::Long>();
             L->set_value(test_server_count.load());
             newMsg->setPayload(L);
             idgs::actor::sendMessage(newMsg);
@@ -116,7 +116,7 @@ namespace idgs {
 
           void waitNewMsgTimeOutProcess(const idgs::actor::ActorMessagePtr& msg) {
             DLOG(INFO) << "Can not receive the new message from client";
-            test_server_count.fetch_and_add(1);
+            test_server_count.fetch_add(1);
           };
 
 
@@ -138,7 +138,7 @@ namespace idgs {
             timeOutMsg->setDestActorId(test_server_id);
             timeOutMsg->setDestMemberId(timeOutMsg->getSourceMemberId());
             timeOutMsg->getRpcMessage()->set_operation_name(operName);
-            ScheduledMessageService& service = ::idgs::util::singleton<ScheduledMessageService>::getInstance();
+            ScheduledMessageService& service = idgs_application()->getRpcFramework()->getScheduler();
             return service.schedule(timeOutMsg, timer_dur);
           }
 
@@ -157,9 +157,9 @@ using idgs::net::tcp_test::TestStatelessActor;
 Application& startApp() {
   ApplicationSetting setting;
   // default value
-  setting.clusterConfig = "framework/conf/cluster.conf";
+  setting.clusterConfig = "conf/cluster.conf";
 
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
+  Application& app = * idgs_application();
   ResultCode rc;
 
   LOG(INFO) << "Loading configuration.";
@@ -190,7 +190,7 @@ TEST(tcp, tcp_server) {
 
   TestStatelessActor* statelessActor1 = new TestStatelessActor();
   statelessActor1->init();
-  app.regsiterActor(statelessActor1);
+  app.registerServiceActor(statelessActor1);
 
   ResultCode rc;
   // dead loop

@@ -46,8 +46,8 @@ namespace {
 //      this->descriptor->addConsumeActor("Actor B");
 //      this->descriptor->addConsumeActor("Actor C");
 //
-//      ::idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->Register(this->getActorId(), this);
-//      ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerActorDescriptor(this->descriptor->getName(), this->descriptor);
+//      idgs_application()->getRpcFramework()->getActorManager()->Register(this->getActorId(), this);
+//      idgs_application()->getActorDescriptorMgr()->registerActorDescriptor(this->descriptor->getName(), this->descriptor);
 //    }
 //
 //    void innerProcess(ActorMessagePtr& msg) override {
@@ -80,8 +80,8 @@ namespace {
 //      this->descriptor->addConsumeActor("Actor A");
 //      this->descriptor->addConsumeActor("Actor C");
 //
-//      ::idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->Register(this->getActorId(), this);
-//      ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerActorDescriptor(this->descriptor->getName(), this->descriptor);
+//      idgs_application()->getRpcFramework()->getActorManager()->Register(this->getActorId(), this);
+//      idgs_application()->getActorDescriptorMgr()->registerActorDescriptor(this->descriptor->getName(), this->descriptor);
 //    }
 //
 //    void innerProcess(ActorMessagePtr& msg) override {
@@ -113,8 +113,8 @@ namespace {
 //      this->descriptor->addConsumeActor("Actor C");
 //      this->descriptor->addConsumeActor("Actor A");
 //      this->descriptor->addConsumeActor("Actor B");
-//      ::idgs::util::singleton<idgs::actor::RpcFramework>::getInstance().getActorFramework()->Register(this->getActorId(), this);
-//      ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerActorDescriptor(this->descriptor->getName(), this->descriptor);
+//      idgs_application()->getRpcFramework()->getActorManager()->Register(this->getActorId(), this);
+//      idgs_application()->getActorDescriptorMgr()->registerActorDescriptor(this->descriptor->getName(), this->descriptor);
 //    }
 //
 //    virtual void innerProcess(ActorMessagePtr& msg) override {
@@ -156,9 +156,9 @@ namespace {
 //  const std::string expect_actorC_in[] = {"in_opC1", "in_opC2", "out_opA1", "out_opA2", "out_opB1", "out_opB2", "out_opC1", "out_opC2"};
 //  const std::string expect_actorC_out[] = {"in_opA1", "in_opA2", "in_opB1", "in_opB2", "in_opC1", "in_opC2", "out_opC1", "out_opC2"};
 //
-//  const idgs::actor::ActorDescriptorPtr& actorDescriptorA = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().getActorDescriptor("Actor A");
-//  const idgs::actor::ActorDescriptorPtr& actorDescriptorB = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().getActorDescriptor("Actor B");
-//  const idgs::actor::ActorDescriptorPtr& actorDescriptorC = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().getActorDescriptor("Actor C");
+//  const idgs::actor::ActorDescriptorPtr& actorDescriptorA = idgs_application()->getActorDescriptorMgr()->getActorDescriptor("Actor A");
+//  const idgs::actor::ActorDescriptorPtr& actorDescriptorB = idgs_application()->getActorDescriptorMgr()->getActorDescriptor("Actor B");
+//  const idgs::actor::ActorDescriptorPtr& actorDescriptorC = idgs_application()->getActorDescriptorMgr()->getActorDescriptor("Actor C");
 //
 //  // check
 //
@@ -171,9 +171,9 @@ namespace {
 TEST(module_descriptor_dump, dumpModuleDesc) {
   ApplicationSetting setting;
   // default valuel
-  setting.clusterConfig = "framework/conf/cluster.conf";
+  setting.clusterConfig = "conf/cluster.conf";
 
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
+  Application& app = * idgs_application();
   ResultCode rc;
 
   DVLOG(0) << "Loading configuration .";
@@ -195,13 +195,13 @@ TEST(module_descriptor_dump, dumpModuleDesc) {
   cerr << "##########################################################################" << endl;
   cerr << "            Module Descriptors" << endl;
   cerr << "##########################################################################" << endl;
-  auto it = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().getModuleDescriptors().begin();
-  auto end = ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().getModuleDescriptors().end();
+  auto it = idgs_application()->getActorDescriptorMgr()->getModuleDescriptors().begin();
+  auto end = idgs_application()->getActorDescriptorMgr()->getModuleDescriptors().end();
   for(; it != end; ++it) {
     cerr << "Module: " << it->first << endl;
     cerr << it->second->toModuleDescriptor()->DebugString() << endl;
     const std::string& file_name = it->first + ".mod.json";
-    std::string file_content = protobuf::JsonMessage().toPrettyJsonString(it->second->toModuleDescriptor().get());
+    std::string file_content = protobuf::ProtobufJson::toPrettyJsonString(it->second->toModuleDescriptor().get());
     const std::string& file_path = file_name;
     std::ofstream os(file_path);
     os << file_content;

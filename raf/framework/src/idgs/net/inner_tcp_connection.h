@@ -8,7 +8,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include <atomic>
 #include <asio.hpp>
 #include <tbb/concurrent_queue.h>
 #include "idgs/actor/actor_message.h"
@@ -34,7 +33,7 @@ public:
   virtual ~InnerTcpConnection();
 
 public:
-  const uint32_t getPeerMemberId() const {
+  uint32_t getPeerMemberId() const {
     return peerMemberId;
   }
 
@@ -42,6 +41,8 @@ public:
 
   std::string toString();
   uint32_t connect(uint32_t memberId, int retry = 0);
+  void terminate();
+
 private: /// called by inner TCP server
 
   asio::ip::tcp::socket& getSocket() {
@@ -53,15 +54,14 @@ private: /// called by inner TCP server
 
 private:
   void startRecvHeader();
-  void handleRecvHeader(const asio::error_code& error, RpcBuffer* readBuffer);
-  void handleRecvBody(const asio::error_code& error, RpcBuffer* readBuffer);
+  void handleRecvHeader(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer);
+  void handleRecvBody(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer);
 
   void realSendMessage();
   void handleSendMessage(const asio::error_code& error);
 
-  tbb::concurrent_queue<idgs::actor::ActorMessagePtr>& getQueue();
+  std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > getQueue();
 
-  void terminate();
   void setPeerMemberId(const uint32_t memberId_) {
     peerMemberId = memberId_;
   }
@@ -70,18 +70,19 @@ private:
   asio::io_service& io_service;
   asio::ip::tcp::socket socket;
 
-  enum InnerTcpConnectionState {
+  DEF_ENUM (InnerTcpConnectionState,
     INITIAL,
     CONNECTING,
     READY,
     WRITING,
     TERMINATED
-  };
+  );
 
   std::atomic<InnerTcpConnectionState> state;
-  uint32_t peerMemberId;
+  int peerMemberId;
 
-  tbb::concurrent_queue<idgs::actor::ActorMessagePtr>* queue;
+  std::shared_ptr<tbb::concurrent_queue<idgs::actor::ActorMessagePtr> > queue;
+  int try_pop_count = 0;
 
   static InnerTcpServer* innerTcpServer;
 };

@@ -18,97 +18,31 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
 #include "idgs/tpc/tpc_svc_const.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace idgs::tpc;
 
 std::shared_ptr<Expr> buildTpchQ6FilterExpression() {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(AND);
-
-  // >= 1994-01-01
-  Expr* exp1 = expression->add_expression();
-  exp1->set_type(GE);
-
-  Expr* elem1 = exp1->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_shipdate");
-
-  Expr* elem2 = exp1->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(STRING);
-  elem2->set_value("1994-01-01");
-
-  // < 1995-01-01
-  Expr* exp2 = expression->add_expression();
-  exp2->set_type(LT);
-
-  elem1 = exp2->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_shipdate");
-
-  elem2 = exp2->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(STRING);
-  elem2->set_value("1995-01-01");
-
-  // discount >= 0.05
-  Expr* exp3 = expression->add_expression();
-  exp3->set_type(GE);
-
-  elem1 = exp3->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_discount");
-
-  elem2 = exp3->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("0.05");
-
-  // discount <= 0.07
-  auto exp4 = expression->add_expression();
-  exp4->set_type(LE);
-  elem1 = exp4->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_discount");
-
-  elem2 = exp4->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("0.07");
-
-  // quantity < 24
-  auto emp5 = expression->add_expression();
-  emp5->set_type(LT);
-  elem1 = emp5->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_quantity");
-
-  elem2 = emp5->add_expression();
-  elem2->set_type(CONST);
-  elem2->set_const_type(DOUBLE);
-  elem2->set_value("24");
+  auto expr = AND(GE(FIELD("l_shipdate"), CONST("1994-01-01")),
+                    LT(FIELD("l_shipdate"), CONST("1995-01-01")),
+                    GE(FIELD("l_discount"), CONST("0.05", DOUBLE)),
+                    LE(FIELD("l_discount"), CONST("0.07", DOUBLE)),
+                    LT(FIELD("l_quantity"), CONST("24", DOUBLE))
+                   );
+  shared_ptr<Expr> expression(expr);
 
   return expression;
 }
 
 std::shared_ptr<Expr> buildTpchQ6ActionExpression() {
-  shared_ptr<Expr> expression(new Expr);
-  expression->set_type(MULTIPLY);
-  auto elem1 = expression->add_expression();
-  elem1->set_type(FIELD);
-  elem1->set_value("l_extendedprice");
-
-  auto elem2 = expression->add_expression();
-  elem2->set_type(FIELD);
-  elem2->set_value("l_discount");
+  auto expr = MULTIPLY(FIELD("l_extendedprice"), FIELD("l_discount"));
+  shared_ptr<Expr> expression(expr);
 
   return expression;
 }
@@ -125,23 +59,24 @@ TEST(tpch_query, Q6) {
     }
   }
 
-  RddClient& client = singleton<RddClient>::getInstance();
-  ResultCode code = client.init("samples/tpc-svc/conf/client.conf");
+  RddClient client;
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in init client, cause by " << idgs::getErrorDescription(code);
     exit(1);
   }
 
-  DelegateRddRequestPtr delegateRddRequest(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr delegateRddResponse(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr delegateRddRequest = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr delegateRddResponse = std::make_shared<CreateDelegateRddResponse>();
+  delegateRddRequest->set_schema_name("tpch");
   delegateRddRequest->set_store_name("LineItem");
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(delegateRddRequest, delegateRddResponse);
+  client.createStoreDelegateRDD(delegateRddRequest, delegateRddResponse);
   auto delegateRddID = delegateRddResponse->rdd_id();
 //  sleep(2);
 
-  RddRequestPtr filterRequest(new CreateRddRequest);
-  RddResponsePtr filterResponse(new CreateRddResponse);
+  RddRequestPtr filterRequest = std::make_shared<CreateRddRequest>();
+  RddResponsePtr filterResponse = std::make_shared<CreateRddResponse>();
   filterRequest->set_transformer_op_name(FILTER_TRANSFORMER);
 
   auto in = filterRequest->add_in_rdd();
@@ -150,7 +85,6 @@ TEST(tpch_query, Q6) {
 
   auto out = filterRequest->mutable_out_rdd();
   out->set_rdd_name("TPCH_Q6_RDD");
-  out->set_data_type(ORDERED);
   out->set_key_type_name("idgs.sample.tpch.pb.LineItemKey");
   out->set_value_type_name("idgs.sample.tpch.pb.LineItem");
 
@@ -168,9 +102,9 @@ TEST(tpch_query, Q6) {
   LOG(INFO) << "loop count: " << totalCount;
   for (int32_t i = 0; i < totalCount; ++ i) {
     auto start = idgs::sys::getCurrentTime();
-    ActionRequestPtr actionRequest(new ActionRequest);
-    ActionResponsePtr actionResponse(new ActionResponse);
-    ActionResultPtr actionResult(new SumActionResult);
+    ActionRequestPtr actionRequest = std::make_shared<ActionRequest>();
+    ActionResponsePtr actionResponse = std::make_shared<ActionResponse>();
+    ActionResultPtr actionResult = std::make_shared<SumActionResult>();
 
     actionRequest->set_action_id("100000");
     actionRequest->set_action_op_name(TPCH_Q6_ACTION);

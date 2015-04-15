@@ -14,36 +14,38 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_transform.pb.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "idgs/store/data_map.h"
 
 using namespace std;
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 
-ActorId joinOrderRDD, joinItemRDD;
-
 namespace idgs {
 namespace rdd {
-namespace hash_join_transformer_test {
+namespace hash_join_test {
 
-idgs::pb::ActorId createStoreDelegateRDD(const std::string& storeName) {
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+RddClient client;
+
+ResultCode init(const std::string& cfgFile) {
+  return client.init(cfgFile);
+}
+
+idgs::pb::ActorId createStoreDelegateRDD(const std::string& schemaName, const std::string& storeName, const std::string& rddName) {
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
 
   request->set_store_name(storeName);
-  request->set_rdd_name(storeName);
+  request->set_rdd_name(rddName);
 
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
 
   return response->rdd_id();
 }
 
-ActorId createLineItemGroupRdd(const string& inRddName) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+ActorId createLineItemGroupRdd(const std::string& rddName, const string& inRddName) {
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(GROUP_TRANSFORMER);
 
@@ -53,22 +55,21 @@ ActorId createLineItemGroupRdd(const string& inRddName) {
 
   FieldNamePair* field = in->add_out_fields();
   auto expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_orderkey");
 
   field = in->add_out_fields();
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_extendedprice");
 
   field = in->add_out_fields();
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_discount");
 
   auto out = request->mutable_out_rdd();
-  out->set_rdd_name("LINE_ITEM_GROUP");
-  out->set_data_type(idgs::rdd::pb::ORDERED);
+  out->set_rdd_name(rddName);
   out->set_key_type_name("idgs.sample.ssb.pb.GLineItemKey");
   out->set_value_type_name("idgs.sample.ssb.pb.GLineItem");
 
@@ -84,13 +85,13 @@ ActorId createLineItemGroupRdd(const string& inRddName) {
   fld->set_field_name("l_extendedprice");
   fld->set_field_type(DOUBLE);
 
-  singleton<RddClient>::getInstance().createRdd(request, response);
+  client.createRdd(request, response);
   return response->rdd_id();
 }
 
 ActorId createJoinRdd(const string& orderRdd, const string& lineItemRDD, const string& rddName, const JoinType& type) {
-  RddRequestPtr request(new CreateRddRequest);
-  RddResponsePtr response(new CreateRddResponse);
+  RddRequestPtr request = std::make_shared<CreateRddRequest>();
+  RddResponsePtr response = std::make_shared<CreateRddResponse>();
 
   request->set_transformer_op_name(HASH_JOIN_TRANSFORMER);
 
@@ -101,13 +102,13 @@ ActorId createJoinRdd(const string& orderRdd, const string& lineItemRDD, const s
   FieldNamePair* field = in->add_out_fields();
   field->set_field_alias("orderkey");
   auto expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("o_orderkey");
 
   field = in->add_out_fields();
   field->set_field_alias("total");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("o_totalprice");
 
   in = request->add_in_rdd();
@@ -117,24 +118,23 @@ ActorId createJoinRdd(const string& orderRdd, const string& lineItemRDD, const s
   field = in->add_out_fields();
   field->set_field_alias("orderkey");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_orderkey");
 
   field = in->add_out_fields();
   field->set_field_alias("discount");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_discount");
 
   field = in->add_out_fields();
   field->set_field_alias("price");
   expr = field->mutable_expr();
-  expr->set_type(FIELD);
+  expr->set_name("FIELD");
   expr->set_value("l_extendedprice");
 
   auto out = request->mutable_out_rdd();
   out->set_rdd_name(rddName);
-  out->set_data_type(idgs::rdd::pb::ORDERED);
   out->set_key_type_name("idgs.rdd.pb.JoinKey");
   out->set_value_type_name("idgs.rdd.pb.Join");
 
@@ -154,28 +154,24 @@ ActorId createJoinRdd(const string& orderRdd, const string& lineItemRDD, const s
   fld->set_field_name("price");
   fld->set_field_type(DOUBLE);
 
-  shared_ptr<JoinRequest> param(new JoinRequest);
+  shared_ptr<JoinRequest> param = std::make_shared<JoinRequest>();
   param->set_type(type);
 
-  auto joinfld = param->add_join_field();
-  joinfld->set_l_join_field("o_orderkey");
-  joinfld->set_r_join_field("l_orderkey");
-
   map<string, shared_ptr<google::protobuf::Message>> params;
-  params[JOIN_PARAM] = param;
-  singleton<RddClient>::getInstance().createRdd(request, response, params);
+  params[TRANSFORMER_PARAM] = param;
+  client.createRdd(request, response, params);
   return response->rdd_id();
 }
 
 uint32_t countAction(const ActorId& rddId) {
-  ActionRequestPtr request(new ActionRequest);
-  ActionResponsePtr response(new ActionResponse);
-  ActionResultPtr result(new CountActionResult);
+  ActionRequestPtr request = std::make_shared<ActionRequest>();
+  ActionResponsePtr response = std::make_shared<ActionResponse>();
+  ActionResultPtr result = std::make_shared<CountActionResult>();
 
   request->set_action_id("100000");
   request->set_action_op_name(COUNT_ACTION);
 
-  singleton<RddClient>::getInstance().sendAction(request, response, result, rddId);
+  client.sendAction(request, response, result, rddId);
 
   auto size = dynamic_cast<CountActionResult*>(result.get())->size();
   return size;
@@ -185,58 +181,58 @@ uint32_t countAction(const ActorId& rddId) {
 } // namespace rdd
 } // namespace idgs
 
-using namespace idgs::rdd::hash_join_transformer_test;
-
-TEST(hash_join, inner_join) {
-  ResultCode code = singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf");
+TEST(hash_join, join) {
+  ResultCode code = idgs::rdd::hash_join_test::init("conf/client.conf");
   if (code != RC_SUCCESS) {
     exit(1);
   }
 
-  joinOrderRDD = idgs::rdd::hash_join_transformer_test::createStoreDelegateRDD("Orders");
+  auto orderRDD = idgs::rdd::hash_join_test::createStoreDelegateRDD("tpch", "Orders", "ORDERS");
+  LOG(INFO) << "create delegate RDD ORDERS(" << orderRDD.member_id() << ", " << orderRDD.actor_id() << ")";
 
-  auto itemDelegateRDD = idgs::rdd::hash_join_transformer_test::createStoreDelegateRDD("LineItem");
-
+  auto lineitemRDD = idgs::rdd::hash_join_test::createStoreDelegateRDD("tpch", "LineItem", "LINEITEM");
+  LOG(INFO) << "create delegate RDD LINEITEM(" << lineitemRDD.member_id() << ", " << lineitemRDD.actor_id() << ")";
   sleep(2);
 
-  joinItemRDD = createLineItemGroupRdd("LineItem");
-
+  auto lineitemGroupRDD = idgs::rdd::hash_join_test::createLineItemGroupRdd("LINE_ITEM_GROUP", "LINEITEM");
+  LOG(INFO) << "create RDD LINE_ITEM_GROUP(" << lineitemGroupRDD.member_id() << ", " << lineitemGroupRDD.actor_id() << ")";
   sleep(2);
 
-  LOG(INFO) << "=============================";
-  LOG(INFO) << "Testing inner join.";
-  auto joinRDD = createJoinRdd("Orders", "LINE_ITEM_GROUP", "ORDER_ITEM_INNER_JOIN", INNER_JOIN);
+  auto innerJoinRDD = idgs::rdd::hash_join_test::createJoinRdd("ORDERS", "LINE_ITEM_GROUP", "ORDERS_ITEM_INNER_JOIN", INNER_JOIN);
+  LOG(INFO) << "create RDD ORDERS_ITEM_INNER_JOIN(" << innerJoinRDD.member_id() << ", " << innerJoinRDD.actor_id() << ")";
+  sleep(2);
 
-  sleep(5);
+  auto leftJoinRDD = idgs::rdd::hash_join_test::createJoinRdd("ORDERS", "LINE_ITEM_GROUP", "ORDERS_ITEM_LEFT_JOIN", LEFT_JOIN);
+  LOG(INFO) << "create RDD ORDERS_ITEM_LEFT_JOIN(" << leftJoinRDD.member_id() << ", " << leftJoinRDD.actor_id() << ")";
+  sleep(2);
 
-  auto cnt = countAction(joinRDD);
+  auto outerJoinRDD = idgs::rdd::hash_join_test::createJoinRdd("ORDERS", "LINE_ITEM_GROUP", "ORDERS_ITEM_OUTER_JOIN", OUTER_JOIN);
+  LOG(INFO) << "create RDD ORDERS_ITEM_OUTER_JOIN(" << outerJoinRDD.member_id() << ", " << outerJoinRDD.actor_id() << ")";
+  sleep(2);
 
+  LOG(INFO) << "=================================";
+  LOG(INFO) << "testing inner join";
+  auto cnt = idgs::rdd::hash_join_test::countAction(innerJoinRDD);
   ASSERT_EQ(3, cnt);
-  LOG(INFO) << "Success";
-}
+  LOG_IF(INFO, cnt == 3) << "success";
+  LOG_IF(INFO, cnt != 3) << "failed";
 
-TEST(hash_join, left_join) {
-  LOG(INFO) << "=============================";
-  LOG(INFO) << "Testing left join.";
-  auto joinRDD = createJoinRdd("Orders", "LINE_ITEM_GROUP", "ORDER_ITEM_LEFT_JOIN", LEFT_JOIN);
+  sleep(2);
 
-  sleep(5);
-
-  auto cnt = countAction(joinRDD);
-
+  LOG(INFO) << "=================================";
+  LOG(INFO) << "testing left join";
+  cnt = idgs::rdd::hash_join_test::countAction(leftJoinRDD);
   ASSERT_EQ(4, cnt);
-  LOG(INFO) << "Success";
-}
+  LOG_IF(INFO, cnt == 4) << "success";
+  LOG_IF(INFO, cnt != 4) << "failed";
 
-TEST(hash_join, outer_join) {
-  LOG(INFO) << "=============================";
-  LOG(INFO) << "Testing outer join.";
-  auto joinRDD = createJoinRdd("Orders", "LINE_ITEM_GROUP", "ORDER_ITEM_OUTER_JOIN", OUTER_JOIN);
+  sleep(2);
 
-  sleep(5);
-
-  auto cnt = countAction(joinRDD);
-
+  LOG(INFO) << "=================================";
+  LOG(INFO) << "testing outer join";
+  cnt = idgs::rdd::hash_join_test::countAction(outerJoinRDD);
   ASSERT_EQ(5, cnt);
-  LOG(INFO) << "Success";
+  LOG_IF(INFO, cnt == 5) << "success";
+  LOG_IF(INFO, cnt != 5) << "failed";
+  LOG(INFO) << "=================================";
 }

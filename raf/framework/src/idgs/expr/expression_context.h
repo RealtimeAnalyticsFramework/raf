@@ -8,23 +8,21 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-
 #include "protobuf/pbvariant.h"
 #include "idgs/actor/actor_message.h"
 
 namespace idgs {
-namespace rdd {
-class BaseRddPartition;
-}
-
 namespace expr {
 
 /// The context of expression.
 /// To access the context of expression, e.g. KEY or Value.
 class ExpressionContext {
+private:
+
 public:
   ExpressionContext();
   ~ExpressionContext();
+  friend ExpressionContext& getTlExpressionContext();
 
 public:
   /// @brief  set KEY and VALUE of the entry.
@@ -51,42 +49,63 @@ public:
     return value;
   }
 
+  void setOutputKeyValue(idgs::actor::PbMessagePtr* key, idgs::actor::PbMessagePtr* value) {
+    outkey = key;
+    outvalue = value;
+  }
+
+  inline idgs::actor::PbMessagePtr* getOutputKey() {
+    return outkey;
+  }
+
+  inline idgs::actor::PbMessagePtr* getOutputValue() {
+    return outvalue;
+  }
+
   void setVariable(int index, const protobuf::PbVariant& v) {
-    if (index >= viarialbes.size()) {
-      viarialbes.resize(index + 1);
+    if (!viarialbes) {
+      viarialbes = new std::vector<protobuf::PbVariant>;
     }
-    viarialbes[index] = v;
+    if (index >= viarialbes->size()) {
+      viarialbes->resize(index + 1);
+    }
+    (*viarialbes)[index] = v;
   }
 
   const protobuf::PbVariant& getVariable(int index) {
-    if (index >= viarialbes.size()) {
-      viarialbes.resize(index + 1);
+    if (!viarialbes) {
+      viarialbes = new std::vector<protobuf::PbVariant>;
     }
-    return viarialbes[index];
+    if (index >= viarialbes->size()) {
+      viarialbes->resize(index + 1);
+    }
+    return (*viarialbes)[index];
   }
 
-  const idgs::rdd::BaseRddPartition* getInPartition() const {
-    return inPartition;
-  }
-  void setInPartition(idgs::rdd::BaseRddPartition* p) {
-    inPartition = p;
-  }
-  idgs::rdd::BaseRddPartition* getOutPartition() {
-    return outPartition;
-  }
-  void setOutPartition(idgs::rdd::BaseRddPartition* p) {
-    outPartition = p;
+  void reset() {
+    key = NULL;
+    value = NULL;
+    outkey = NULL;
+    outvalue = NULL;
+    if (viarialbes) {
+      viarialbes->clear();
+    }
   }
 
 private:
   idgs::actor::PbMessagePtr* key;
   idgs::actor::PbMessagePtr* value;
 
-  idgs::rdd::BaseRddPartition* inPartition;
-  idgs::rdd::BaseRddPartition* outPartition;
+  idgs::actor::PbMessagePtr* outkey;
+  idgs::actor::PbMessagePtr* outvalue;
 
-  std::vector<protobuf::PbVariant> viarialbes;
+  std::vector<protobuf::PbVariant> *viarialbes;
 };
+
+///
+/// get expression context in thread local storage
+///
+ExpressionContext& getTlExpressionContext();
 
 } // namespace expr
 } // namespace idgs 

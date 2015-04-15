@@ -46,7 +46,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #define bool_t bool
 
 // MACRO to define constructor
-#define PB_VARIANT_CTOR(TYPE) PbVariant::PbVariant(TYPE##_t v):type(vt_##TYPE) {\
+#define PB_VARIANT_CTOR(TYPE) PbVariant::PbVariant(TYPE##_t v):type(vt_##TYPE), is_null(false) {\
   value.v_##TYPE = v;\
 }
 
@@ -55,6 +55,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
       freeString();\
       type = vt_##TYPE;\
       value.v_##TYPE = v;\
+      is_null = false; \
       return *this;\
     }
 
@@ -95,7 +96,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 namespace protobuf {
 
-PbVariant::PbVariant():type(vt_int32) {
+PbVariant::PbVariant():type(vt_int32), is_null(true) {
 };
 
 PB_VARIANT_CTOR(int32);
@@ -105,20 +106,20 @@ PB_VARIANT_CTOR(uint64);
 PB_VARIANT_CTOR(double);
 PB_VARIANT_CTOR(float);
 PB_VARIANT_CTOR(bool);
-PbVariant::PbVariant(const std::string& v):type(vt_string){
+PbVariant::PbVariant(const std::string& v):type(vt_string), is_null(false){
   value.v_string = new std::string(v);
 };
-PbVariant::PbVariant(std::string* v) : type(vt_string) {
+PbVariant::PbVariant(std::string* v) : type(vt_string), is_null(false) {
   value.v_string = v;
 };
-PbVariant::PbVariant(const PbVariant& v):type(v.type){
+PbVariant::PbVariant(const PbVariant& v):type(v.type), is_null(false){
   if(v.type == vt_string) {
     value.v_string = new std::string(*(v.value.v_string));
   } else {
     value.v_uint64 = v.value.v_uint64;
   }
 };
-PbVariant::PbVariant(PbVariant&& v):type(v.type){
+PbVariant::PbVariant(PbVariant&& v):type(v.type), is_null(false){
   if(v.type == vt_string) {
     value.v_string = v.value.v_string;
     v.value.v_string = NULL;
@@ -169,6 +170,7 @@ PbVariant& PbVariant::operator = (const PbVariant& v) {
   }
 
   type = v.type;
+  is_null = v.is_null;
   return *this;
 };
 PbVariant& PbVariant::operator = (PbVariant&& v) {
@@ -184,6 +186,7 @@ PbVariant& PbVariant::operator = (PbVariant&& v) {
     value.v_uint64 = v.value.v_uint64;
   }
   type = v.type;
+  is_null = v.is_null;
   return *this;
 };
 
@@ -238,6 +241,7 @@ size_t PbVariant::hashcode() const {
     if (value.v_string) {
       return std::hash<std::string>()(*value.v_string);
     }
+    break;
   default:
     /// @todo error log.
     break;
@@ -245,7 +249,7 @@ size_t PbVariant::hashcode() const {
   return 0;
 };
 
-#define CAST_TO_BOOL(s) (s.empty())
+#define CAST_TO_BOOL(s) (!s.empty())
 PB_VARIANT_CAST_OP(bool, CAST_TO_BOOL);
 PB_VARIANT_CAST_OP(int32, std::stoi);
 PB_VARIANT_CAST_OP(int64, std::stol);

@@ -10,6 +10,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // defined(__GNUC__) || defined(__clang__) $
 #include "idgs/actor/actor_descriptor_mgr.h"
+#include "idgs/util/utillity.h"
+
 
 namespace idgs {
 
@@ -25,7 +27,7 @@ ActorDescriptorMgr::~ActorDescriptorMgr() {
 
 bool ActorDescriptorMgr::registerModuleDescriptor(const std::string& module_name,
     const idgs::actor::ModuleDescriptorPtr& module_descriptor) {
-  LOG(INFO) << "registerModuleDescriptor " << module_name;
+  DVLOG(3) << "registerModuleDescriptor " << module_name;
   const std::map<std::string, idgs::actor::ActorDescriptorPtr>& map = module_descriptor->getActorDescriptors();
   for (auto it = map.begin(); it != map.end(); ++it) {
     auto rc = registerActorDescriptor(it->first, it->second, module_descriptor.get());
@@ -63,8 +65,8 @@ const std::map<std::string, idgs::actor::ActorDescriptorPtr>& ActorDescriptorMgr
 }
 
 idgs::ResultCode ActorDescriptorMgr::loadModuleActorDescriptor(const std::string& mod_desc_file) {
-  std::shared_ptr<idgs::pb::ModuleDescriptor> proto_module_descriptor(new idgs::pb::ModuleDescriptor);
-  idgs::ResultCode rc = protobuf::JsonMessage().parseJsonFromFile(proto_module_descriptor.get(), mod_desc_file);
+  std::shared_ptr<idgs::pb::ModuleDescriptor> proto_module_descriptor = std::make_shared<idgs::pb::ModuleDescriptor>();
+  idgs::ResultCode rc = (idgs::ResultCode)idgs::parseIdgsConfig(proto_module_descriptor.get(), mod_desc_file);
   if (rc != RC_SUCCESS) {
     return rc;
   }
@@ -73,7 +75,7 @@ idgs::ResultCode ActorDescriptorMgr::loadModuleActorDescriptor(const std::string
   const std::string& mod_name = mod_desc_file.substr(begin, end - begin);
   DVLOG(2) << "loading module " << mod_name << " 's descriptor(s)";
   proto_module_descriptor->set_name(mod_name);
-  idgs::actor::ModuleDescriptorPtr mod_descriptor(new idgs::actor::ModuleDescriptorWrapper(proto_module_descriptor));
+  idgs::actor::ModuleDescriptorPtr mod_descriptor = std::make_shared<idgs::actor::ModuleDescriptorWrapper>(proto_module_descriptor);
   moduleDescriptors.insert(std::pair<std::string, idgs::actor::ModuleDescriptorPtr>(mod_name, mod_descriptor));
   return RC_SUCCESS;
 }
@@ -105,7 +107,7 @@ bool ActorDescriptorMgr::registerActorDescriptor(const std::string& name, const 
   }
 
 
-  DVLOG(4) << "register actor descriptor: " << descriptor->toString();
+  DVLOG(7) << "register actor descriptor: " << descriptor->toString();
 
   actorDescriptors.insert(std::pair<std::string, idgs::actor::ActorDescriptorPtr>(name, descriptor));
   return true;

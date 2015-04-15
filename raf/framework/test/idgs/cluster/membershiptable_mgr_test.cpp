@@ -20,7 +20,7 @@ using namespace idgs::pb;
 // init
 TEST(membershiptable_mgr_test, init) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -28,7 +28,7 @@ TEST(membershiptable_mgr_test, init) {
 // addMember
 TEST(membershiptable_mgr_test, addMember) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -39,7 +39,7 @@ TEST(membershiptable_mgr_test, addMember) {
     member.setId(i);
     member.setNodeId(i);
     member.setPid(1000 + i);
-    member.setIsleading(i == 0);
+    member.setLeading(i == 0);
     member_manager.addMember(member);
   }
 }
@@ -47,7 +47,7 @@ TEST(membershiptable_mgr_test, addMember) {
 // get member
 TEST(membershiptable_mgr_test, getMember) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -58,7 +58,7 @@ TEST(membershiptable_mgr_test, getMember) {
     member.setId(i);
     member.setNodeId(i);
     member.setPid(1000 + i);
-    member.setIsleading(i == 0);
+    member.setLeading(i == 0);
     member_manager.addMember(member);
   }
   ASSERT_TRUE(member_manager.getMember(0));
@@ -67,7 +67,7 @@ TEST(membershiptable_mgr_test, getMember) {
 // findMember
 TEST(membershiptable_mgr_test, findMember) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -79,16 +79,18 @@ TEST(membershiptable_mgr_test, findMember) {
     member.setId(i);
     member.setNodeId(i);
     member.setPid(1000 + i);
-    member.setIsleading(i == 0);
+    member.setLeading(i == 0);
+    member.setState(idgs::pb::MS_INITIAL);
     member_manager.addMember(member);
   }
+  LOG(INFO) << member_manager.toString();
   ASSERT_TRUE(member_manager.findMember(3, 1003));
 }
 
 // genMembershipTable
 TEST(membershiptable_mgr_test, genMembershipTable) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -99,7 +101,8 @@ TEST(membershiptable_mgr_test, genMembershipTable) {
     member.setId(i);
     member.setNodeId(i);
     member.setPid(1000 + i);
-    member.setIsleading(i == 0);
+    member.setLeading(i == 0);
+    member.setState(idgs::pb::MS_INITIAL);
     member_manager.addMember(member);
   }
   MembershipTable mt;
@@ -116,7 +119,7 @@ TEST(membershiptable_mgr_test, genMembershipTable) {
 // genMembershipTable
 TEST(membershiptable_mgr_test, toString) {
   const int max_reserved_size = 10;
-  MembershipTableMgr member_manager;
+  MemberManagerActor member_manager;
   ClusterConfig cfg;
   cfg.set_reserved_member_size(max_reserved_size);
   member_manager.init(&cfg);
@@ -127,7 +130,7 @@ TEST(membershiptable_mgr_test, toString) {
     member.setId(i);
     member.setNodeId(i);
     member.setPid(1000 + i);
-    member.setIsleading(i == 0);
+    member.setLeading(i == 0);
     member_manager.addMember(member);
   }
   DVLOG(1) << std::endl << member_manager.toString();

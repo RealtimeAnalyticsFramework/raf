@@ -5,13 +5,16 @@
 # protobuf rules
 PROTO_INPUTS = \
   	@srcdir@/src/idgs/tpc/pb/tpc_crud.proto \
-  	@srcdir@/src/idgs/tpc/pb/tpc_rdd_action.proto
+  	@srcdir@/src/idgs/tpc/pb/tpc_rdd_action.proto \
+  	@srcdir@/src/idgs/tpc/pb/tpc_sync.proto
 
 PROTO_OUTPUTS = \
 	src/idgs/tpc/pb/tpc_crud.pb.cc \
 	src/idgs/tpc/pb/tpc_crud.pb.h \
 	src/idgs/tpc/pb/tpc_rdd_action.pb.cc \
-	src/idgs/tpc/pb/tpc_rdd_action.pb.h
+	src/idgs/tpc/pb/tpc_rdd_action.pb.h \
+	src/idgs/tpc/pb/tpc_sync.pb.cc \
+	src/idgs/tpc/pb/tpc_sync.pb.h
 
 $(PROTO_OUTPUTS) : $(PROTO_INPUTS)
 	protoc -I@srcdir@/src/idgs/tpc/pb --cpp_out=@srcdir@/src/idgs/tpc/pb $^
@@ -24,7 +27,9 @@ TPC_FILES = \
 	src/idgs/tpc/transform/ssb_Q1_transformer.cpp \
 	src/idgs/tpc/action/tpch_Q6_action.cpp \
 	src/idgs/tpc/action/ssb_Q1_action.cpp \
-	src/idgs/tpc/action/partition_count_action.cpp
+	src/idgs/tpc/action/partition_count_action.cpp \
+	src/idgs/tpc/actor/migration_verify_actor.cpp \
+	src/idgs/tpc/actor/sync_verify_actor.cpp
 
 lib_LTLIBRARIES=libtpc.la
 libtpc_la_SOURCES = \
@@ -37,7 +42,9 @@ itest_PROGRAMS = \
   ssb_Q1_1_raw_data_result \
   partition_count_action_it \
   ssb_q1_1_join_transformer \
-  tpch_Q6_1
+  tpch_Q6_1 \
+  migration_verify \
+  sync_verify
 
 tpch_Q6_SOURCES = \
   test/idgs_tpch_Q6.cpp
@@ -60,17 +67,23 @@ partition_count_action_it_SOURCES = \
 ssb_q1_1_join_transformer_SOURCES = \
   test/ssb_q1_1_join_transformer_test.cpp
   
-LDADD = @IDGS_LDFLAGS@ \
+migration_verify_SOURCES = \
+  test/migration_verify.cpp
+  
+sync_verify_SOURCES = \
+  test/sync_verify.cpp    
+  
+LDADD = \
 	-ltpc \
 	-lidgsclient \
-	-lidgsadmin \
-	-lidgsrdd \
+	-lidgsrddng \
 	-lidgsdatastore \
 	-lidgsframework \
-	-lgtest -lgtest_main -ltbb
+	@IDGS_LDADD@ \
+	-lgtest -lgtest_main
 
 CLEANFILES = $(PROTO_OUTPUTS) 
 
 # the macro IDGS_CXXFLAGS is defined in configure.ac
 AM_CXXFLAGS= @IDGS_CXXFLAGS@ -I@srcdir@/src -I@srcdir@/test
-AM_LDFLAGS = -module -avoid-version @IDGS_LDFLAGS@ -pthread
+AM_LDFLAGS = -module -avoid-version @IDGS_LDFLAGS@

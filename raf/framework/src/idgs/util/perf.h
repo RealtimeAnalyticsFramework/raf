@@ -40,3 +40,18 @@ inline void get_thread_name(const char* name) {
 #define likely(x)       (x)
 #define unlikely(x)     (x)
 #endif
+
+#ifdef _GNUC_
+#define UNUSED(x) UNUSED_ ## x __attribute__ ((__unused__))
+#else
+#define UNUSED(x) (void) (UNUSED_ ## x)
+
+template <typename T>
+void ignore(T&&) {
+}
+
+template <class... T>
+void unused(T&& ...) {
+}
+
+#endif

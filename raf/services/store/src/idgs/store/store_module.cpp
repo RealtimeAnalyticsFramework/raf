@@ -12,20 +12,64 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/store/store_module.h"
 
-#include "idgs/application.h"
-#include "idgs/store/datastore_listener.h"
-#include "idgs/store/datastore_const.h"
-#include "idgs/store/data_store.h"
-
-using namespace std;
-
 
 namespace idgs {
 namespace store {
 
+StoreModule::StoreModule() : app(NULL), datastore(NULL),
+    partChangeListener(NULL), memberJoinedListener(NULL), backupStoreListener(NULL),
+    storeActor(NULL), listenerManager(NULL), schemaActor(NULL),
+    migrationTargetActor(NULL), migrationSourceActor(NULL),
+    syncTargetActor(NULL), syncSourceActor(NULL) {
+  datastore = new DataStore;
+}
 
 StoreModule::~StoreModule() {
+  if (datastore) {
+    datastore->stop();
+    delete datastore;
+    datastore = NULL;
+  }
 
+  if (storeActor) {
+    delete storeActor;
+    storeActor = NULL;
+  }
+
+  if (listenerManager) {
+    delete listenerManager;
+    listenerManager = NULL;
+  }
+
+  if (schemaActor) {
+    delete schemaActor;
+    schemaActor = NULL;
+  }
+
+  if (migrationTargetActor) {
+    delete migrationTargetActor;
+    migrationTargetActor = NULL;
+  }
+
+  if (migrationSourceActor) {
+    delete migrationSourceActor;
+    migrationSourceActor = NULL;
+  }
+
+  if (syncTargetActor) {
+    delete syncTargetActor;
+    syncTargetActor = NULL;
+  }
+
+  if (syncSourceActor) {
+    delete syncSourceActor;
+    syncSourceActor = NULL;
+  }
+
+  if (backupStoreListener) {
+    delete backupStoreListener;
+    backupStoreListener = NULL;
+  }
 }
 
 int StoreModule::init(const char* config_path, idgs::Application* theApp) {
@@ -33,16 +77,60 @@ int StoreModule::init(const char* config_path, idgs::Application* theApp) {
   app = theApp;
 
   // parse configuration file
-  DataStore& store = ::idgs::util::singleton<DataStore>::getInstance();
-  string configPath(config_path);
   ResultCode rc;
-  rc = store.initialize(configPath);
+  rc = datastore->initialize(config_path);
   CHECK_RC(rc);
 
-  partChangeListener = new PartitionChangeListener;
+  partChangeListener = new DataMigraionListener;
   theApp->getPartitionManager()->addListener(partChangeListener);
-  memberJoinedListener = new MemberJoinedListener;
+  memberJoinedListener = new DataSyncListener;
   theApp->getMemberManager()->addListener(memberJoinedListener);
+  backupStoreListener = new BackupStoreListener;
+  datastore->registerStoreListener(backupStoreListener);
+
+  auto actorFramework = app->getActorframework();
+
+  // register stateless actor and its descriptor
+  storeActor = new StoreServiceActor(ACTORID_STORE_SERVCIE);
+  actorFramework->registerServiceActor(ACTORID_STORE_SERVCIE, storeActor);
+
+  listenerManager = new ListenerManager(LISTENER_MANAGER);
+  listenerManager->setDataStore(datastore);
+  actorFramework->registerServiceActor(LISTENER_MANAGER, listenerManager);
+
+  schemaActor = new StoreSchemaActor(ACTORID_SCHEMA_SERVCIE);
+  actorFramework->registerServiceActor(ACTORID_SCHEMA_SERVCIE, schemaActor);
+
+  migrationTargetActor = new MigrationTargetActor;
+  actorFramework->registerServiceActor(MIGRATION_TARGET_ACTOR, migrationTargetActor);
+
+  migrationSourceActor = new MigrationSourceActor;
+  actorFramework->registerServiceActor(MIGRATION_SOURCE_ACTOR, migrationSourceActor);
+
+  syncTargetActor = new SyncTargetActor;
+  actorFramework->registerServiceActor(SYNC_TARGET_ACTOR, syncTargetActor);
+
+  syncSourceActor = new SyncSourceActor;
+  actorFramework->registerServiceActor(SYNC_SOURCE_ACTOR, syncSourceActor);
+
+  // register actor descriptor
+  auto module_descriptor = std::make_shared<idgs::actor::ModuleDescriptorWrapper>();
+  module_descriptor->setName(STORE_MODULE_DESCRIPTOR_NAME);
+  module_descriptor->setDescription(STORE_MODULE_DESCRIPTOR_DESCRIPTION);
+  module_descriptor->addActorDescriptor(DataAggregatorActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreServiceActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(ListenerManager::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreSchemaActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreSchemaAggrActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(MigrationTargetActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(MigrationSourceActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreMigrationTargetActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreMigrationSourceActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(SyncTargetActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(SyncSourceActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreSyncTargetActor::generateActorDescriptor());
+  module_descriptor->addActorDescriptor(StoreSyncSourceActor::generateActorDescriptor());
+  app->getActorDescriptorMgr()->registerModuleDescriptor(module_descriptor->getName(), module_descriptor);
 
   return RC_OK;
 }
@@ -53,8 +141,7 @@ int StoreModule::start(void) {
 
   ResultCode rc;
 
-  DataStore& store = ::idgs::util::singleton<DataStore>::getInstance();
-  rc = store.start();
+  rc = datastore->start();
   CHECK_RC(rc);
 
   return RC_OK;
@@ -62,35 +149,62 @@ int StoreModule::start(void) {
 
 int StoreModule::stop(void) {
   function_footprint();
-  LOG(INFO)<< "stop module store";
-
-  DataStore& store = ::idgs::util::singleton<DataStore>::getInstance();
-  store.stop();
+  LOG(INFO)<< "stopping module store";
 
   if (app == NULL) {
     LOG(WARNING)<< "Not found application, module clear not done.";
     return RC_OK;
   }
 
-
-  // @todo unregister module descriptor
-  // remove actor descriptor
-//  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(ACTORID_STORE_SERVCIE);
-//  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(DATA_STORE_SYNC_ACTOR);
-//  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(DATA_AGGREGATOR_ACTOR);
-//  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(DATA_SIZE_AGGREGATOR_ACTOR);
-//  ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().removeActorDescriptor(DATA_REPLICATED_STORE_SYNC_ACTOR);
-
-  // unregister stateless actor
-  app->getActorframework()->unRegisterStatelessActor(ACTORID_STORE_SERVCIE);
-  app->getActorframework()->unRegisterStatelessActor(DATA_STORE_SYNC_ACTOR);
-
   // unregister listener
-  app->getPartitionManager()->removeListener(partChangeListener);
-  app->getMemberManager()->removeListener(memberJoinedListener);
+  if (partChangeListener) {
+    app->getPartitionManager()->removeListener(partChangeListener);
+    delete partChangeListener;
+    partChangeListener = NULL;
+  }
+  if (memberJoinedListener) {
+    app->getMemberManager()->removeListener(memberJoinedListener);
+    delete memberJoinedListener;
+    memberJoinedListener = NULL;
+  }
 
-  delete partChangeListener;
-  delete memberJoinedListener;
+  if (storeActor) {
+    storeActor->terminate();
+  }
+
+  if (listenerManager) {
+    listenerManager->terminate();
+  }
+
+  if (schemaActor) {
+    schemaActor->terminate();
+  }
+
+  if (migrationTargetActor) {
+    migrationTargetActor->terminate();
+  }
+
+  if (migrationSourceActor) {
+    migrationSourceActor->terminate();
+  }
+
+  if (syncTargetActor) {
+    syncTargetActor->terminate();
+  }
+
+  if (syncSourceActor) {
+    syncSourceActor->terminate();
+  }
+
+  if (backupStoreListener) {
+    datastore->unregisterStoreListener(backupStoreListener);
+  }
+
+  app->getActorDescriptorMgr()->unRegisterModuleDescriptor(STORE_MODULE_DESCRIPTOR_NAME);
+
+  app = NULL;
+
+  LOG(INFO)<< "module store stopped";
 
   return RC_OK;
 }

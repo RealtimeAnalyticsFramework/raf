@@ -21,24 +21,24 @@ case33() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case33_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case33_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case33_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case33_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
   TPCH_Q6_LOOP=100
   export TPCH_Q6_LOOP
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -49,7 +49,7 @@ case33() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case33.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case33.log 2>&1
 
   sleep 1
 
@@ -95,24 +95,24 @@ case34() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  GLOG_v=1 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case34_1.log 2>&1 &
+  GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case34_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  GLOG_v=1 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case34_2.log 2>&1 &
+  GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case34_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
   TPCH_Q6_LOOP=100
   export TPCH_Q6_LOOP
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -122,7 +122,7 @@ case34() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case34.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case34.log 2>&1
 
   sleep 1
 
@@ -145,38 +145,6 @@ case34() {
   #echo "########################"
 }
 
-
-case35() {
-  echo "########################"
-  echo "Case 35: Cluster Admin Test"
-  echo " 1. start 1 servers"
-  echo " 2. start client to check the member info by cluster admin"
-  echo "########################"  
-  cd $WORKSPACE/idgs/
-
-  echo "start 1 server"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
-  GLOG_v=1 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case35_1.log 2>&1 &
-  SRV_PID1=$!
-  sleep 3
-
-  echo "run cluster admin test"
-  dist/itest/it_rdd_admin_test 1>ut_result.log 2>>it_case35.log
-
-  sleep 3
-
-  echo "run rdd admin test"
-  echo "run cluster admin test"
-  dist/itest/it_admin_memberinfo_test 1>ut_result.log 2>>it_case35.log
-
-  echo "kill servers."
-  safekill $SRV_PID1
-  
-  check_core_dump dist/bin/idgs  
-}
-
 case36() {
   echo "########################"
   echo "Case 36: Java Client Integration Test"
@@ -189,7 +157,7 @@ case36() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  GLOG_v=1 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case36_1.log 2>&1 &
+  GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case36_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3   
   
@@ -197,13 +165,13 @@ case36() {
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
   export idgs_member_service_local_store=true
-  GLOG_v=1 dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case36_2.log 2>&1 &
+  GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case36_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3 
   
   echo "run java client, insert a customer into store" 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/javaclient
+  cd $WORKSPACE/idgs/front_end/idgs-java
   mvn test -Dtest=**/*IT.java
 
   echo "kill servers."
@@ -232,21 +200,21 @@ case37() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case37_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case37_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case37_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case37_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -255,7 +223,7 @@ case37() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>case37_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case37_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -265,7 +233,7 @@ case37() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run select test"
   mvn test -Dtest=integration/SelectTableIT.java
   RC=$?

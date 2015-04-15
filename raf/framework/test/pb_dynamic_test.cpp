@@ -9,7 +9,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "gtest/gtest.h"
 #include "protobuf/message_helper.h"
-#include "idgs/util/singleton.h"
 
 /// Case:
 /// Message 'Person' has nested repeated Message 'Pet'
@@ -59,23 +58,24 @@ TEST(pb_dynamic_test, createDynamicMsg) {
   field->set_type_name(nested_msg_name);
   field->set_number(++i);
 
+  protobuf::MessageHelper helper;
   // register file
-  idgs::util::singleton<protobuf::MessageHelper>::getInstance().registerDynamicMessage(file_proto);
+  helper.registerDynamicMessage(file_proto);
 
-  auto pet1 = idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(nested_msg_name);
+  auto pet1 = helper.createMessage(nested_msg_name);
   auto ref = pet1->GetReflection();
   ref->SetString(pet1.get(), pet1->GetDescriptor()->FindFieldByName("type"), "cat");
   ASSERT_EQ("cat", ref->GetString(*pet1, pet1->GetDescriptor()->FindFieldByName("type")));
   DVLOG(0) << pet1->DebugString();
 
-  auto pet2 = idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(nested_msg_name);
+  auto pet2 = helper.createMessage(nested_msg_name);
   ref = pet2->GetReflection();
   ref->SetString(pet2.get(), pet2->GetDescriptor()->FindFieldByName("type"), "dog");
   ASSERT_EQ("dog", ref->GetString(*pet2, pet2->GetDescriptor()->FindFieldByName("type")));
   DVLOG(0) << pet2->DebugString();
 
   // new a registered message
-  auto person1 = idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(msg_name);
+  auto person1 = helper.createMessage(msg_name);
   DVLOG(0) << person1;
   ref = person1->GetReflection();
   ref->SetString(person1.get(), person1->GetDescriptor()->FindFieldByName("name"), "tom");
@@ -89,7 +89,7 @@ TEST(pb_dynamic_test, createDynamicMsg) {
   ASSERT_EQ(20, ref->GetInt32(*person1, person1->GetDescriptor()->FindFieldByName("age")));
   DVLOG(0) << person1->DebugString();
 
-  auto person2 = idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(msg_name);
+  auto person2 = helper.createMessage(msg_name);
   ref = person2->GetReflection();
   ref->SetString(person2.get(), person2->GetDescriptor()->FindFieldByName("name"), "jerry");
   ref->SetString(person2.get(), person2->GetDescriptor()->FindFieldByName("gender"), "female");

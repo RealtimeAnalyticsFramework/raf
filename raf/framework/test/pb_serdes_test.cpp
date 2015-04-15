@@ -10,6 +10,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "protobuf/pb_serdes.h"
 #include "employee.pb.cc"
+#include "idgs/result_code.h"
 
 
 using namespace protobuf;

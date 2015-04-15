@@ -8,31 +8,23 @@
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
-#include "tcp_client.h"
+#include "idgs/client/tcp_client.h"
 
-using asio::ip::tcp;
 
 namespace idgs {
 namespace client {
-
-void TcpClient::encode(std::string &data, ResultCode &code, char* data_) {
-  // set body length
-  size_t body_length_ = data.length();
-
-  // encode header
-  idgs::net::TcpHeader* tcpHeader = reinterpret_cast<idgs::net::TcpHeader*>(data_);
-  tcpHeader->size = body_length_;
-
-  // set body
-  std::memcpy(data_ + sizeof(idgs::net::TcpHeader), data.c_str(), data.length());
-
-  code = RC_SUCCESS;
+TcpClient::TcpClient() {
+}
+TcpClient::~TcpClient() {
 }
 
-size_t TcpClient::decodeHeader(char* data_, ResultCode &code) {
-  idgs::net::TcpHeader* tcpHeader = reinterpret_cast<idgs::net::TcpHeader*>(data_);
-  uint32_t body_length_ = tcpHeader->size;
-  return body_length_;
+
+std::string TcpClient::toString() const{
+  std::stringstream ss;
+  ss << "client " << getId() << " (" << getServerEndpoint().address() << ":" << getServerEndpoint().port() << ") is open:" << isOpen();
+  return ss.str();
 }
-}
-}
+
+
+} // namespace client
+} // namespace idgs

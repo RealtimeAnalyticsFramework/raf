@@ -9,16 +9,19 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
+#include <gtest/gtest.h>
+#include <dlfcn.h>
+
 #include "idgs/actor/rpc_framework.h"
 
 
 
 
-//TEST(module, load) {
-//  LOG(INFO)<< "dlopen module store";
-//  void* handle  = dlopen("dist/lib/libidgsdatastore.so", RTLD_NOW | RTLD_GLOBAL);
-//  ASSERT_NE((void*)NULL, handle);
-//
+TEST(module, load) {
+  LOG(INFO)<< "dlopen module store";
+  void* handle  = dlopen("dist/lib/libidgsdatastore.so", RTLD_NOW | RTLD_GLOBAL);
+  ASSERT_NE((void*)NULL, handle);
+
 //  LOG(INFO)<< "dlsym module store";
 //  fn_idgs_module module = (fn_idgs_module)dlsym(handle, "idgs_module");
 //  ASSERT_NE((void*)NULL, (void*)module);
@@ -30,8 +33,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 //  mod_fn->init("here is the config file path", NULL);
 //  mod_fn->start();
 //  mod_fn->stop();
-//
-//  LOG(INFO)<< "module store: close";
-//  ASSERT_EQ(0, dlclose(handle));
-//
-//}
+
+  LOG(INFO)<< "module store: close";
+  google::protobuf::ShutdownProtobufLibrary();
+  ASSERT_EQ(0, dlclose(handle));
+
+}

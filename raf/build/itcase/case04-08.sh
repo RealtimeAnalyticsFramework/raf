@@ -33,7 +33,7 @@ case4() {
   
   sleep 3
   
-  run_test dist/itest/it_rpc_tcp_test_client 
+  GLOG_v=10 run_test dist/itest/it_rpc_tcp_test_client 
   
   sleep 2
   
@@ -69,13 +69,13 @@ case6() {
   echo "start 1 server."
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case6_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case6_1.log 2>&1 &
   SRV_PID1=$!
   
   sleep 4
 
   echo "start 1 client."
-  dist/bin/client -f samples/shell/script/partition_insert 1>case6_client.log 2>&1
+  dist/bin/idgs-cli -f samples/shell/script/partition_insert 1>case6_client.log 2>&1
   
   sleep 2
   echo "kill all servers."
@@ -95,18 +95,18 @@ case7() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start server 1."
-  dist/bin/idgs-aio -c framework/conf/cluster.conf   1>case7_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf   1>case7_1.log 2>&1 &
   SRV_PID1=$!
   echo "start server 2."
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case7_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case7_2.log 2>&1 &
   SRV_PID2=$!
   
   sleep 4
 
   echo "start 1 client."
-  dist/bin/client -f samples/shell/script/partition_insert 1>case7_client.log 2>&1
+  timeout 5s dist/bin/idgs-cli -f samples/shell/script/partition_insert 1>case7_client.log 2>&1
   
   sleep 2
   echo "kill all servers."

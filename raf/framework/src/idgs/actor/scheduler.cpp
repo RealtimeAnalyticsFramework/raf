@@ -25,15 +25,14 @@ ScheduledMessageService::~ScheduledMessageService() {
 
 std::shared_ptr<ScheduledFuture> ScheduledMessageService::schedule(std::shared_ptr<ActorMessage> msg,
     unsigned long delay) {
-  DLOG_IF(FATAL, (msg->getDestMemberId() == idgs::pb::UNKNOWN_MEMBER || msg->getSourceMemberId() == idgs::pb::UNKNOWN_MEMBER))
-                                                                                                                                  << "Unknown member: "
-                                                                                                                                  << msg->toString();
+  DLOG_IF(ERROR, (msg->getDestMemberId() == idgs::pb::UNKNOWN_MEMBER || msg->getSourceMemberId() == idgs::pb::UNKNOWN_MEMBER))
+      << "Unknown member: " << msg->toString();
 
-  std::shared_ptr<ScheduledFuture> result(new ScheduledFuture(msg, sys::getCurrentTime() + delay));
+  std::shared_ptr<ScheduledFuture> result = std::make_shared<ScheduledFuture>(msg, sys::getCurrentTime() + delay);
 
   PendingFuturesType& pFuture = tasks[delay];
   if (!pFuture.get()) {
-    pFuture.reset(new PendingFutures());
+    pFuture = std::make_shared<PendingFutures>();
   }
 
   pFuture->queue.push(result);
@@ -54,7 +53,9 @@ int ScheduledMessageService::countTimeOutTask(TimerType delay) {
 
 ResultCode ScheduledMessageService::start() {
   ResultCode res = RC_ERROR;
-  if (m_is_started.compare_and_swap(ACTIVE, IDLE) == IDLE) {
+
+  State expectedState = IDLE;
+  if (m_is_started.compare_exchange_strong(expectedState, ACTIVE)) {
     DVLOG(1) << "starting ScheduledMessageService";
     m_pthread = new thread(bind(&ScheduledMessageService::run, this));
     res = RC_SUCCESS;
@@ -137,7 +138,8 @@ void ScheduledMessageService::fire(unsigned long now, PendingFuturesType pending
 
 ResultCode ScheduledMessageService::stop() {
   ResultCode res = RC_ERROR;
-  if (m_is_started.compare_and_swap(IDLE, ACTIVE) == ACTIVE) {
+  State expectedState = ACTIVE;
+  if (m_is_started.compare_exchange_strong(expectedState, IDLE)) {
     m_pthread->join();
     DVLOG(2) << "ScheduledMessageService is terminated ";
     delete m_pthread;
@@ -149,5 +151,5 @@ ResultCode ScheduledMessageService::stop() {
   }
   return res;
 }
-} // namespace  rpc {
+} // namespace  actor
 } // namespace idgs

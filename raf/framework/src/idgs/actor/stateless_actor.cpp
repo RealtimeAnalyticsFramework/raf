@@ -9,8 +9,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
+
 #include "idgs/actor/stateless_actor.h"
-#include "idgs/actor/rpc_framework.h"
+#include "idgs/application.h"
+
 namespace idgs {
 namespace actor {
 StatelessActor::StatelessActor() :
@@ -18,9 +20,9 @@ StatelessActor::StatelessActor() :
 }
 
 void StatelessActor::onDestroy() {
-  ActorFramework* af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+  ActorManager* af = idgs_application()->getRpcFramework()->getActorManager();
   // unregister
-  af->unRegisterStatelessActor(this->getActorId());
+  af->unregisterServiceActor(this->getActorId());
 }
 
 } // namespace rpc

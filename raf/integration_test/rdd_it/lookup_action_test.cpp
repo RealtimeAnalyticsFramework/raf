@@ -10,45 +10,46 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "protobuf/message_helper.h"
-#include "idgs/store/data_map.h"
 
 using namespace std;
 using namespace idgs;
-using namespace idgs::util;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace protobuf;
 
 TEST(lookup_action_test, lookup_action) {
-
+  RddClient client;
   /// create store delegate
-  ResultCode code = singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf");
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "init rdd client error, caused by " << getErrorDescription(code);
   }
   const std::string store_name = "ssb_lineorder";
   LOG(INFO)<< "create store delegate, store_name: " << store_name;
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+  request->set_schema_name("ssb");
   request->set_store_name(store_name);
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   auto delegate_actor_id = response->rdd_id();
   LOG_IF(FATAL, delegate_actor_id.actor_id().empty() || delegate_actor_id.actor_id().compare("Unknown Actor") == 0) << delegate_actor_id.DebugString();
   /// sleep for a while
   sleep(5);
 
   /// do action
-  ActionRequestPtr action_request(new ActionRequest);
-  ActionResponsePtr action_response(new ActionResponse);
-  ActionResultPtr action_result(new idgs::rdd::pb::LookupActionResult);
+  ActionRequestPtr action_request = std::make_shared<ActionRequest>();
+  ActionResponsePtr action_response = std::make_shared<ActionResponse>();
+  ActionResultPtr action_result = std::make_shared<idgs::rdd::pb::LookupActionResult>();
   action_request->set_action_id("test_lookup_action");
   action_request->set_action_op_name(idgs::rdd::LOOKUP_ACTION);
   const std::string& key_type = "idgs.sample.ssb.pb.LineOrderKey";
   action_request->set_param(key_type);
   /// lo_orderkey=5952 and lo_linenumber=3
-  auto key = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage(key_type);
+
+  auto& storeConfigWrapper = client.getStoreConfigWrapper(store_name);
+
+  auto key = storeConfigWrapper->newKey();
   key->GetReflection()->SetUInt64(key.get(), key->GetDescriptor()->FindFieldByName("lo_orderkey"), 5952);
   key->GetReflection()->SetUInt64(key.get(), key->GetDescriptor()->FindFieldByName("lo_linenumber"), 3);
   /// construct attachment
@@ -56,12 +57,16 @@ TEST(lookup_action_test, lookup_action) {
   attach[ACTION_PARAM] = key;
   
   /// send Action
-  singleton<RddClient>::getInstance().sendAction(action_request, action_response, action_result, delegate_actor_id, attach);
+  client.sendAction(action_request, action_response, action_result, delegate_actor_id, attach);
   LookupActionResult* result = dynamic_cast<LookupActionResult*>(action_result.get());
+  ASSERT_TRUE(result->values_size() > 0);
+  if (result->values_size() == 0) {
+    return;
+  }
   auto str_value = result->values(0);
 
   /// dynamic deserialized protobuf message
-  auto value = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.ssb.pb.LineOrder");
+  auto value = storeConfigWrapper->newValue();
   ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(str_value, value.get());
 
   /// 5952|3|29|71|1|19970414|3-MEDIUM|0|43|4175601|12862499|1|4133844|58264|1|19970606|MAIL|

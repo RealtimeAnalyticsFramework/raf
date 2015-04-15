@@ -9,93 +9,69 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
+
 #include "config_parser.h"
 
+#include "protobuf/protobuf_json.h"
 #include "idgs/util/utillity.h"
 
-#include "protobuf/message_helper.h"
-
-using namespace std;
-using namespace protobuf;
-using namespace idgs::store::pb;
 
 namespace idgs {
 namespace store {
 
-// class ConfigParser
-StoreConfigParser::StoreConfigParser() {
-}
-
-StoreConfigParser::~StoreConfigParser() {
-  function_footprint();
-}
-
-ResultCode StoreConfigParser::parseStoreConfig(const string& configFilePath, StoreConfigWrappers& storeConfigWrappers) {
-  DVLOG(2) << "start parse config file: " << configFilePath;
-  DataStoreConfig dataStoreConfig;
-
-  ResultCode resultCode = JsonMessage().parseJsonFromFile(&dataStoreConfig, configFilePath);
-
-  if (resultCode != RC_SUCCESS) {
-    LOG(ERROR)<< "parse store config error, caused by " << getErrorDescription(resultCode);
-    return resultCode;
+ResultCode StoreConfigParser::parseStoreConfigFromFile(const std::string& path, pb::DataStoreConfig* config) {
+  ResultCode code = (ResultCode) idgs::parseIdgsConfig(config, path);
+  if (code != RC_SUCCESS) {
+    LOG(ERROR)<< "parse store config error, caused by " << getErrorDescription(code);
+    return code;
   }
 
-  auto it = dataStoreConfig.schemas().begin();
-  int32_t i = 0;
-  for (; it != dataStoreConfig.schemas().end(); ++ it) {
-    if (it->has_proto_filename()) {
-      const string& filename = it->proto_filename();
-      DVLOG(2) << "register protobuf file : " << filename;
-      auto code = idgs::util::singleton<MessageHelper>::getInstance().registerDynamicMessage(filename);
+  return parseStoreConfig(config);
+}
+
+ResultCode StoreConfigParser::parseStoreConfigFromString(const std::string& content, pb::DataStoreConfig* config) {
+  ResultCode code = (ResultCode) protobuf::ProtobufJson::parseJsonFromString(config, content);
+  if (code != RC_SUCCESS) {
+    LOG(ERROR)<< "parse store config error, caused by " << getErrorDescription(code);
+    return code;
+  }
+
+  return parseStoreConfig(config);
+}
+
+ResultCode StoreConfigParser::parseStoreConfig(pb::DataStoreConfig* config) {
+  ResultCode code = RC_SUCCESS;
+
+  // parsed by files
+  auto size = config->schema_files_size();
+  if (size > 0) {
+    for (int32_t i = 0; i < config->schema_files_size(); ++ i) {
+      auto storeSchema = config->add_schemas();
+      code = (ResultCode) idgs::parseIdgsConfig(storeSchema, config->schema_files(i));
       if (code != RC_SUCCESS) {
-        LOG(ERROR) << "error when register protobuf file : " << filename << " casused by " << getErrorDescription(code);
+        LOG(ERROR)<< "parse store config error, caused by " << getErrorDescription(code);
         return code;
       }
     }
-
-    if (it->has_proto_content()) {
-      const string& content = it->proto_content();
-      auto pos = configFilePath.find_last_of("/");
-      string dir = configFilePath.substr(0, pos);
-      string filename = dir + "dynamic_proto_file.proto";
-      sys::saveFile(filename, content);
-      DVLOG(2) << "register protobuf with content : " << content;
-      auto code = idgs::util::singleton<MessageHelper>::getInstance().registerDynamicMessage(filename);
-      if (code != RC_SUCCESS) {
-        LOG(ERROR) << "error when register protobuf with content : " << content << " casused by " << getErrorDescription(code);
-        remove(filename.c_str());
-        return code;
-      }
-
-      remove(filename.c_str());
-    }
-
-    auto storeIt = it->store_config().begin();
-    for (; storeIt != it->store_config().end(); ++ storeIt) {
-      string keyType = storeIt->key_type();
-      if (!::idgs::util::singleton<MessageHelper>::getInstance().isMessageRegistered(keyType)) {
-        LOG(ERROR)<< "store " << storeIt->name() << ", key type " << keyType << " is not register to system.";
-        return RC_KEY_TYPE_NOT_REGISTERED;
-      }
-
-      string valueType = storeIt->value_type();
-      if (!::idgs::util::singleton<MessageHelper>::getInstance().isMessageRegistered(valueType)) {
-        LOG(ERROR)<< "store " << storeIt->name() << ", value type " << valueType << " is not register to system.";
-        return RC_VALUE_TYPE_NOT_REGISTERED;
-      }
-
-      std::shared_ptr<StoreConfigWrapper> storeConfigWrapper = std::make_shared<StoreConfigWrapper>();
-
-      storeConfigWrapper->setStoreConfig(* storeIt);
-      storeConfigWrappers.addStoreConfig(storeConfigWrapper);
-    }
+    config->clear_schema_files();
   }
 
-  return RC_SUCCESS;
+  // parsed by content
+  size = config->schema_contents_size();
+  if (size > 0) {
+    for (int32_t i = 0; i < config->schema_contents_size(); ++ i) {
+      auto storeSchema = config->add_schemas();
+      code = (ResultCode) protobuf::ProtobufJson::parseJsonFromString(storeSchema, config->schema_contents(i));
+      if (code != RC_SUCCESS) {
+        LOG(ERROR)<< "parse store config error, caused by " << getErrorDescription(code);
+        return code;
+      }
+    }
+    config->clear_schema_contents();
+  }
+
+  return code;
 }
 
-// class ConfigParser
-
-}// namespace store
+} // namespace store
 } // namespace idgs

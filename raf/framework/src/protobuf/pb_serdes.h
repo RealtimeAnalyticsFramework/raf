@@ -8,8 +8,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "protobuf/json_message.h"
+#include <stdexcept>
 #include <google/protobuf/text_format.h>
+
+#include "protobuf/protobuf_json.h"
 
 namespace protobuf {
 
@@ -21,6 +23,8 @@ enum SerdesMode {
 
 #if !defined(DEFAULT_PB_SERDES)
 #define DEFAULT_PB_SERDES 0 // PB_BINARY
+//#define DEFAULT_PB_SERDES 1 // PB_JSON
+//#define DEFAULT_PB_SERDES 2 // PB_TEXT
 #endif // !defined(DEFAULT_PB_SERDES)
 
 template < int MODE >
@@ -68,20 +72,21 @@ struct ProtoSerdes<PB_BINARY> {
 template <>
 struct ProtoSerdes<PB_JSON> {
   static inline bool serialize(const google::protobuf::Message* message, std::string* buffer) {
-    *buffer = protobuf::JsonMessage::toJsonString(message);
+    *buffer = protobuf::ProtobufJson::toJsonString(message);
     return true;
   };
   static inline bool serialize(const google::protobuf::Message* message, char* buff, size_t size) {
-    std::string s = protobuf::JsonMessage::toJsonString(message);
+    std::string s = protobuf::ProtobufJson::toJsonString(message);
+    assert(size > s.size());
     memcpy(buff, s.data(), s.size());
     return true;
   };
   static inline bool deserialize(const std::string& buffer, google::protobuf::Message* message) {
-    return !protobuf::JsonMessage::parseJsonFromString(message, buffer);
+    return !protobuf::ProtobufJson::parseJsonFromString(message, buffer);
   };
   static inline bool deserializeFromArray(const char* buffer, size_t len, google::protobuf::Message* message) {
     std::string s(buffer, len);
-    return !protobuf::JsonMessage::parseJsonFromString(message, s);
+    return !protobuf::ProtobufJson::parseJsonFromString(message, s);
   };
 }; // struct ProtoSerdes
 
@@ -94,6 +99,7 @@ struct ProtoSerdes<PB_TEXT> {
   static inline bool serialize(const google::protobuf::Message* message, char* buff, size_t size) {
     std::string s;
     google::protobuf::TextFormat::PrintToString(*message, &s);
+    assert(size > s.size());
     memcpy(buff, s.data(), s.size());
     return true;
   };

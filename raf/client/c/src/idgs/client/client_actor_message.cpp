@@ -17,7 +17,12 @@ namespace idgs {
 namespace client {
 
 ClientActorMessage::ClientActorMessage() :
-    rpcMessage(new RpcMessage) {
+    rpcMessage(std::make_shared<RpcMessage>()) {
+#if !defined(NDEBUG)
+  if(rpcMessage->serdes_type() != (idgs::pb::PayloadSerdes)DEFAULT_PB_SERDES) {
+    rpcMessage->set_serdes_type((idgs::pb::PayloadSerdes)DEFAULT_PB_SERDES);
+  }
+#endif // !defined(NDEBUG)
 
 }
 
@@ -59,11 +64,13 @@ std::string ClientActorMessage::toBuffer() {
 //        }
   }
 
+#if !defined(NDEBUG)
   std::string s;
   google::protobuf::TextFormat::PrintToString(*rpcMessage.get(), &s);
   DVLOG(3) << "==============to buffer==============";
   DVLOG(3) << s;
   DVLOG(3) << "============//to buffer==============";
+#endif // !defined(NDEBUG)
 
   // encode whole message
   std::string result;

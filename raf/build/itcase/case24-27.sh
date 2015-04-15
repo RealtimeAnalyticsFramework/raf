@@ -20,42 +20,47 @@ case24() {
   cd $WORKSPACE/idgs/
   
   export GLOG_v=0
-
+  
   echo "starting server 1"
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case24_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case24_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case24_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case24_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
   SSB_Q1_LOOP=10
   export SSB_Q1_LOOP
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
 
   rm -f tpch-*.txt  
-  echo "load ssb data"
+  echo "starting server 3 load ssb data"
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m samples/load/conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case24.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>case24_load.log 2>&1
   
   echo "run SSB Q1.1 test"
-  dist/itest/ssb_Q1_1 1>ut_result.log 2>>it_case24.log
+  
+  # set action timeout 2 minutes
+  export ACTION_TIMEOUT=120
+  echo "action timeout after $ACTION_TIMEOUT second(s)"
+  
+  dist/itest/ssb_Q1_1 1>ut_result.log 2>it_case24.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case24.log.";
@@ -64,25 +69,22 @@ case24() {
 
   rm -f tpch-*.txt
 
+  echo "killing servers"
+  safekill $SRV_PID1 
+  safekill $SRV_PID2
+  
   echo ""
   echo "============ RESULT ============"
   cat ut_result.log
   echo "================================"
 
-  echo "killing server 1"
-  #safekill $SRV_PID1 
-  #safekill $SRV_PID2
-  
-  # ensure kill all server
-  #check_core_dump dist/bin/idgs
-  #echo "########################"
-  
   # raw data result.
-  time dist/itest/ssb_Q1_1_raw_data_result 1>ut_result.log 2>>it_case24.log
+  dist/itest/ssb_Q1_1_raw_data_result 1>ut_result.log 2 >>it_case24.log
   echo ""
   echo "============ RESULT ============"
   cat ut_result.log
   echo "================================"
+  
 }
 
 case25() {
@@ -93,40 +95,45 @@ case25() {
   echo " 3. run test to count table lineorder"
   echo "########################"
   cd $WORKSPACE/idgs/
-
+  
   export GLOG_v=0
 
   echo "starting server 1"
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case25_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case25_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case25_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case25_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
 
   rm -f tpch-*.txt  
-  echo "load ssb data"
+  echo "start server 3 to load ssb data"
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m samples/load/conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>case25_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>case25_load.log 2>&1
   
   echo "run rdd name test"
+  
+  # set action timeout 2 minutes
+  export ACTION_TIMEOUT=120
+  echo "action timeout after $ACTION_TIMEOUT second(s)"
+  
   dist/itest/it_rdd_name_test 1>ut_result.log 2>it_case25.log
   RC=$?
   if [ $RC -ne 0 ] ; then
@@ -134,9 +141,9 @@ case25() {
     exit $RC
   fi
 
-  echo "killing server 1"
-  #safekill $SRV_PID1 
-  #safekill $SRV_PID2
+  echo "killing servers"
+  safekill $SRV_PID1 
+  safekill $SRV_PID2
 
   echo ""
   echo "============ RESULT ============"
@@ -155,7 +162,6 @@ case26() {
   echo " 4. run count action and sum action"
   echo "########################"
   cd $WORKSPACE/idgs/
-
   
   export GLOG_v=0
 
@@ -163,45 +169,49 @@ case26() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case26_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case26_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case26_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case26_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  SSB_HOME="/tmp/ssb_it"
-  export SSB_HOME
   SSB_SIZE="0.001"
   export SSB_SIZE
+  SSB_HOME="/tmp/ssb_$SSB_SIZE"
+  export SSB_HOME
 
   echo "generate ssb data"
   build/ssb-gen.sh
-  
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
+
   TPCH_SIZE="0.001"
-  export TPCH_SIZE
+  export TPCH_SIZE  
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
-
 
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
     
   echo "load ssb data"
-  dist/bin/load -s 1 -p $SSB_HOME/ssb-dbgen-master -c framework/conf/cluster.conf -m samples/load/conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case26.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case26.log 2>&1
   
   echo "load tpch data"
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>>it_case26.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>>it_case26.log 2>&1
   
   echo "run union transformer test"
+  
+  # set action timeout 2 minutes
+  export ACTION_TIMEOUT=120
+  echo "action timeout after $ACTION_TIMEOUT second(s)"
+  
   dist/itest/it_union_transformer_test 1>ut_result.log 2>>it_case26.log
   RC=$?
   if [ $RC -ne 0 ] ; then
@@ -210,17 +220,12 @@ case26() {
   fi
 
   echo "killing server 1"
-  #safekill $SRV_PID1 
-  #safekill $SRV_PID2
+  safekill $SRV_PID1 
+  safekill $SRV_PID2
 
-  echo ""
   echo "============ RESULT ============"
   cat ut_result.log
   echo "================================"
-    
-  # ensure kill all server
-  #check_core_dump dist/bin/idgs
-  #echo "########################"
 }
 
 case27() {
@@ -233,36 +238,41 @@ case27() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case27_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case27_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case27_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case27_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
 
   rm -f tpch-*.txt
-  echo "load tpch data"
+  echo "start server 3 load tpch data"
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>case27_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>case27_load.log 2>&1
   
   sleep 5
 
-  echo "########################run reducevalue transform test########################"
-  dist/itest/it_reducebykey_transformer_test 1>case27_client.log 2>&1
+  echo "run reducevalue transform test"
+  
+  # set action timeout 2 minutes
+  export ACTION_TIMEOUT=120
+  echo "action timeout after $ACTION_TIMEOUT second(s)"
+  
+  dist/itest/it_reducebykey_transformer_test 1>ut_result.log 2>>it_case27.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";
@@ -271,12 +281,13 @@ case27() {
 
   rm -f tpch-*.txt
 
-  echo "killing server 1"
+  echo "killing servers"
   safekill $SRV_PID1 
   safekill $SRV_PID2
   
-  # ensure kill all server
-  #check_core_dump dist/bin/idgs
-  #echo "########################"
+  echo "============ RESULT ============"
+  cat ut_result.log
+  echo "================================"
+  
 }
 

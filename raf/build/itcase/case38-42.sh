@@ -22,21 +22,21 @@ case38() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case38_1.log 2>&1 &
+  GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case38_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case38_2.log 2>&1 &
+  GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case38_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -45,7 +45,7 @@ case38() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>case38_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case38_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -55,7 +55,7 @@ case38() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run group by test"
   mvn test -Dtest=integration/GroupByIT.java
   RC=$?
@@ -95,21 +95,21 @@ case39() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case39_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case39_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case39_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case39_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -118,7 +118,7 @@ case39() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>case39_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case39_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -128,7 +128,7 @@ case39() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run union test"
   mvn test -Dtest=integration/UnionIT.java
   RC=$?
@@ -166,21 +166,21 @@ case40() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case40_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case40_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case40_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case40_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
-  export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
 
   echo "generate tpch data"
   build/tpch-gen.sh
@@ -189,7 +189,7 @@ case40() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>case40_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case40_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -199,7 +199,7 @@ case40() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run hash join test"
   mvn test -Dtest=integration/HashJoinIT.java
   RC=$?
@@ -234,18 +234,18 @@ case41() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case41_1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case41_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case41_2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case41_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
 
-  TPCH_HOME="/tmp/tpch_it"
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
   export TPCH_HOME
   TPCH_SIZE="0.001"
   export TPCH_SIZE
@@ -257,7 +257,7 @@ case41() {
   export idgs_member_port=9900
   export idgs_member_innerPort=9901
   export idgs_member_service_local_store=false
-  dist/bin/load -s 1 -p $TPCH_HOME/dbgen -c framework/conf/cluster.conf -m samples/load/conf/tpch_file_mapper.conf -t 10 1>case41_load.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case41_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -267,7 +267,7 @@ case41() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run group by test"
   mvn test -Dtest=integration/OrderByIT.java
   RC=$?
@@ -290,7 +290,63 @@ case42() {
   echo " 1. start 2 server"
   echo " 2. load tpch data size 0.01"
   echo " 3. run sql engine"
-  echo "    test sql "
+  echo "    test expression include arithmetic, math, string, date, branch, cast expression "
   echo "#####################################################################"
   if ! which mvn; then echo "skip"; return; fi
+    cd $WORKSPACE/idgs/
+
+  export GLOG_v=0
+
+  echo "starting server 1"
+  export idgs_member_port=7700
+  export idgs_member_innerPort=7701
+  export idgs_member_service_local_store=true
+  dist/bin/idgs -c conf/cluster.conf  1>case42_1.log 2>&1 &
+  SRV_PID1=$!
+  sleep 2
+
+  echo "starting server 2"
+  export idgs_member_port=8800
+  export idgs_member_innerPort=8801
+  dist/bin/idgs -c conf/cluster.conf  1>case42_2.log 2>&1 &
+  SRV_PID2=$!
+  sleep 2
+
+  TPCH_SIZE="0.001"
+  export TPCH_SIZE
+  TPCH_HOME="/tmp/tpch_$TPCH_SIZE"
+  export TPCH_HOME
+
+  echo "generate tpch data"
+  build/tpch-gen.sh
+
+  echo "load tpch data"
+  export idgs_member_port=9900
+  export idgs_member_innerPort=9901
+  export idgs_member_service_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case42_load.log 2>&1
+  RC=$?
+  if [ $RC -ne 0 ] ; then
+    echo "Abnormal exit (RC=$RC)";
+    exit $RC
+  fi
+  
+  sleep 1
+
+  CURR_DIR=`pwd`
+  cd $WORKSPACE/idgs/front_end/idgs-sql
+  echo "run expression test"
+  mvn test -Dtest=integration/expr/*IT.java
+  RC=$?
+  if [ $RC -ne 0 ] ; then
+    echo "Abnormal exit (RC=$RC)";
+    exit $RC
+  fi
+
+  echo "kill servers."
+  safekill $SRV_PID1
+  safekill $SRV_PID2
+
+  cd $CURR_DIR
+  check_core_dump dist/bin/idgs 
 }

@@ -8,11 +8,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include <google/protobuf/descriptor.h>
-#include <google/protobuf/message.h>
-#include <sstream>
-#include <iostream>
-#include <string>
 
 #include "idgs/store/pb/store_file_mapper.pb.h"
 

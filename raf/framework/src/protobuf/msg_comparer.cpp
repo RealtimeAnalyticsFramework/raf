@@ -55,7 +55,7 @@ bool orderless::operator() (const std::shared_ptr<google::protobuf::Message> msg
     return false;
   }
 
-  for (int32_t i = 0; i < desc1->field_count(); i++) {
+  for (size_t i = 0; i < (size_t)desc1->field_count(); i++) {
     auto fld2 = desc2->field(i);
     if (desc1->field(i)->type() != fld2->type()) {
       return false;

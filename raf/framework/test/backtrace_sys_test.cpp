@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #define SYS_BACKTRACE
 
 #include <gtest/gtest.h>
-#include "idgs/util/backtrace.h"
 #include "idgs/util/gcc_backtrace.cpp"
 
 TEST(backtrace, sys) {

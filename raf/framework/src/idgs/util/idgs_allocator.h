@@ -7,8 +7,6 @@ The source code, information and material ("Material") contained herein is owned
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
 */
 #pragma once
-#include <tbb/scalable_allocator.h>
-#include <string>
 
 namespace idgs {
 namespace util {

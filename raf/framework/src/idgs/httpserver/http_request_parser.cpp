@@ -10,8 +10,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "http_request.h"
 
 namespace idgs{
-namespace http {
-namespace server {
+namespace httpserver {
 
 HttpRequestParser::HttpRequestParser()
   : state_(method_start) {
@@ -240,6 +239,5 @@ bool HttpRequestParser::isDigit(int c) {
   return c >= '0' && c <= '9';
 }
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

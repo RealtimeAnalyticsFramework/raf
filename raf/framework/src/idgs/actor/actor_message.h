@@ -9,6 +9,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include <memory>
+#include "idgs/result_code.h"
 #include "idgs/pb/rpc_message.pb.h"
 #include "idgs/net/rpc_buffer.h"
 #include "protobuf/pb_serdes.h"
@@ -32,6 +33,11 @@ public:
   std::shared_ptr<idgs::pb::RpcMessage>& getRpcMessage() {
     if (!rpcMessage) {
       rpcMessage = std::make_shared<idgs::pb::RpcMessage>();
+#if !defined(NDEBUG)
+      if(rpcMessage->serdes_type() != (idgs::pb::PayloadSerdes)DEFAULT_PB_SERDES) {
+        rpcMessage->set_serdes_type((idgs::pb::PayloadSerdes)DEFAULT_PB_SERDES);
+      }
+#endif // !defined(NDEBUG)
     }
     return rpcMessage;
   }
@@ -96,7 +102,7 @@ public:
     getRpcMessage()->set_serdes_type((idgs::pb::PayloadSerdes) ((int32_t) mode));
   }
 
-  const idgs::pb::PayloadSerdes getSerdesType() {
+  idgs::pb::PayloadSerdes getSerdesType() {
     return getRpcMessage()->serdes_type();
   }
   enum MessageOrietation {
@@ -119,14 +125,6 @@ public:
     tcpActorId = id;
   }
 
-  uint32_t getResendCount() const {
-    return resendCount;
-  }
-
-  void setResendCount(uint32_t count) {
-    resendCount = count;
-  }
-
 public:
   bool parsePayload(google::protobuf::Message* msg) {
     if (!msg) {
@@ -146,6 +144,20 @@ public:
     return protobuf::ProtoSerdesHelper::deserialize(mode, protoString, msg);
   }
 
+  bool containAttachment(const std::string& name) {
+    auto it = attachments.find(name);
+    if (it != attachments.end()) {
+      return true;
+    }
+
+    auto rawit = rawAttachments.find(name);
+    if (rawit != rawAttachments.end()) {
+      return true;
+    }
+
+    return false;
+  }
+
   bool parseAttachment(const std::string& name, google::protobuf::Message* msg) {
     if (!msg) {
       return false;
@@ -159,26 +171,32 @@ public:
 
     auto rawit = rawAttachments.find(name);
     if (rawit == rawAttachments.end()) {
+      LOG(ERROR) << "No raw attachment for name: " << name;
       return false;
     }
 
     protobuf::SerdesMode mode = static_cast<protobuf::SerdesMode>(getRpcMessage()->serdes_type());
     bool result = protobuf::ProtoSerdesHelper::deserialize(mode, rawit->second, msg);
+    if(!result) {
+      LOG(ERROR) << "Failed to deserialize raw attachment: " << mode << ", data: " << rawit->second;
+    }
     return result;
   }
 
   bool parseAttachment1(const std::string& name, PbMessagePtr& msg);
 
+  bool parseAttachments(const std::string& keyName, const std::string& valueName, std::map<PbMessagePtr, PbMessagePtr>& map);
+
   idgs::ResultCode parseRpcBuffer();
 
   idgs::ResultCode toRpcBuffer();
 
-  idgs::net::RpcBuffer* getRpcBuffer() {
+  std::shared_ptr<idgs::net::RpcBuffer> getRpcBuffer() {
     return rpcBuffer;
   }
 
-  void setRpcBuffer(idgs::net::RpcBuffer* buff) {
-    this->rpcBuffer = buff;
+  void setRpcBuffer(std::shared_ptr<idgs::net::RpcBuffer> buff) {
+    rpcBuffer.swap(buff);
   }
 
   /// called after toRpcMessage
@@ -191,14 +209,14 @@ public:
   /// create a response message, and source and destination are swapped.
   std::shared_ptr<ActorMessage> createResponse();
 
-  /// create a new request in the same session as
+  /// create a request in the same session as
   std::shared_ptr<ActorMessage> createSessionRequest();
 
   /// create the route message, createRouteMessage in tcp actor
   /// @param  destMemId the dest member id
   /// @param  destActorId the dest actor id
   /// @return route message
-  std::shared_ptr<ActorMessage> createRouteMessage(int32_t destMemId, std::string destActorId);
+  std::shared_ptr<ActorMessage> createRouteMessage(int32_t destMemId, std::string destActorId, const bool& reload = false);
 
   /// create the multicast message
   /// @return multicast message
@@ -206,6 +224,8 @@ public:
 
   std::shared_ptr<google::protobuf::Message> getAttachement(const std::string & name);
   void setAttachment(const std::string & name, std::shared_ptr<google::protobuf::Message> value);
+  void setAttachment(const std::string & name, std::string & value);
+  void replaceAttachment(const std::string & name, std::shared_ptr<google::protobuf::Message> value);
 
   std::multimap<std::string, PbMessagePtr>& getAttachments() {
     return attachments;
@@ -225,11 +245,10 @@ private:
   std::multimap<std::string, PbMessagePtr> attachments;
   std::multimap<std::string, std::string> rawAttachments;
 
-  idgs::net::RpcBuffer* rpcBuffer;
+  std::shared_ptr<idgs::net::RpcBuffer> rpcBuffer;
 
   enum MessageOrietation orientation = APP_ORIENTED;
   std::string tcpActorId;
-  uint32_t resendCount = 0;
 };
 typedef std::shared_ptr<ActorMessage> ActorMessagePtr;
 typedef std::map<std::string, std::function<void(ActorMessagePtr& msg)> > ActorOperationMap;

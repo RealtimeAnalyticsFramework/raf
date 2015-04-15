@@ -7,66 +7,29 @@
  */
 #pragma once
 
-#include "client.h"
+#include "idgs/client/pb/client_config.pb.h"
+#include "idgs/client/client_actor_message.h"
 
 namespace idgs {
 namespace client {
-class TcpClient: public Client {
+class TcpClient {
 public:
+  TcpClient();
+  virtual ~TcpClient();
+  std::string toString() const;
 
-  TcpClient(const idgs::client::pb::Endpoint& _server) :
-      Client(_server) {
-  }
-  virtual ~TcpClient() {
-    function_footprint();
-    close();
-  }
-
-  idgs::ResultCode close() {
-    if (m_socket.get() == NULL) {
-      DVLOG(2) << "Client is not started";
-      return RC_CLIENT_SOCKET_IS_ALREADY_CLOSED;
-    }
-    if (!m_socket->is_open()) {
-      DVLOG(2) << "Client is not started or is already closed";
-      return RC_CLIENT_SOCKET_IS_ALREADY_CLOSED;
-    }
-
-    DVLOG(2) << "Client " << this << " will be closed";
-    asio::error_code ec;
-    m_socket->close(ec);
-    if (ec) {
-      DVLOG(2) << " close error " << ec;
-      return RC_ERROR;
-    }
-    return RC_SUCCESS;
-  }
-
-  std::shared_ptr<asio::ip::tcp::socket> getSocket() {
-    return m_socket;
-  }
-
+public:
   virtual idgs::ResultCode initialize() = 0;
+  virtual const idgs::client::pb::Endpoint& getServerEndpoint() const = 0;
+  virtual void setId(int id_) = 0;
+  virtual int getId() const = 0;
+  virtual bool isOpen() const = 0;
 
-  virtual ClientActorMessagePtr receive(ResultCode* code, int timeout_sec = 10) = 0;
-
-  virtual ClientActorMessagePtr sendRecv(ClientActorMessagePtr& actorMsg, idgs::ResultCode* code,
-      int timeout_sec = 10) = 0;
-
-  /// append by deyin no need to response
-  virtual void send(ClientActorMessagePtr& actorMsg, idgs::ResultCode* code, int timeout_sec = 10) = 0;
-
-protected:
-
-  /// @todo remove this function to avoid memory copy.
-  static void encode(std::string &data, ResultCode &code, char* data_);
-
-  /// @brief  Decode the header data, received from network, to the body length.
-  /// @return The body length.
-  static size_t decodeHeader(char* data_, ResultCode &code);
-
-  std::shared_ptr<asio::ip::tcp::socket> m_socket;
-
+public:
+  virtual idgs::ResultCode send(ClientActorMessagePtr& actorMsg, int timeout_sec = 10) = 0;
+  virtual idgs::ResultCode receive(ClientActorMessagePtr& msg, int timeout_sec = 10) = 0;
+  virtual idgs::ResultCode sendRecv(ClientActorMessagePtr& actorMsg, ClientActorMessagePtr& response, int timeout_sec = 10) = 0;
+  virtual idgs::ResultCode close() = 0;
 };
 } // namespace client
 } // namespace idgs

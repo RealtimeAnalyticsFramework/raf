@@ -9,104 +9,77 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include "idgs/cluster/cluster_cfg_parser.h"
-#include "partitiontable_mgr.h"
-#include "idgs/cluster/corosync_adapter.h"
+#include "idgs/cluster/partition_manager_actor.h"
+#include "idgs/cluster/adapter/corosync_cluster_adapter.h"
+#include "idgs/cluster/adapter/standalone_cluster_adapter.h"
+#include "idgs/cluster/cluster_const.h"
+
 #include "idgs/actor/actor_descriptor_mgr.h"
-#include "cluster_const.h"
 #include "idgs/actor/rpc_framework.h"
 
 namespace idgs {
 namespace cluster {
 
 // front declaration
-class PartitionTableMgr;
+class PartitionManagerActor;
+
+typedef std::shared_ptr<pb::ClusterConfig> ClusterCfgPtr;
 
 /**
  * Cluster = CorosyncClusterEngine + MemberManager + PartitionManager
  */
-template<class CLUSTERADAPTER, class MEMBERMANAGER = MembershipTableMgr,
-    class PARTITIONMANAGER = PartitionTableMgr>
+template<class CLUSTERADAPTER, class MEMBERMANAGER = MemberManagerActor, class PARTITIONMANAGER = PartitionManagerActor>
 class BasicClusterFramework {
 public:
-  BasicClusterFramework() :
-      initialized(false) {
-
+  BasicClusterFramework() {
   }
-
 
   ~BasicClusterFramework() {
     function_footprint();
-
-    if (!initialized) {
-      return;
-    }
   }
-
 
   BasicClusterFramework(const BasicClusterFramework&) = delete;
   BasicClusterFramework(BasicClusterFramework&&) = delete;
   BasicClusterFramework& operator ()(const BasicClusterFramework&) = delete;
   BasicClusterFramework& operator ()(BasicClusterFramework&&) = delete;
 
-  CLUSTERADAPTER* getClusterAdapter() {
-    return &clusterAdapter;
-  }
+  CLUSTERADAPTER* getClusterAdapter() { return &clusterAdapter;}
 
-  MEMBERMANAGER* getMemberManager() {
-    return &memberMgr;
-  }
+  MEMBERMANAGER* getMemberManager() { return &memberMgr; }
 
-  PARTITIONMANAGER* getPartitionManager() {
-    return &partitionMgr;
-  }
+  PARTITIONMANAGER* getPartitionManager() { return &partitionMgr;}
 
   ResultCode init() {
     function_footprint();
-
-    if (!initialized) {
-
-      ResultCode rs = clusterAdapter.init(getClusterConfig());
-      if (rs != RC_SUCCESS) {
-        return RC_CLUSTER_ERR_CLUSTER_INIT;
-      }
-
-      // memberManager init
-      memberMgr.init(getClusterConfig());
-
-      // partitionManager init
-      partitionMgr.init(getClusterConfig());
-      partitionMgr.setMembershipTableManager(memberMgr);
-
-      // partitionManager register member listener
-      memberMgr.addListener(&partitionMgr);
-
-      // register
-      registerModuleDescriptor();
-
-      // set init flag
-      initialized = true;
-    } else {
-      DVLOG(2) << "Cluster has already been initialized";
+    ResultCode rc = RC_OK;
+    rc = clusterAdapter.init(getClusterConfig());
+    if (rc != RC_SUCCESS) {
+      return RC_CLUSTER_ERR_CLUSTER_INIT;
     }
-    return RC_SUCCESS;
+    /// memberManager initialize
+    memberMgr.init(getClusterConfig());
+
+    /// partition manager initialize
+    partitionMgr.init(getClusterConfig());
+    partitionMgr.setMembershipTableManager(memberMgr);
+
+    /// partition manager register member event listener
+    memberMgr.addListener(&partitionMgr);
+
+    return rc;
   }
 
   idgs::ResultCode loadCfgFile(const char* cfgFile) {
     function_footprint();
-
     if (!clusterConfig.get()) {
-      clusterConfig.reset(new pb::ClusterConfig);
+      clusterConfig = std::make_shared<pb::ClusterConfig>();
     }
-    return ClusterCfgParser::parse(*clusterConfig.get(), cfgFile);
+    return ClusterCfgParser::parse(*clusterConfig, cfgFile);
   }
 
-  pb::ClusterConfig* getClusterConfig() const {
-    return clusterConfig.get();
-  }
+  idgs::pb::ClusterConfig* getClusterConfig() const { return clusterConfig.get();}
 
-  const pb::Member& getMemberConfig() const {
-    return getClusterConfig()->member();
-  }
+  const idgs::pb::Member& getMemberConfig() const { return getClusterConfig()->member();}
 
   size_t getPartitionCount() const {
     if (getClusterConfig() == NULL) {
@@ -119,52 +92,27 @@ public:
     return memberMgr.getLocalMember();
   }
 
-  ResultCode start() {
-    return clusterAdapter.start();
-  }
+  ResultCode start() { return clusterAdapter.start(); }
 
-  void destory() {
+  void terminate() {
     function_footprint();
-    partitionMgr.onDestroy();
-    memberMgr.onDestroy();
-    unRegisterModuleDescriptor();
+    partitionMgr.terminate();
+    memberMgr.terminate();
   }
 
 private:
-
-  void registerModuleDescriptor() {
-    function_footprint();
-    std::shared_ptr<idgs::actor::ModuleDescriptorWrapper> module_descriptor(new idgs::actor::ModuleDescriptorWrapper);
-    module_descriptor->setName(CLUSTER_MODULE_DESCRIPTOR_NAME);
-    module_descriptor->setDescription(CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION);
-
-    // add membershipmgr, partitionmgr actor descriptor
-    module_descriptor->addActorDescriptor(memberMgr.getDescriptor());
-    module_descriptor->addActorDescriptor(partitionMgr.getDescriptor());
-
-    ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().registerModuleDescriptor(
-        module_descriptor->getName(), module_descriptor);
-  }
-
-  void unRegisterModuleDescriptor() {
-    function_footprint();
-    // register
-    ::idgs::util::singleton<idgs::actor::ActorDescriptorMgr>::getInstance().unRegisterModuleDescriptor(
-        CLUSTER_MODULE_DESCRIPTOR_NAME);
-  }
-
   CLUSTERADAPTER clusterAdapter;
   MEMBERMANAGER memberMgr;
   PARTITIONMANAGER partitionMgr;
+  ClusterCfgPtr clusterConfig;
+}; /// end class
 
-  bool initialized;
+typedef BasicClusterFramework<StandaloneClusterAdapter, MemberManagerActor, PartitionManagerActor> StandaloneClusterFramework;
 
-  std::shared_ptr<pb::ClusterConfig> clusterConfig;
-
-};
-// end class(interface) ClusterManager
-
-typedef BasicClusterFramework<CorosyncClusterAdapter, MembershipTableMgr, PartitionTableMgr> ClusterFramework;
-
+#if defined(WITH_COROSYNC)
+typedef BasicClusterFramework<CorosyncClusterAdapter, MemberManagerActor, PartitionManagerActor> ClusterFramework;
+#else
+typedef BasicClusterFramework<StandaloneClusterAdapter, MemberManagerActor, PartitionManagerActor> ClusterFramework;
+#endif
 } // end namespace cluster
 } // end namespace idgs

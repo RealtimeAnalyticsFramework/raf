@@ -14,6 +14,7 @@ using namespace std;
 using namespace idgs::actor;
 using namespace idgs::rdd;
 using namespace idgs::rdd::pb;
+using namespace idgs::rdd::transform;
 
 namespace idgs {
 namespace tpc {
@@ -25,35 +26,24 @@ TpchQ6Transformer::TpchQ6Transformer() {
 TpchQ6Transformer::~TpchQ6Transformer() {
 }
 
-RddResultCode TpchQ6Transformer::transform(const ActorMessagePtr& msg, const std::vector<BaseRddPartition*>& input,
-    RddPartition* output) {
-  if (input.size() != 1) {
-    return RRC_INVALID_RDD_INPUT;
-  }
+RddResultCode TpchQ6Transformer::transform(TransformerContext* ctx, const BaseRddPartition* input, PairRddPartition* output) {
+  auto descriptor = input->getValueTemplate()->GetDescriptor();
+  auto reflection = input->getValueTemplate()->GetReflection();
 
-  if (input[0]->empty()) {
-    return RRC_SUCCESS;
-  }
+  auto fldDate = descriptor->FindFieldByName("l_shipdate");
+  auto fldDiscount = descriptor->FindFieldByName("l_discount");
+  auto fldQquantity = descriptor->FindFieldByName("l_quantity");
 
-  auto valueTemplate = input[0]->getValueTemplate();
-  auto descriptor = valueTemplate->GetDescriptor();
-  auto reflection = valueTemplate->GetReflection();
+  input->foreach([output, reflection, fldDate, fldDiscount, fldQquantity] (const PbMessagePtr& key, const PbMessagePtr& value) {
+    double discount = 0, quantity = 0;
+    string date = reflection->GetString(* value, fldDate);
+    discount = reflection->GetDouble(* value, fldDiscount);
+    quantity = reflection->GetDouble(* value, fldQquantity);
 
-  auto dateField = descriptor->FindFieldByName("l_shipdate");
-  auto discountField = descriptor->FindFieldByName("l_discount");
-  auto quantityField = descriptor->FindFieldByName("l_quantity");
-
-  input[0]->foreach(
-      [output, reflection, dateField, discountField, quantityField] (const PbMessagePtr& key, const PbMessagePtr& value) {
-        double discount = 0, quantity = 0;
-        string date = reflection->GetString(* value, dateField);
-        discount = reflection->GetDouble(* value, discountField);
-        quantity = reflection->GetDouble(* value, quantityField);
-
-        if (date >= "1994-01-01" && date < "1995-01-01" && discount >= 0.05 && discount <= 0.07 && quantity < 24) {
-          output->putLocal(key, value);
-        }
-      });
+    if (date >= "1994-01-01" && date < "1995-01-01" && discount >= 0.05 && discount <= 0.07 && quantity < 24) {
+      output->put(key, value);
+    }
+  });
 
   return RRC_SUCCESS;
 }

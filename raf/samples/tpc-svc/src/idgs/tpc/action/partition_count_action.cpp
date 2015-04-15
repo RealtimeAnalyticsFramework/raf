@@ -8,15 +8,17 @@
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
+
 #include "partition_count_action.h"
-#include "idgs/util/utillity.h"
-#include "idgs/rdd/rdd_const.h"
-#include "idgs/cluster/cluster_framework.h"
+
+#include "idgs/application.h"
+
 #include "idgs/tpc/pb/tpc_rdd_action.pb.h"
 
 using namespace std;
 using namespace protobuf;
 using namespace idgs::rdd;
+using namespace idgs::rdd::action;
 using namespace idgs::rdd::pb;
 using namespace idgs::tpc::pb;
 
@@ -30,47 +32,39 @@ PartitionCountAction::PartitionCountAction() {
 PartitionCountAction::~PartitionCountAction() {
 }
 
-RddResultCode PartitionCountAction::action(const idgs::actor::ActorMessagePtr& msg, const BaseRddPartition* input,
-    std::vector<PbVariant>& output) {
-  auto start = sys::getCurrentTime();
-  static int32_t local_member_id =
-      ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
+RddResultCode PartitionCountAction::action(ActionContext* ctx, const BaseRddPartition* input) {
+  static int32_t local_member_id = idgs_application()->getMemberManager()->getLocalMemberId();
+
   uint32_t partition_id = input->getPartition();
-  DVLOG(3) << "Execute partition count action in member: " << local_member_id << ", partition: "
-              << input->getPartition();
-  uint32_t size = input->size();
+  uint32_t size = input->valueSize();
 
   PartitionCountResult result;
   result.set_member_id(local_member_id);
   result.set_partition_id(partition_id);
   result.set_size(size);
+
   string str;
   ProtoSerdes<DEFAULT_PB_SERDES>::serialize(&result, &str);
-  output.push_back(str);
-  VLOG(2) << "Execute partition count action in partition: " << input->getPartition() << ", spent time: "
-             << sys::formatTime((sys::getCurrentTime() - start));
+
+  ctx->addPartitionResult(str);
   return RRC_SUCCESS;
 }
 
-RddResultCode PartitionCountAction::aggregate(const idgs::actor::ActorMessagePtr& actionRequest, idgs::actor::ActorMessagePtr& actionResponse, const vector<vector<string>>& input) {
-  auto start = sys::getCurrentTime();
-  static int32_t local_member_id =
-      ::idgs::util::singleton<idgs::cluster::ClusterFramework>::getInstance().getMemberManager()->getLocalMemberId();
-  DVLOG(3) << "Aggregate partition count action in member: " << local_member_id;
-  shared_ptr<PartitionCountActionResult> result(new PartitionCountActionResult);
+RddResultCode PartitionCountAction::aggregate(ActionContext* ctx) {
+  shared_ptr<PartitionCountActionResult> result = make_shared<PartitionCountActionResult>();
+  auto& input = ctx->getAggregateResult();
   for (auto it = input.begin(); it != input.end(); ++it) {
     if (it->empty()) {
       continue;
     }
-    DVLOG(3) << "@@@@@@@@@@@" << it->at(0);
-    auto partition_result = result->add_partition_results();
-    ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(it->at(0), partition_result);
-    DVLOG(3) << "@@@@@@@@@@@" << partition_result->ShortDebugString();
+
+    ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(it->at(0), result->add_partition_results());
   }
-  actionResponse->setAttachment(ACTION_RESULT, result);
-  VLOG(2) << "Aggregate partition count action spent time: " << sys::formatTime((sys::getCurrentTime() - start));
+
+  ctx->setActionResult(result);
   return RRC_SUCCESS;
 }
+
 } // namespace action 
 } // namespace rdd 
 } // namespace idgs 

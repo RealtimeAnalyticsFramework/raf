@@ -8,7 +8,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "data_map.h"
+#include "idgs/actor/actor.h"
+
+#include "idgs/store/data_map.h"
 #include "idgs/store/store_config_wrapper.h"
 
 namespace idgs {
@@ -28,26 +30,29 @@ public:
   /// @param  value Return value of data.
   /// @return Status code of result.
   virtual ResultCode getData(const StoreKey<google::protobuf::Message>& key,
-      StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL) = 0;
+      StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) = 0;
 
   /// @brief  Set data to the store.
   /// @param  key The key of data to store.
   /// @param  value The value of data to store.
   /// @return Status code of result.
   virtual ResultCode setData(const StoreKey<google::protobuf::Message>& key,
-      StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL) = 0;
+      StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) = 0;
 
   /// @brief  Remove data by key from the store.
   /// @param  key The key of data.
   /// @param  value Return value of the removed data.
   /// @return Status code of result.
   virtual ResultCode removeData(const StoreKey<google::protobuf::Message>& key,
-      StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL) = 0;
+      StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) = 0;
 
-  /// @brief  Get the data size of the given store.
-  /// @param  size The size of the given store.
+  /// @brief  Clear the data of store.
+  virtual void clearData() = 0;
+
+  /// @brief  Get the data size of store.
+  /// @param  size The size of store.
   /// @return Status code of result.
-  virtual ResultCode storeSize(size_t& size) = 0;
+  virtual size_t dataSize() = 0;
 
   /// @brief  Get the wrapper of store config of the store.
   /// @return The wrapper of store config.
@@ -74,45 +79,43 @@ public:
 
   /// @brief  Initialize store with partition table type.
   /// @return Status code of result.
-  ResultCode initialize();
+  virtual ResultCode initialize() override;
 
   /// @brief  Get data by key from the store.
   /// @param  key The key of data.
   /// @param  value Return value of data.
   /// @return Status code of result.
-  ResultCode getData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode getData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
 
   /// @brief  Set data to the store.
   /// @param  key The key of data to store.
   /// @param  value The value of data to store.
   /// @return Status code of result.
-  ResultCode setData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode setData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
 
   /// @brief  Remove data by key from the store.
   /// @param  key The key of data.
   /// @param  value Return value of the removed data.
   /// @return Status code of result.
-  ResultCode removeData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode removeData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
 
-  /// @brief  Get the data size of the given store.
+  /// @brief  Clear the data of store.
+  virtual void clearData() override;
+
+  /// @brief  Get the data size of store.
   /// @param  size The size of the given store.
   /// @return Status code of result.
-  ResultCode storeSize(size_t& size);
+  virtual size_t dataSize() override;
 
-  /// @brief  Get the data size of the given store.
-  /// @param  partition The partition of store.
-  /// @param  size The size of the given store.
-  /// @return Status code of result.
-  ResultCode storeSize(const uint32_t& partition, size_t& size);
+  size_t dataSize(const uint32_t& partition);
 
-  /// @brief  When parititon changed, rebalnace data of store.
-  /// @param  partition  Witch partition changed.
-  /// @param  localMemberId  Member id of local.
-  /// @param  curMemberId  Member id before changed.
-  /// @param  newMemberId  Member id after changed.
+  ResultCode clearData(const uint32_t& partition);
+
+  /// @brief  Get snapshot store map, for data migration.
+  /// @param  partition  Partition of store.
+  /// @param  map        Snapshot store map.
   /// @return Status code of result.
-  ResultCode migrateData(const uint32_t& partition, const int32_t& localMemberId, const int32_t& curMemberId,
-      const int32_t& newMemberId);
+  ResultCode snapshotStore(const int32_t& partition, std::shared_ptr<StoreMap>& map);
 
   /// @brief  Scan data with store name and partition.
   /// @param  partition  Parition of data.
@@ -120,16 +123,22 @@ public:
   /// @return Status code of result.
   ResultCode scanPartitionData(const uint32_t& partition, std::shared_ptr<StoreMap>& dataMap);
 
-  /// @brief  Clear all data of given partition in memory.
-  /// @param  partition  Parition of store.
-  /// @return Status code of result.
-  ResultCode clearData(const uint32_t& partition);
+  void addMigrationActor(idgs::actor::Actor* actor);
+
+  void removeMigrationActor(idgs::actor::Actor* actor);
+
+  std::vector<idgs::actor::Actor*> getMigrationActors();
+
+  std::set<std::string> getMigrationActorIds();
 
 private:
-  uint32_t getDataPartition(const StoreKey<google::protobuf::Message>& key, PartitionStatus* status);
-  size_t getPartitionSize();
-  std::map<int, std::shared_ptr<StoreMap>> dataMap;
+  uint32_t getDataPartition(const StoreKey<google::protobuf::Message>& key, PartitionInfo* status);
+  std::map<int32_t, std::shared_ptr<StoreMap>> dataMap;
   tbb::spin_rw_mutex mutex;
+
+  std::vector<idgs::actor::Actor*> migrationActors;
+  std::set<std::string> migrationActorIds;
+
 };
 // class PartitionStore
 
@@ -140,48 +149,65 @@ public:
 
   /// @brief  Initialize store with replicated type.
   /// @return Status code of result.
-  ResultCode initialize();
+  virtual ResultCode initialize() override;
 
   /// @brief  Get data by key from the the store.
   /// @param  key The key of data.
   /// @param  value Return value of data.
   /// @return Status code of result.
-  ResultCode getData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode getData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
 
   /// @brief  Set data to the store.
   /// @param  key The key of data to store.
   /// @param  value The value of data to store.
   /// @return Status code of result.
-  ResultCode setData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode setData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
 
   /// @brief  Remove data by key from the store.
   /// @param  key The key of data.
   /// @param  value Return value of the removed data.
   /// @return Status code of result.
-  ResultCode removeData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionStatus* status = NULL);
+  virtual ResultCode removeData(const StoreKey<google::protobuf::Message>& key, StoreValue<google::protobuf::Message>& value, PartitionInfo* status = NULL) override;
+
+  /// @brief  Clear the data of store.
+  virtual void clearData() override;
 
   /// @brief  Get the data size of the given store.
   /// @param  size The size of the given store.
   /// @return Status code of result.
-  ResultCode storeSize(size_t& size);
+  virtual size_t dataSize();
 
-  /// @brief  Get the data of the given store.
+  /// @brief  Load the data from store.
   /// @param  store The protobuf of sync store data.
   /// @return Status code of result.
-  ResultCode syncData(std::shared_ptr<idgs::store::pb::SyncStore>& store);
-
-  /// @brief  Clear all data of store in memory.
-  /// @return Status code of result.
-  ResultCode clearData();
-
   ResultCode scanData(std::shared_ptr<StoreMap>& dataMap);
+
+  /// @brief  Get snapshot store map, for data migration.
+  /// @param  partition  Partition of store.
+  /// @param  map        Snapshot store map.
+  /// @return Status code of result.
+  ResultCode snapshotStore(std::shared_ptr<StoreMap>& map);
+
+  void addSyncActor(idgs::actor::Actor* actor);
+
+  void removeSyncActor(idgs::actor::Actor* actor);
+
+  std::vector<idgs::actor::Actor*> getSyncActors();
+
+  std::set<std::string> getSyncActorIds();
 
 private:
   std::shared_ptr<StoreMap> dataMap;
 
+  tbb::spin_rw_mutex mutex;
+
+  std::vector<idgs::actor::Actor*> syncActors;
+  std::set<std::string> syncActorIds;
+
 };
 // class ReplicatedStore
 
+typedef std::shared_ptr<Store> StorePtr;
 
 }// namespace store
 } // namespace idgs

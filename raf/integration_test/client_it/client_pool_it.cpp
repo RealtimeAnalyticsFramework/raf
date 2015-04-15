@@ -16,73 +16,69 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 using namespace idgs::client;
 using namespace idgs;
 
-TEST(client, test_four_client) {
+TEST(client_pool_it, test_four_client) {
 
   LOG(INFO) << "Test Get 5 Clients from client pool, available server count 3";
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/client_it/ut_test_four_clients.conf";
+  setting.clientConfig = "integration_test/client_it/test_client.conf";
 
-  ResultCode code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  auto& pool = getTcpClientPool();
+
+  ResultCode code = pool.loadConfig(setting);
   EXPECT_EQ(RC_SUCCESS, code);
 
-  std::shared_ptr<TcpClientInterface> client1;
-  client1 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client1 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
 //  EXPECT_EQ("7700", client1->getServerAddress().port());
 
-  std::shared_ptr<TcpClientInterface> client2;
-  client2 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client2 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
 //  EXPECT_EQ("7701", client2->getServerAddress().port());
 
-  std::shared_ptr<TcpClientInterface> client3;
-  client3 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client3 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
 //  EXPECT_EQ("7702", client3->getServerAddress().port());
 
-  std::shared_ptr<TcpClientInterface> client4;
-  client4 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client4 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
 //  EXPECT_EQ("7700", client4->getServerAddress().port());
 
-  std::shared_ptr<TcpClientInterface> client5;
-  client5 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client5 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
 //  EXPECT_EQ("7701", client5->getServerAddress().port());
 
   /// pool has been empty, size = 0
-  EXPECT_EQ(0, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(0, pool.size());
 
-  std::shared_ptr<TcpClientInterface> client6;
-  client6 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client6 = pool.getTcpClient(code);
   EXPECT_EQ(RC_ERROR, code);
 
   /// push back client1 to the pool, size = 1
   client1->close();
-  EXPECT_EQ(1, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(1, pool.size());
 
   /// get recycled client again.
-  client6 = ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  client6 = pool.getTcpClient(code);
   EXPECT_EQ(RC_SUCCESS, code);
-  EXPECT_EQ("7700", client6->getServerAddress().port());
-  EXPECT_EQ(0, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ("7700", client6->getServerEndpoint().port());
+  EXPECT_EQ(0, pool.size());
 
   client2->close();
-  EXPECT_EQ(1, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(1, pool.size());
   client3->close();
-  EXPECT_EQ(2, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(2, pool.size());
   client4->close();
-  EXPECT_EQ(3, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(3, pool.size());
   client5->close();
-  EXPECT_EQ(4, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(4, pool.size());
   client6->close();
-  EXPECT_EQ(5, ::idgs::util::singleton<TcpClientPool>::getInstance().size());
+  EXPECT_EQ(5, pool.size());
 
   /// display
-  ::idgs::util::singleton<TcpClientPool>::getInstance().toString();
+  pool.toString();
 
   /// close pool
-  ::idgs::util::singleton<TcpClientPool>::getInstance().close();
+  pool.close();
 }
 

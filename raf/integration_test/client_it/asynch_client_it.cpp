@@ -31,11 +31,11 @@ class TimeOutStatelessActor: public StatelessActor {
 bool running;
 ResultCode code;
 
-TEST(tcp, asynch_tcp_client) {
+TEST(asynch_client_it, asynch_tcp_client) {
   ::sleep(5);
 
   ApplicationSetting setting1;
-  setting1.clusterConfig = "framework/conf/cluster.conf";
+  setting1.clusterConfig = "conf/cluster.conf";
 
   TimeOutStatelessActor* actor = new TimeOutStatelessActor();
 
@@ -48,10 +48,10 @@ TEST(tcp, asynch_tcp_client) {
 
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/client_it/ut_test_four_clients.conf";
-  setting.storeConfig = "integration_test/client_it/data_store.conf";
+  setting.clientConfig = "integration_test/client_it/test_client.conf";
+  setting.storeConfig = "conf/data_store.conf";
 
-  code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  code = getTcpClientPool().loadConfig(setting);
   ASSERT_EQ(code, RC_SUCCESS);
 
   ClientActorMessagePtr response;

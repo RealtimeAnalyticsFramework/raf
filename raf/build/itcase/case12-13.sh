@@ -19,7 +19,7 @@ case12() {
   export idgs_member_port=7700
   export idgs_member_innerPort=7701
   export idgs_member_service_local_store=true
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case12_server1.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case12_server1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
@@ -29,7 +29,7 @@ case12() {
   echo "start 2 server"
   export idgs_member_port=8800
   export idgs_member_innerPort=8801
-  dist/bin/idgs-aio -c framework/conf/cluster.conf  1>case12_server2.log 2>&1 &
+  dist/bin/idgs -c conf/cluster.conf  1>case12_server2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
@@ -40,7 +40,7 @@ case12() {
   safekill $SRV_PID1
   safekill $SRV_PID2
   
-  check_core_dump dist/bin/idgs-aio
+  check_core_dump dist/bin/idgs
   #echo "########################"
 }
 

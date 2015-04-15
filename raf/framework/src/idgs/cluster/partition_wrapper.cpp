@@ -12,32 +12,45 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/cluster/partition_wrapper.h"
 
-using namespace std;
-
 namespace idgs {
-
 namespace cluster {
 
-PartitionWrapper::PartitionWrapper() :
-    backup_nodes(1) {
-  init();
+PartitionWrapper::PartitionWrapper() {
 }
 
-PartitionWrapper::PartitionWrapper(uint8_t backup_nodes) {
-  this->backup_nodes = backup_nodes;
-  init();
+PartitionWrapper::PartitionWrapper(int replicas) {
+  init(replicas);
 }
 
-void PartitionWrapper::init() {
-  int totalNodeCount = 1 + backup_nodes;
-  for(int i = 0; i < totalNodeCount; ++i) {
+void PartitionWrapper::init(int replicas) {
+  for(int i = 0; i < replicas; ++i) {
     auto cell = partition.add_cells();
-    cell->set_memberid(-1);
-    cell->set_state(true);
+    cell->set_member_id(-1);
+    cell->set_state(idgs::pb::PS_INIT);
   }
 }
 
-ostream& operator <<(std::ostream& os, const PartitionWrapper& pw) {
+int32_t PartitionWrapper::getPrimaryMemberId() const {
+  for (int32_t i = 0; i < partition.cells_size(); ++ i) {
+    if (partition.cells(i).state() >= idgs::pb::PS_READY) {
+      return partition.cells(i).member_id();
+    }
+  }
+
+  return -1;
+}
+
+pb::PartitionState PartitionWrapper::getMemberState(int32_t memberId) const {
+  for (int32_t i = 0; i < partition.cells_size(); ++ i) {
+    if (partition.cells(i).member_id() == memberId) {
+      return partition.cells(i).state();
+    }
+  }
+
+  return pb::PS_INIT;
+}
+
+std::ostream& operator <<(std::ostream& os, const PartitionWrapper& pw) {
   return os << pw.toString();
 }
 

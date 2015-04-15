@@ -14,25 +14,19 @@ namespace expr {
 ///
 /// conditional expression, ?:
 ///
-IfExpression::IfExpression() {
-}
-
-IfExpression::~IfExpression() {
-}
-
-protobuf::PbVariant IfExpression::evaluate(ExpressionContext* ctx) const {
+protobuf::PbVariant WhenExpression::evaluate(ExpressionContext* ctx) const {
   int32_t i = 0;
   int32_t size = children.size() - 1;
-  for (; i < size; ++i) {
+  for (; i < size; i += 2) {
     if ((bool) children[i]->evaluate(ctx)) {
-      return children[++i]->evaluate(ctx);
+      return children[i + 1]->evaluate(ctx);
     }
   }
 
   return children[i]->evaluate(ctx);
 }
 
-bool IfExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
+bool WhenExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
     const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size() < 3 || !(entryExp.expression_size() & 1)) {
     LOG(ERROR) << "Failed to parse expression. IF(cond1, value1, cond2, value2, ... , condN, valueN, default)";
@@ -40,6 +34,47 @@ bool IfExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMe
   }
 
   return parseSubExpression(entryExp, key, value);
+}
+
+protobuf::PbVariant CaseExpression::evaluate(ExpressionContext* ctx) const {
+  int32_t i = 1;
+  auto expr = children[0]->evaluate(ctx);
+  int32_t size = children.size() - 1;
+  for (; i < size; i += 2) {
+    if (expr == children[i]->evaluate(ctx)) {
+      return children[i + 1]->evaluate(ctx);
+    }
+  }
+
+  return children[i]->evaluate(ctx);
+}
+
+bool CaseExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
+    const idgs::actor::PbMessagePtr& value) {
+  if (entryExp.expression_size() < 5 || !(entryExp.expression_size() & 2)) {
+    LOG(ERROR) << "Failed to parse expression. CASE[expr, cond_value1, value1, cond_value2, value2, ... , cond_valueN, valueN, default]";
+    return false;
+  }
+
+  return parseSubExpression(entryExp, key, value);
+}
+
+protobuf::PbVariant NvlExpression::evaluate(ExpressionContext* ctx) const {
+  auto expr = leftChild->evaluate(ctx);
+  auto value = rightChild->evaluate(ctx);
+
+  return (expr.is_null) ? value : expr;
+}
+
+protobuf::PbVariant CoalesceExpression::evaluate(ExpressionContext* ctx) const {
+  for (auto expr : children) {
+    auto value = expr->evaluate(ctx);
+    if (!value.is_null) {
+      return value;
+    }
+  }
+
+  return protobuf::PbVariant(std::string("null"));
 }
 
 ///

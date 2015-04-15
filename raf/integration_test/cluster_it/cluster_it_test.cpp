@@ -17,106 +17,7 @@ using namespace idgs;
 using namespace idgs::cluster;
 using namespace std;
 
-static int32_t EMPTY_PARTITION_TABLE[][2] =
-{
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1},
-      { -1, -1}
-};
-static int32_t PARTITION_TABLE_WITH_0[][2] =
-{
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1},
-      { 0, -1}
-};
-static int32_t PARTITION_TABLE_WITH_1_0[][2] =
-{
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1}
-};
-static int32_t PARTITION_TABLE_WITH_0_1[][2] =
-{
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 0, 1},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0},
-      { 1, 0}
-};
-static int32_t PARTITION_TABLE_WITH_1[][2] =
-{
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1},
-      { 1, -1}
-};
+/// cluster integration test ///
 
 static void check(int step);
 static void checkStep1(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
@@ -129,12 +30,11 @@ static void checkStep7(const std::vector<MemberWrapper>& member_table, const std
 static void checkStep8(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
 static void checkStep9(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
 static void checkStep10(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
+static void checkStep11(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
 
-static void checkMembershipTable(const std::vector<int32_t>& expect_table, const std::vector<MemberWrapper>& actual_table);
-static void displayMembershipTable(const std::vector<int32_t>& expect_table, const std::vector<MemberWrapper>& actual_table);
-static void toVector(std::vector<std::vector<int32_t>>& vct, int32_t array[][2], const int array_len);
-static bool checkPartitionTable(const std::vector<std::vector<int32_t>>& expect_table, const std::vector<PartitionWrapper>& actual_table);
-static void displayPartitionTable(const std::vector<std::vector<int32_t>>& expect_table, const std::vector<PartitionWrapper>& actual_table);
+static void displayMembershipTable(const std::vector<MemberWrapper>& actual_table);
+
+static void displayPartitionTable(const std::vector<PartitionWrapper>& actual_table);
 
 namespace {
   struct ApplicationSetting {
@@ -145,9 +45,9 @@ namespace {
 
 void startServer() {
   ApplicationSetting setting;
-  setting.clusterConfig = "framework/conf/cluster.conf";
+  setting.clusterConfig = "conf/cluster.conf";
 
-  Application& app = ::idgs::util::singleton<Application>::getInstance();
+  Application& app = * idgs_application();
   ResultCode rc;
   rc = app.init(setting.clusterConfig);
   if (rc != RC_SUCCESS) {
@@ -166,7 +66,11 @@ void startServer() {
 
 TEST(cluster_it, cluster_it) {
 	startServer();
-	sleep(5);
+
+	// wait for member/partition event
+	sleep(1);
+
+
 	int step = -1;
 	char *str_step = getenv("STEP");
 	if(str_step) {
@@ -175,321 +79,88 @@ TEST(cluster_it, cluster_it) {
 	// begin to check
 	check(step);
 	// stop it
-	::idgs::util::singleton<Application>::getInstance().stop();
+	idgs_application()->stop();
 }
 
 void check(int step) {
-	ClusterFramework& cluster = ::idgs::util::singleton<ClusterFramework>::getInstance();
-	const std::vector<MemberWrapper>& member_table = cluster.getMemberManager()->getMemberTable();
-	const std::vector<PartitionWrapper>& partition_table = cluster.getPartitionManager()->getPartitionTable();
+	auto cluster = idgs_application()->getClusterFramework();
+	const std::vector<MemberWrapper>& member_table = cluster->getMemberManager()->getMemberTable();
+	const std::vector<PartitionWrapper>& partition_table = cluster->getPartitionManager()->getPartitionTable();
 
 	typedef void (*CHECK_FUNC)(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table);
 
 	CHECK_FUNC funcs[] = { checkStep1, checkStep2, checkStep3, checkStep4, checkStep5,
-	    checkStep6, checkStep7, checkStep8, checkStep9, checkStep10
+	    checkStep6, checkStep7, checkStep8, checkStep9, checkStep10, checkStep11
 	};
+
+	displayMembershipTable(member_table);
+  displayPartitionTable(partition_table);
 
 	(*(funcs[step - 1]))(member_table, partition_table);
 
 }
 
-void displayMembershipTable(const std::vector<int32_t>& expect_table, const std::vector<MemberWrapper>& actual_table) {
+void displayMembershipTable(const std::vector<MemberWrapper>& actual_table) {
   DVLOG(1) << "#################### Actual membership table #####################";
   for(auto it = actual_table.begin(); it != actual_table.end(); ++it) {
-    DVLOG(1) << it->getId();
-  }
-  DVLOG(1) << "#################### Expect membership table #####################";
-  for(auto it = expect_table.begin(); it != expect_table.end(); ++it) {
     DVLOG(1) << *it;
   }
 }
 
-void checkMembershipTable(const std::vector<int32_t>& expect_table, const std::vector<MemberWrapper>& actual_table) {
-  bool flag = (expect_table.size() == actual_table.size());
-  if(!flag) { // if check invalid, print expect table & actual table
-    displayMembershipTable(expect_table, actual_table);
-  }
-  ASSERT_TRUE(flag);
-  auto expect_it = expect_table.begin();
-  for(auto it = actual_table.begin(); it != actual_table.end() && expect_it != expect_table.end(); ++it, ++expect_it) {
-    bool flag = (it->getId() == *expect_it);
-    if(!flag) { // if check invalid, print expect table & actual table
-      displayMembershipTable(expect_table, actual_table);
-    }
-    ASSERT_TRUE(flag);
-  }
-}
-
-void displayPartitionTable(const std::vector<std::vector<int32_t> >& expect_table, const std::vector<PartitionWrapper>& actual_table) {
+void displayPartitionTable(const std::vector<PartitionWrapper>& actual_table) {
   DVLOG(1) << "#################### Actual partition table #####################";
   for(auto it = actual_table.begin(); it != actual_table.end(); ++it) {
     stringstream str;
     str << it->getMemberId(0) << " | ";
-    for(uint8_t i = 1, backups = it->getBackupNodes(); i <= backups; ++i) {
+    for(uint8_t i = 1, backups = it->getPartition().cells_size(); i < backups; ++i) {
       str << it->getMemberId(i) << " | ";
     }
     DVLOG(1) << str.str();
   }
-  DVLOG(1) << "#################### Expect partition table #####################";
-  for(auto it = expect_table.begin(); it != expect_table.end(); ++it) {
-    stringstream str;
-    for(size_t j = 0; j < it->size(); ++j) {
-      str << it->at(j) << " | ";
-    }
-    DVLOG(1) << str.str();
-  }
-}
-
-void toVector(std::vector<std::vector<int32_t>>& vct, int array[][2], const int array_len) {
-  for (int i = 0, size = array_len; i < size; ++i) {
-    std::vector<int32_t> element;
-    element.push_back(array[i][0]);
-    element.push_back(array[i][1]);
-    vct.push_back(element);
-  }
-}
-
-bool checkPartitionTable(const std::vector<std::vector<int32_t>>& expect_table, const std::vector<PartitionWrapper>& actual_table) {
-  auto expect_it = expect_table.begin();
-  for(auto it = actual_table.begin(); it != actual_table.end() && expect_it!=expect_table.end(); ++it, ++expect_it) {
-    bool flag = (it->getMemberId(0) == expect_it->at(0));
-    if(!flag) {
-      return false;
-    }
-    for(uint8_t i = 1, backups = it->getBackupNodes(); i <= backups; ++i) {
-      flag = (it->getMemberId(i) == expect_it->at(i));
-      if(!flag) {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 void checkStep1(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
   function_footprint();
-	VLOG(1) << "############################## step 1: start server 1(local store) ################################";
-	// check leading
-	const MemberWrapper& leading = member_table[0];
-	ASSERT_TRUE(leading.isLeading());
-	// initialize expect membership table & partition_table
-	std::vector<int32_t> expect_member_table = {0, 1};
-	// check membership table
-	checkMembershipTable(expect_member_table, member_table);
-
-	// check partition table
-	std::vector<std::vector<int32_t>> expect_partition_table;
-	toVector(expect_partition_table, PARTITION_TABLE_WITH_0, partition_table.size());
-	bool flag = checkPartitionTable(expect_partition_table, partition_table);
-	if(!flag) {
-	  displayPartitionTable(expect_partition_table, partition_table);
-	}
-	ASSERT_TRUE(flag);
+	DVLOG(1) << "step 1: start server 1(local store), itself selected as leading";
 }
 
 void checkStep2(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 2: start server 2(local store) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[0];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, PARTITION_TABLE_WITH_1_0, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+  function_footprint();
+  DVLOG(1) << "step 2: start server 2(local store), server 1 is leading";
 }
 
 void checkStep3(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 3: start server 3(local store) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[0];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, PARTITION_TABLE_WITH_1_0, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+  DVLOG(1) << "step 3: kill server 2(local store), server 1 is leading";
 }
 
 void checkStep4(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 4: kill server 1(local store, leading) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[1];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, PARTITION_TABLE_WITH_1, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+	DVLOG(1) << "step 4: start server 2(local store) again, server 1 is leading";
 }
 
 void checkStep5(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 5: kill server 2(local store, leading) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[2];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, EMPTY_PARTITION_TABLE, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+	DVLOG(1) << "step 5: kill server 1(local store, leading), server 2 selected as new leading";
 }
 
 void checkStep6(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 6: start server 1, 2(local store) at the same time ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[2];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table1;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_1_0, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table1, partition_table);
-  if(flag) {
-    return;
-  }
-  // possible result 2
-  std::vector<std::vector<int32_t>> expect_partition_table2;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_0_1, partition_table.size());
-  flag = checkPartitionTable(expect_partition_table2, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table1, partition_table);
-    DVLOG(1) << "####################### Another possible result ###########################";
-    displayPartitionTable(expect_partition_table2, partition_table);
-  }
-  ASSERT_TRUE(flag);
+	DVLOG(1) << "step 6: start server 1(local store) server 3(not local store) at the same time, server 2 is leading";
 }
 
 void checkStep7(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 7: kill server 1, 2(local store, without leading) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[2];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, EMPTY_PARTITION_TABLE, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+	DVLOG(1) << "step 7: kill server 1(local store), server 3(not local store) at the same time";
 }
 
 void checkStep8(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-  DVLOG(1) << "############################## step 8: start server 1, 2(local store) at the same time ################################";
-  // check leading
-  const MemberWrapper& leading = member_table[2];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table1;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_1_0, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table1, partition_table);
-  if(flag) {
-    return;
-  }
-  // possible result 2
-  std::vector<std::vector<int32_t>> expect_partition_table2;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_0_1, partition_table.size());
-  flag = checkPartitionTable(expect_partition_table2, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table1, partition_table);
-    DVLOG(1) << "####################### Another possible result ###########################";
-    displayPartitionTable(expect_partition_table2, partition_table);
-  }
-  ASSERT_TRUE(flag);
+  DVLOG(1) << "step 8: start server 1(local store) server 3(not local store) at the same time again, server 2 is leading";
 }
 
 void checkStep9(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 9: kill server 3(not local store, leading), 1(local store, possible selected leading) at the same time ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[0].isLeading() ? member_table[0] : member_table[1];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0, 1, 2, 3};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
-
-  std::vector<std::vector<int32_t>> expect_partition_table1;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_1, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table1, partition_table);
-  if(flag) {
-    return;
-  }
-  // possible result 2
-  std::vector<std::vector<int32_t>> expect_partition_table2;
-  toVector(expect_partition_table1, PARTITION_TABLE_WITH_0, partition_table.size());
-  flag = checkPartitionTable(expect_partition_table2, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table1, partition_table);
-    DVLOG(1) << "####################### Another possible result ###########################";
-    displayPartitionTable(expect_partition_table2, partition_table);
-  }
-  ASSERT_TRUE(flag);
+  DVLOG(1) << "step 9: kill server 1(local store) server 2(local store, leading) at the same time, server 3(not local store) selected as new leading";
 }
 
 void checkStep10(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
-	VLOG(1) << "############################## step 10: kill server 2(local store, leading) ################################";
-	// check leading
-  const MemberWrapper& leading = member_table[0];
-  ASSERT_TRUE(leading.isLeading());
-  // initialize expect membership table & partition_table
-  std::vector<int32_t> expect_member_table = {0};
-  // check membership table
-  checkMembershipTable(expect_member_table, member_table);
+  DVLOG(1) << "step 10: start server 1(local store) server 2(local store) at the same time again, server 3 is leading";
+}
 
-  std::vector<std::vector<int32_t>> expect_partition_table;
-  toVector(expect_partition_table, EMPTY_PARTITION_TABLE, partition_table.size());
-  // check partition table
-  bool flag = checkPartitionTable(expect_partition_table, partition_table);
-  if(!flag) {
-    displayPartitionTable(expect_partition_table, partition_table);
-  }
-  ASSERT_TRUE(flag);
+void checkStep11(const std::vector<MemberWrapper>& member_table, const std::vector<PartitionWrapper>& partition_table) {
+  DVLOG(1) << "step 10: kill server 1,2,3 at the same time, only exist test client, itself is leading";
 }

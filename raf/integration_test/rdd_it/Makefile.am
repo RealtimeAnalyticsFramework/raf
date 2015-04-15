@@ -17,7 +17,10 @@ itest_PROGRAMS= \
 	it_sum_action_test \
 	it_export_action_test \
 	it_top_n_action_test \
-	it_if_expression_test
+	it_if_expression_test \
+	it_rdd_destroy_test \
+	it_rdd_dag_test \
+	it_rdd_store_listener_test
 	
 
 it_store_delegate_rdd_test_SOURCES = \
@@ -61,15 +64,23 @@ it_top_n_action_test_SOURCES = \
 
 it_if_expression_test_SOURCES = \
 	if_expression_test.cpp
+	
+it_rdd_destroy_test_SOURCES = \
+	rdd_destroy_test.cpp
+
+it_rdd_dag_test_SOURCES = \
+	rdd_dag_test.cpp
+	
+it_rdd_store_listener_test_SOURCES = \
+	rdd_store_listener_test.cpp
 		
 LDADD=  \
        -lidgsclient \
-       -lidgsadmin \
-       -lidgsrdd \
+       -lidgsrddng \
        -lidgsdatastore \
        -lidgsframework \
        -lgtest -lgtest_main \
-       -ltbb -lpthread
+       @IDGS_LDADD@
 
 AM_LDFLAGS = @IDGS_LDFLAGS@
        

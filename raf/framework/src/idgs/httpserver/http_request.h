@@ -8,14 +8,31 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
+#include <memory>
 #include <vector>
 #include "http_header.h"
 
 namespace idgs{
-namespace http {
-namespace server {
+namespace httpserver {
 
+class HttpRequest;
+class HttpResponse;
+class HttpConnection;
+class AsyncContext;
+
+
+///
+/// Http Requst
+///
 class HttpRequest {
+public:
+  HttpRequest(std::weak_ptr<HttpConnection> connection_):
+    connection(connection_), http_version_major(1), http_version_minor(1) {
+  }
+  HttpRequest():
+    http_version_major(1), http_version_minor(1) {
+  }
+
 public:
   std::string& getBody() {
     return body;
@@ -32,6 +49,8 @@ public:
   void setHeaders(const std::vector<HttpHeader>& headers) {
     this->headers = headers;
   }
+
+  std::string getHeader(const std::string& name);
 
   int getHttpVersionMajor() const {
     return http_version_major;
@@ -81,17 +100,25 @@ public:
     this->uri = uri;
   }
 
+  std::shared_ptr<AsyncContext> startAsync();
+
+  bool isAsync();
+
+  void setConnection(std::weak_ptr<HttpConnection> conn) {
+    connection = conn;
+  }
+
 private:
+  std::weak_ptr<HttpConnection> connection;
+  int http_version_major;
+  int http_version_minor;
   std::vector<HttpHeader> headers;
   std::string method;
   std::string uri;
-  int http_version_major;
   std::string request_path; // if the uri is /admin/cluster/member, the request_path is cluster/member
   std::string root_path; // if the uri is /admin/cluster/member, the root_path is admin
-  int http_version_minor;
   std::string body;
 };
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

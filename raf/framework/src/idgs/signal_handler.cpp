@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 #include "idgs/signal_handler.h"
-#include <signal.h>
 #include "idgs/application.h"
 
 namespace idgs {
@@ -28,9 +27,7 @@ namespace idgs {
   /// don't print any log, it may cause core dump.
   /// when the working thread is writing a log, a signal will break the logging and cause lock conflict.
   void SignalHandler::handle(int s) {
-    // DVLOG(1) << "Caught signal: " << s;
-    ::idgs::util::singleton<Application>::getInstance().shutdown();
-
+    idgs_application()->shutdown();
   }
 
 } // namespace idgs

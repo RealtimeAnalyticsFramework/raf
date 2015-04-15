@@ -1,8 +1,12 @@
-# $Header: /var/cvsroot/idgs/setenv.sh,v 1.5 2013/11/07 07:24:53 tinglou Exp $
+# $Header: /var/cvsroot/idgs/setenv.sh,v 1.7 2015/02/06 06:43:52 xitang Exp $
 # setenv for idgs
 # Usage: 
 # . ./setenv.sh
 #
+
+IS_NOT_SET() {
+   [[ -n $1 ]] && return 1 || return 0
+}
 
 HOST=`hostname`
 echo "Hostname: " $HOST
@@ -12,41 +16,78 @@ echo "CPU cores: " $CPUS
 
 # tcmalloc
 # http://gperftools.googlecode.com/svn/trunk/doc/tcmalloc.html
-# TCMALLOC_MEMFS_MALLOC_PATH	default: ""	 If set, specify a path where hugetlbfs or tmpfs is mounted. This may allow for speedier allocations.
+# TCMALLOC_MEMFS_MALLOC_PATH    default: ""      If set, specify a path where hugetlbfs or tmpfs is mounted. This may allow for speedier allocations.
 
 # public address
-export idgs_member_ip=$HOST
+if IS_NOT_SET $idgs_member_ip
+  then export idgs_member_ip=$HOST 
+  else echo idgs_member_ip=$idgs_member_ip  
+fi
 
 # public port
-export idgs_member_port=7700
+if IS_NOT_SET $idgs_member_port
+  then export idgs_member_port=7700
+  else echo idgs_member_port=$idgs_member_port
+fi
 
 # inner address
-export idgs_member_innerIp=$HOST
+if IS_NOT_SET $idgs_member_innerIp
+  then export idgs_member_innerIp=$idgs_member_ip
+  else echo idgs_member_innerIp=$idgs_member_innerIp
+fi
 
 # inner port
-export idgs_member_innerPort=8800
+if IS_NOT_SET $idgs_member_innerPort
+  then export idgs_member_innerPort=8800
+  else echo idgs_member_innerPort=$idgs_member_innerPort 
+fi
 
 # worker thread pool
-export idgs_thread_count=10
+if IS_NOT_SET $idgs_thread_count
+  then export idgs_thread_count=10
+  else echo idgs_thread_count=$idgs_thread_count  
+fi
 
 # IO thread pool
-export idgs_io_thread_count=4
+if IS_NOT_SET $idgs_io_thread_count
+  then export idgs_io_thread_count=4
+  else echo idgs_io_thread_count=$idgs_io_thread_count  
+fi
 
 # idle thread may save energy.
-export idgs_max_idle_thread=1
+if IS_NOT_SET $idgs_max_idle_thread
+  then export idgs_max_idle_thread=1
+  else echo idgs_max_idle_thread=$idgs_max_idle_thread  
+fi
 
-# MTU of UDP channel, MTU=0 means TCP only  
-export idgs_mtu=0
+# MTU of UDP channel, MTU=0 means TCP only
+if IS_NOT_SET $idgs_mtu
+  then export idgs_mtu=0
+  else echo idgs_mtu=$idgs_mtu   
+fi
 
 # Innter TCP: batch recv/send messages count. Larger batch size, less system call.
-export idgs_tcp_batch=200
+if IS_NOT_SET $idgs_tcp_batch
+  then export idgs_tcp_batch=200
+  else echo idgs_tcp_batch=$idgs_tcp_batch   
+fi
 
 # partition count, should be a primary integer, it is recommended to be <total CPU core> X 2
-export idgs_partition_count=233
+if IS_NOT_SET $idgs_partition_count
+  then export idgs_partition_count=233
+  else echo idgs_partition_count=$idgs_partition_count  
+fi
 
 # whether local member store data.
-export idgs_member_service_local_store=true
+if IS_NOT_SET $idgs_member_service_local_store
+  then export idgs_member_service_local_store=true
+  else echo idgs_member_service_local_store=$idgs_member_service_local_store  
+fi
 
 # GLOG related
-export GLOG_v=0
-export GLOG_vmodule="main=1,rdd*=0"
+if IS_NOT_SET $GLOG_v  
+  then export GLOG_v=0
+  else echo GLOG_v=$GLOG_v
+fi
+
+

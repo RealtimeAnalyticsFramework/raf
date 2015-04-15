@@ -22,7 +22,7 @@ public:
   RpcMemberListener(NetworkModelAsio* network);
   ~RpcMemberListener();
 
-  void statusChanged(const idgs::cluster::MemberWrapper& member);
+  void memberStatusChanged(const idgs::cluster::MemberWrapper& member) override;
 private:
   NetworkModelAsio* network;
 

@@ -9,6 +9,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include "idgs/actor/actor.h"
+#include <atomic>
 #include <tbb/concurrent_queue.h>
 
 
@@ -16,46 +17,35 @@ namespace idgs {
 namespace actor {
 
 static std::vector<std::string> ACTOR_STATES_DSP =
-     {"IDLE","ACTIVE","WAITING","TERMINATE"};
+     {"IDLE", "ACTIVE", "TERMINATE"};
 
 class StatefulActor: public Actor {
 public:
   enum State {
-    IDLE, ACTIVE, WAITING, TERMINATE
+    IDLE, ACTIVE, TERMINATE
   };
   StatefulActor();
   virtual ~StatefulActor();
 
   void process(const ActorMessagePtr& msg) override;
 
-//  const std::string& getActorName() const {
-//    LOG(ERROR) << "empty actor name: " << idgs::util::demangle(typeid(*this).name());
-//    static std::string name = "empty actor name";
-//    return name;
-//  }
-
-  State getStatus() const;
-  virtual void onDestroy() override;
-
   unsigned int getPendingMessageNumber();
 
+  State getState() const {
+    return state;
+  }
 protected:
-  void putMessage(ActorMessagePtr msg);
+  virtual void onDestroy() override;
+
+  void putMessage(const ActorMessagePtr& msg);
   bool popMessage(ActorMessagePtr* msg);
+
   bool tryToEntry();
-  bool leave();
-  bool isRunning();
-  bool isWaiting();
-  bool isTerminated();
-  void terminate();
-  bool resume();
+  void leave();
 
 protected:
-  tbb::concurrent_queue<ActorMessagePtr> queue;
-  tbb::atomic<State> _m_state;
-  ///tbb::atomic<int> _lock;
-  void setStatus(const State state);
-  void wait();
+  tbb::concurrent_queue<ActorMessagePtr> msg_queue;
+  std::atomic<State> state;
 };
 
 } // namespace actor

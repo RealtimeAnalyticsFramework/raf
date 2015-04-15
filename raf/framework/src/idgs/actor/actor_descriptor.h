@@ -21,10 +21,10 @@ typedef std::function<void(ActorMessagePtr msg)> ActorOperation;
 class ActorOperationDescriporWrapper {
 public:
   ActorOperationDescriporWrapper() :
-      descriptor(new idgs::pb::ActorOperationDescripor()) {
+    descriptor(std::make_shared<idgs::pb::ActorOperationDescripor>()) {
   }
   ActorOperationDescriporWrapper(std::shared_ptr<idgs::pb::ActorOperationDescripor>& desc) :
-      descriptor(desc){
+    descriptor(desc){
   }
 
   ActorOperationDescriporWrapper(const ActorOperationDescriporWrapper&) = default;

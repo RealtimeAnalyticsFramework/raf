@@ -22,21 +22,45 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include <sys/wait.h>
 #include <dlfcn.h>
 #include <execinfo.h>
+#include <tuple>
 #include "idgs/util/utillity.h"
 
 #if defined(USE_UNWIND)
 #include <unwind.h>
 #include <dlfcn.h>
-#include <tuple>
 #else // defined(USE_UNWIND)
 #include <execinfo.h>
 #endif // defined(USE_UNWIND)
 
-// #include <linux/limits.h>
 #define PATH_MAX 4096 // defined in <linux/limits.h>
 
 namespace idgs {
 namespace util {
+
+///
+/// thread local storage: exception call stack.
+///
+static __thread std::string* g_exception_callstack = NULL;
+
+///
+/// get call stack of exception
+///
+std::string* get_expection_callstack() {
+  return g_exception_callstack;
+}
+
+///
+/// set call stack of exception
+///
+void set_expection_callstack(const std::string& s) {
+  if (g_exception_callstack) {
+    delete g_exception_callstack;
+    g_exception_callstack = NULL;
+  }
+  g_exception_callstack = new std::string(s);
+}
+
+
 ///
 /// Wrap function for G++ abi
 ///
@@ -241,7 +265,9 @@ extern "C" void __wrap___cxa_throw(void* thrown_exception, std::type_info* tinfo
   std::stringstream ss;
   ss << "Call stack of exception " << idgs::util::demangle(tinfo->name()) << std::endl;
   ss << idgs::util::stacktrace(2);
-  LOG(ERROR) << ss.str();
+  std::string s = ss.str();
+  idgs::util::set_expection_callstack(s);
+  // LOG(ERROR) << s;
 #endif // defined(__GNUC__)
 
   __real___cxa_throw(thrown_exception, tinfo, dest);

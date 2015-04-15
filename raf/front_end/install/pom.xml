@@ -5,11 +5,11 @@
   
   <modelVersion>4.0.0</modelVersion>
   
-  <groupId>idgs</groupId>
-  <artifactId>sql-engine</artifactId>
-  <version>0.0.1</version>
+  <groupId>idgs-install</groupId>
+  <artifactId>idgs-sql</artifactId>
+  <version>0.1.0</version>
   <packaging>pom</packaging>
-  <name>SqlEngine installer</name>
+  <name>idgs-sql installer</name>
   <description>SqlEngine installer</description>
   <url>http://maven.apache.org</url>
   <inceptionYear>2013</inceptionYear>
@@ -17,8 +17,8 @@
   <dependencies>
     <dependency>
       <groupId>idgs</groupId>
-      <artifactId>sql_engine</artifactId>
-      <version>0.0.1</version>
+      <artifactId>idgs-jdbc</artifactId>
+      <version>0.1.0</version>
     </dependency>
   </dependencies>
   <build>
@@ -31,7 +31,7 @@
         <executions>
           <execution>
             <id>make-assembly</id>
-            <phase>package</phase>
+            <phase>install</phase>
             <goals>
               <goal>single</goal>
             </goals>

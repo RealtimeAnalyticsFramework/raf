@@ -23,22 +23,39 @@ class Actor;
 typedef void (idgs::actor::Actor:: * ActorMessageHandler) (const idgs::actor::ActorMessagePtr& msg);
 typedef std::map<std::string, ActorMessageHandler> ActorMessageHandlerMap;
 
+enum ProcessStatus {
+  DEFAULT,
+  TERMINATE
+};
+
 class Actor {
 public:
   Actor() {}
   virtual ~Actor() {}
+
+  /// Unique ID of actor instance in a member.
+  /// A actor instance is identified as [member_id, actor_id].
   inline const std::string& getActorId() const {
     return actorId;
   }
+
+  /// Actor's user friend name, e.g. class name.
+  /// All actor instances of same class share the same name.
   virtual const std::string& getActorName() const = 0;
+
+  /// terminate itself
   void terminate();
+
+  /// terminate a actor by sending a 'DESTROY' message to the actor.
+  void terminate(const std::string& actor_id, int member_id = idgs::pb::ANY_MEMBER);
+
 public:
   virtual const idgs::actor::ActorDescriptorPtr& getDescriptor() const = 0;
   virtual const ActorMessageHandlerMap& getMessageHandlerMap() const = 0;
 
   /// create an ActorMessage whose source actor is this actor
   /// @return the ActorMessage
-  std::shared_ptr<ActorMessage> createActorMessage() const;
+  virtual std::shared_ptr<ActorMessage> createActorMessage() const;
 
   /// create an ActorMessage whose source actor is given by the parameter
   /// @return the ActorMessage
@@ -55,9 +72,17 @@ public:
 
 protected:
   bool handleSystemOperation(const ActorMessagePtr& msg);
-  virtual void innerProcess(const ActorMessagePtr& msg);
-  virtual void onDestroy() {}
 
+  /// This method should be invoked by process, and should NEVER called directly by other method.
+  /// User usually needn't override this method while the logic should be put into ActorMessageHandler
+  /// @see #process
+  /// @see #ActorMessageHandler
+  virtual ProcessStatus innerProcess(const ActorMessagePtr& msg);
+
+  /// Unregister actor and release all resource. Delete itself when necessary.
+  /// This method is called when a 'DESTROY' message arrives, user logic should never call it directly.
+  /// @see #terminate
+  virtual void onDestroy() = 0;
 
 protected:
   std::string actorId;

@@ -16,20 +16,13 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 using namespace idgs::cluster;
 
 TEST(partition_wrapper_test, no_args_construction) {
-  PartitionWrapper p;
+  PartitionWrapper p(2);
   DVLOG(1) << p.toString();
 }
 
-
-TEST(partition_wrapper_test, with_args_construction) {
-	const size_t backupNodes = 5;
-  PartitionWrapper p(backupNodes);
-  DVLOG(1) << "###########" << backupNodes << " backups #########";
-  DVLOG(1) << p.toString();
-}
 
 TEST(partition_wrapper_test, setMemberId) {
-  PartitionWrapper p;
+  PartitionWrapper p(2);
   p.setMemberId(0, 2);
   ASSERT_EQ(2, p.getMemberId(0));
   DVLOG(1) << p.toString();

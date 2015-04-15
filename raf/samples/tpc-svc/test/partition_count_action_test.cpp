@@ -15,11 +15,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/tpc/tpc_svc_const.h"
 #include "idgs/tpc/pb/tpc_rdd_action.pb.h"
-#include "idgs/store/data_map.h"
 
 using namespace std;
 using namespace idgs;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace idgs::tpc::pb;
@@ -29,14 +27,15 @@ TEST(partition_count_action_test, create_store_delegate) {
   TEST_TIMEOUT(30);
 
   /// init RDD client
-  ResultCode code = singleton<RddClient>::getInstance().init("samples/tpc-svc/conf/client.conf");
+  RddClient client;
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     exit(1);
   }
 
   /// create store delegate RDD
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
   std::string store_name = "ssb_lineorder"; // default
   char* env_store_name = getenv("RDD_CHECK_STORE_NAME");
   if(env_store_name) {
@@ -44,19 +43,20 @@ TEST(partition_count_action_test, create_store_delegate) {
   }
   string delegate_rdd_name = "delegate_" + store_name;
   request->set_rdd_name(delegate_rdd_name);
+  request->set_schema_name("ssb");
   request->set_store_name(store_name);
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   LOG(INFO) << "sleep 3s, execute action";
   /// sleep 3, then exec action
   sleep(3);
   {
-    ActionRequestPtr request(new ActionRequest);
-    ActionResponsePtr response(new ActionResponse);
-    ActionResultPtr result(new PartitionCountActionResult);
+    ActionRequestPtr request = std::make_shared<ActionRequest>();
+    ActionResponsePtr response = std::make_shared<ActionResponse>();
+    ActionResultPtr result = std::make_shared<PartitionCountActionResult>();
     request->set_action_id("partition_count_action_test");
     request->set_action_op_name(idgs::tpc::PARTITION_COUNT_ACTION);
     request->set_rdd_name(delegate_rdd_name);
-    singleton<RddClient>::getInstance().sendAction(request, response,  result);
+    client.sendAction(request, response,  result);
     PartitionCountActionResult* action_result = dynamic_cast<PartitionCountActionResult*>(result.get());
     assert(action_result);
     size_t partition_size = action_result->partition_results_size();

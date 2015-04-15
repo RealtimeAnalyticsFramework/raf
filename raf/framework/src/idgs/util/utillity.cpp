@@ -11,13 +11,18 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #endif // GNUC_ $
 #include "utillity.h"
 #include <sys/time.h>
+
 #include <fstream>
+#include <algorithm>
+
+#include "protobuf/protobuf_json.h"
+
 
 using namespace std;
 
 namespace idgs {
-
-bool sys::isPrime(size_t num) {
+namespace sys {
+bool isPrime(size_t num) {
   if (num <= 1)
     return false;
   else if (num == 2)
@@ -39,13 +44,13 @@ bool sys::isPrime(size_t num) {
   }
 }
 
-unsigned long sys::getCurrentTime() {
+unsigned long getCurrentTime() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-std::string sys::formatTime(double spent_time) {
+std::string formatTime(double spent_time) {
   stringstream s;
   if (spent_time < 1000) {
     s << spent_time << "ms";
@@ -59,19 +64,25 @@ std::string sys::formatTime(double spent_time) {
   return s.str();
 }
 
-void sys::saveFile(const std::string& fileName, const std::string& content) {
+/// @fixme don't fork.
+void saveFile(const std::string& fileName, const std::string& content) {
   auto pos = fileName.find_last_of("/");
   string::size_type npos = -1;
   if (pos != npos) {
     string dir = fileName.substr(0, pos);
     string cmd = "mkdir -p " + dir;
-    system(cmd.c_str());
+    if(system(cmd.c_str())) {
+      LOG(ERROR) << "failed to create dir: " << dir;
+      /// @fixme return value.
+      return;
+    }
   }
 
   ofstream file(fileName);
   file << content;
   file.close();
 }
+} // namespace sys
 
 std::string str::trim(const std::string& s) {
   if (s.length() == 0) {
@@ -104,15 +115,30 @@ void str::split(const std::string& str, const std::string& delimiter, std::vecto
 
 string str::toUpper(const string& str) {
   string value = str;
-  transform(value.begin(), value.end(), value.begin(), ::toupper);
+  std::transform(value.begin(), value.end(), value.begin(), ::toupper);
   return value;
 }
 
 string str::toLower(const string& str) {
   string value = str;
-  transform(value.begin(), value.end(), value.begin(), ::tolower);
+  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
   return value;
 }
 
+ResultCode parseIdgsConfig(google::protobuf::Message* message, const std::string& filePath) {
+  ResultCode code = (ResultCode)protobuf::ProtobufJson::parseJsonFromFile(message, filePath);
+  if (!code) {
+    return code;
+  }
+  std::string idgsHome = "..";
+  if (getenv("IDGS_HOME")) {
+    idgsHome = getenv("IDGS_HOME");
+  }
+
+  string path = idgsHome + "/" + filePath;
+  code = (ResultCode)protobuf::ProtobufJson::parseJsonFromFile(message, path);
+  return code;
 }
+
+} // namesapce idgs
 

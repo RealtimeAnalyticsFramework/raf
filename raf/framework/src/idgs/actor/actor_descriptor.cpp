@@ -15,18 +15,16 @@ namespace idgs {
 namespace actor {
 
 ActorDescriptorWrapper::ActorDescriptorWrapper(std::shared_ptr<idgs::pb::ActorDescriptor>& descriptor) :
-    name(descriptor->name()), description(descriptor->description()), type(type = descriptor->type()) {
+    name(descriptor->name()), description(descriptor->description()), type(descriptor->type()) {
   // set in operations
   for (int i = 0, size = descriptor->in_operations_size(); i < size; ++i) {
-    std::shared_ptr<idgs::pb::ActorOperationDescripor> op(
-        new idgs::pb::ActorOperationDescripor(descriptor->in_operations(i)));
+    std::shared_ptr<idgs::pb::ActorOperationDescripor> op = std::make_shared<idgs::pb::ActorOperationDescripor>(descriptor->in_operations(i));
     ActorOperationDescriporWrapper op_wrapper(op);
     setInOperation(op_wrapper.getName(), op);
   }
   // set out operations
   for (int i = 0, size = descriptor->out_operations_size(); i < size; ++i) {
-    std::shared_ptr<idgs::pb::ActorOperationDescripor> op(
-        new idgs::pb::ActorOperationDescripor(descriptor->out_operations(i)));
+    std::shared_ptr<idgs::pb::ActorOperationDescripor> op = std::make_shared<idgs::pb::ActorOperationDescripor>(descriptor->out_operations(i));
     ActorOperationDescriporWrapper op_wrapper(op);
     setOutOperation(op_wrapper.getName(), op_wrapper);
   }
@@ -37,7 +35,7 @@ ActorDescriptorWrapper::ActorDescriptorWrapper(std::shared_ptr<idgs::pb::ActorDe
 }
 
 std::shared_ptr<idgs::pb::ActorDescriptor> ActorDescriptorWrapper::toActorDescriptor() {
-  std::shared_ptr<idgs::pb::ActorDescriptor> desc(new idgs::pb::ActorDescriptor);
+  std::shared_ptr<idgs::pb::ActorDescriptor> desc = std::make_shared<idgs::pb::ActorDescriptor>();
   desc->set_name(name);
   desc->set_description(description);
   desc->set_type(type);
@@ -134,8 +132,8 @@ std::string ActorDescriptorWrapper::toString() const {
 ModuleDescriptorWrapper::ModuleDescriptorWrapper(std::shared_ptr<idgs::pb::ModuleDescriptor>& module_descriptor) :
     name(module_descriptor->name()), description(module_descriptor->description()) {
   for (const idgs::pb::ActorDescriptor actor : module_descriptor->actors()) {
-    std::shared_ptr<idgs::pb::ActorDescriptor> actorPtr(new idgs::pb::ActorDescriptor(actor));
-    ActorDescriptorPtr actor_descriptor(new ActorDescriptorWrapper(actorPtr));
+    std::shared_ptr<idgs::pb::ActorDescriptor> actorPtr = std::make_shared<idgs::pb::ActorDescriptor>(actor);
+    ActorDescriptorPtr actor_descriptor = std::make_shared<ActorDescriptorWrapper>(actorPtr);
     addActorDescriptor(actor_descriptor);
   }
 }
@@ -161,7 +159,7 @@ const ActorDescriptorPtr& ModuleDescriptorWrapper::getActorDescriptor(const std:
 }
 
 std::shared_ptr<idgs::pb::ModuleDescriptor> ModuleDescriptorWrapper::toModuleDescriptor() const {
-  std::shared_ptr<idgs::pb::ModuleDescriptor> module_descriptor(new idgs::pb::ModuleDescriptor);
+  std::shared_ptr<idgs::pb::ModuleDescriptor> module_descriptor = std::make_shared<idgs::pb::ModuleDescriptor>();
   for (auto it = actorDescriptors.begin(); it != actorDescriptors.end(); ++it) {
     module_descriptor->set_name(name);
     module_descriptor->set_description(description);

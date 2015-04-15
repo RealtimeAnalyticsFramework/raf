@@ -19,7 +19,7 @@ namespace expr {
 bool ConstExpression::parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
     const idgs::actor::PbMessagePtr& value) {
   if (entryExp.expression_size()) {
-    LOG(ERROR)<< "Invalid subexpression: " << entryExp.type();
+    LOG(ERROR)<< "Invalid subexpression: " << entryExp.name();
     return false;
   }
 

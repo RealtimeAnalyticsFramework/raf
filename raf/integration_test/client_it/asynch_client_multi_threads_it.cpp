@@ -38,26 +38,26 @@ class MultiThreadsClientStatelessActor: public StatelessActor {
       /*{
           std::lock_guard<std::mutex> lockGuard(lock);
       }*/
-      count.fetch_and_add(1);
+      count.fetch_add(1);
       ActorMessagePtr response = msg->createResponse();
-      std::shared_ptr<idgs::pb::Long> rsp(new idgs::pb::Long());
+      std::shared_ptr<idgs::pb::Long> rsp = std::make_shared<idgs::pb::Long>();
       rsp->set_value(count.load());
       response->setPayload(rsp);
       response->setOperationName("test");
       idgs::actor::sendMessage(response);
     }
   private:
-    tbb::atomic<int> count;
+    std::atomic<int> count;
     std::mutex lock;
 };
 
-TEST(tcp, asynch_tcp_client_multi_threads) {
-  tbb::atomic<int> count;
+TEST(asynch_client_multi_threads, asynch_tcp_client_multi_threads) {
+  std::atomic<int> count;
   ResultCode code;
   ::sleep(5);
 
   ApplicationSetting setting1;
-  setting1.clusterConfig = "framework/conf/cluster.conf";
+  setting1.clusterConfig = "conf/cluster.conf";
 
   code = RC_SUCCESS;
 
@@ -73,10 +73,10 @@ TEST(tcp, asynch_tcp_client_multi_threads) {
 
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/client_it/ut_test_four_clients.conf";
-  setting.storeConfig = "integration_test/client_it/data_store.conf";
+  setting.clientConfig = "integration_test/client_it/test_client.conf";
+  setting.storeConfig = "conf/data_store.conf";
 
-  code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  code = getTcpClientPool().loadConfig(setting);
   ASSERT_EQ(code, RC_SUCCESS);
 
   vector<thread> threadPool;
@@ -89,7 +89,7 @@ TEST(tcp, asynch_tcp_client_multi_threads) {
       int times = 0;
       while(times < TIMES_COUNT) {
         sendMessage(code, mtest_server_id, response);
-        std::shared_ptr<idgs::pb::Long> rsp(new idgs::pb::Long());
+        std::shared_ptr<idgs::pb::Long> rsp = std::make_shared<idgs::pb::Long>();
         ASSERT_EQ(code, RC_SUCCESS);
         if (response.get()) {
           if (response->getRpcMessage()) {

@@ -13,21 +13,18 @@ if [ "$WORKSPACE" = "" ]; then
 fi
 if [ "$BUILD_DIR" = "" ]; then
   BUILD_DIR=$WORKSPACE/idgs
-  export $BUILD_DIR
+  export BUILD_DIR
 fi
 echo "====== WORKSPACE: $WORKSPACE ======="
 
-/bin/kill -9 idgs 2>/dev/null
-/bin/kill -9 idgs-aio 2>/dev/null
-ps -ef | grep lt-it | grep -v grep | awk --source '{print $2}' | xargs /bin/kill -9
-ps -ef | grep lt-ut | grep -v grep | awk --source '{print $2}' | xargs /bin/kill -9
-
+# killall idgs 2>/dev/null
 
 
 echo "############################## Setup environment ###############################################"
 ulimit -c unlimited
 # remove all core dump.
 find . -name "core.*" -exec rm -f {} \; 2>/dev/null
+rm -f hive_job_log*.txt 2>/dev/null
 
 # turn on verbose log
 GLOG_v=5
@@ -46,34 +43,34 @@ run_test() {
   $1 --gtest_color=yes 2>ut.log
   RC_CODE=$?
   if [ $RC_CODE -ne 0 ] ; then
-    echo "####################### dump stderr ###############################"
-    cat ut.log
-    echo "###################################################################"
-   
-    CORE_FILE=`ls core.* 2>/dev/null`
-    if [ "$CORE_FILE" != "" ] ; then
-      # ldd $1
-      echo "####################### Core Dump Stack ###############################"
-      gdb -ex where -ex quit $1 $CORE_FILE
-    fi
-
     exit $RC_CODE
   fi
 }
 
 ensure_corosync(){
-  echo "restart corosync"
-  service corosync stop
+  echo "ensure corosync"
+  # service corosync stop
   service corosync start
 }
 
 ensure_corosync
 
+cd $WORKSPACE/idgs
+
 rm ./dist/utest/cluster_cfg_parser_env_test  
 
-UT_CASES=`dir ./dist/utest`
+# register EXIT trap
+. build/archive_test_log.sh
 
+# run all unit cases.
+UT_CASES=`dir ./dist/utest`
 for UT in $UT_CASES; do
+  rm *.log 2>/dev/null
+  IT_CASE_NAME=$UT
+  export IT_CASE_NAME
+
   run_test ./dist/utest/$UT
 done
+rm *.log 2>/dev/null
+
 

@@ -12,7 +12,7 @@ namespace idgs {
 namespace client {
 class LoaderFactory {
 public:
-  Loader* createLoader(int type);
+  static Loader* createLoader(int type);
 };
 }
 }

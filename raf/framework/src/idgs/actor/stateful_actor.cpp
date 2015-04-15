@@ -10,112 +10,81 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs_gch.h" 
 #endif // GNUC_ $
 
-#include "idgs/actor/rpc_framework.h"
-
+#include "idgs/application.h"
 
 namespace idgs {
 namespace actor {
 
 StatefulActor::StatefulActor() {
-  _m_state.store(IDLE);
-  ActorFramework* af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+  state.store(IDLE);
+  ActorManager* af = idgs_application()->getRpcFramework()->getActorManager();
   actorId = (af->generateActorId(this));
 }
 
 StatefulActor::~StatefulActor() {
+  state.store(TERMINATE);
+  // clear actor inner message queue
+  msg_queue.clear();
 }
 
 void StatefulActor::onDestroy() {
   DVLOG(2) << "Actor " << this->getActorId() << " get message " << OP_DESTROY;
-  ActorFramework* af = ::idgs::util::singleton<RpcFramework>::getInstance().getActorFramework();
+  state.store(TERMINATE);
+  msg_queue.clear();
+
   // unregister
-  af->unRegisterStatefulActor(this->getActorId());
-
-  // clear actor inner message queue
-  queue.clear();
-
+  ActorManager* af = idgs_application()->getRpcFramework()->getActorManager();
+  af->unregisterSessionActor(this->getActorId());
 
   // free memory
   delete this;
 }
 
 
-void StatefulActor::putMessage(ActorMessagePtr msg) {
-  queue.push(msg);
+void StatefulActor::putMessage(const ActorMessagePtr& msg) {
+  if (state.load() == TERMINATE) {
+    LOG(WARNING) << "Actor is already terminated.";
+    return;
+  }
+  msg_queue.push(msg);
 }
 
 bool StatefulActor::popMessage(ActorMessagePtr* msg) {
-  return queue.try_pop(*msg);
+  return msg_queue.try_pop(*msg);
 }
 
 bool StatefulActor::tryToEntry() {
-  return _m_state.compare_and_swap(ACTIVE, IDLE) == IDLE;
+  State expectedState = IDLE;
+#if !defined(RETRY_LOCK_TIMES)
+#define RETRY_LOCK_TIMES 5
+#endif // !defined(RETRY_LOCK_TIMES)
+  for (int i = 0; i < RETRY_LOCK_TIMES; ++i) {
+    expectedState = IDLE;
+    if (state.compare_exchange_strong(expectedState, ACTIVE)) {
+      return true;
+    }
+  }
+  return false;
 }
 
-bool StatefulActor::leave() {
-  return _m_state.compare_and_swap(IDLE, ACTIVE) == ACTIVE;
+void StatefulActor::leave() {
+  State expectedState = ACTIVE;
+  state.compare_exchange_strong(expectedState, IDLE);
 }
 
 unsigned int StatefulActor::getPendingMessageNumber() {
-  return queue.unsafe_size();
-}
-
-void StatefulActor::setStatus(const State state) {
-  _m_state.store(state);
-}
-
-StatefulActor::State StatefulActor::getStatus() const {
-  return _m_state.load();
-}
-
-void StatefulActor::wait() {
-  _m_state.store(WAITING);
-}
-
-/// @todo may send response to all the pending message in the queue
-void StatefulActor::terminate() {
-  _m_state.store(TERMINATE);
-
-}
-
-bool StatefulActor::resume() {
-  return _m_state.compare_and_swap(IDLE, WAITING) == WAITING;
-}
-
-bool StatefulActor::isRunning() {
-  return _m_state.load() == ACTIVE;
-}
-
-bool StatefulActor::isWaiting() {
-  return _m_state.load() == WAITING;
-}
-
-bool StatefulActor::isTerminated() {
-  return _m_state.load() == TERMINATE;
+  return msg_queue.unsafe_size();
 }
 
 void StatefulActor::process(const ActorMessagePtr& msg) {
   parse(const_cast<ActorMessagePtr&>(msg));
 
-  if (handleSystemOperation(msg)) {
-    DVLOG(1) << "received a system message.";
-    return;
-  }
-
-  DVLOG(2) << "Send ActorMessage " << msg.get() << " to Actor " << getActorId() << " at Actor state " << getStatus();
-
-  if (isTerminated()) {
-    DLOG(WARNING)<< "Can not send a message " << msg.get() << " to Actor " << getActorId() << " at TERMINATE state ";
+  if (state.load() == TERMINATE) {
+    DLOG(WARNING)<< "Can not send a message to Actor at TERMINATE state.";
     /// @todo may send error response back;
     return;
   }
-
-  if (isWaiting()) {
-    if (resume()) {
-      DVLOG(2) << "Send a message " << msg.get() << " to Actor " << getActorId() << " at Waiting state ";
-      //StatefulActor* tempActorPtr = NULL;
-    }
-  }
+  DVLOG(2) << "Send ActorMessage " << msg.get() << " at Actor state " << state.load();
 
   putMessage(msg);
 
@@ -123,23 +92,16 @@ void StatefulActor::process(const ActorMessagePtr& msg) {
     DVLOG(2) << "Thread " << std::this_thread::get_id() << " get actor " << getActorId() << " lock";
 
     ActorMessagePtr msgPtr;
-    if (popMessage(&msgPtr)) {
+    if (state.load() == ACTIVE && popMessage(&msgPtr)) {
       do {
-        innerProcess(msgPtr);
-      } while (isRunning() && popMessage(&msgPtr));
-
-      //Check Again
-      if (popMessage(&msgPtr)) {
-        do {
-          innerProcess(msgPtr);
-        } while (isRunning() && popMessage(&msgPtr));
-      }
+        auto status = innerProcess(msgPtr);
+        if (status == ProcessStatus::TERMINATE) {
+          return;
+        }
+      } while (state.load() == ACTIVE && popMessage(&msgPtr));
     }
 
-    if (!leave()) {
-      DLOG_IF(WARNING, _m_state != TERMINATE) << "Thread " << std::this_thread::get_id() << " leave the Actor "
-                                                 << getActorId() << " not in Active State: " << _m_state;
-    }
+    leave();
   }
 }
 

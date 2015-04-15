@@ -19,28 +19,28 @@ using namespace idgs::pb;
 
 // init
 TEST(partition_table_mgr, init) {
-  PartitionTableMgr partition_manager;
+  PartitionManagerActor partition_manager;
   ClusterConfig cfg;
   cfg.set_partition_count(17);
-  cfg.set_max_backup_count(1);
+  cfg.set_max_replica_count(2);
   partition_manager.init(&cfg);
 }
 // toString
 TEST(partition_table_mgr, toString) {
-  PartitionTableMgr partition_manager;
+  PartitionManagerActor partition_manager;
   ClusterConfig cfg;
   cfg.set_partition_count(17);
-  cfg.set_max_backup_count(1);
+  cfg.set_max_replica_count(2);
   partition_manager.init(&cfg);
   DVLOG(1) << partition_manager.toString();
 }
 
 // genPartitionTable
 TEST(partition_table_mgr, genPartitionTable) {
-  PartitionTableMgr partition_manager;
+  PartitionManagerActor partition_manager;
   ClusterConfig cfg;
   cfg.set_partition_count(17);
-  cfg.set_max_backup_count(1);
+  cfg.set_max_replica_count(2);
   partition_manager.init(&cfg);
   PartitionTable table;
   partition_manager.genPartitionTable(table);

@@ -18,22 +18,74 @@ namespace expr {
 /// else if(cond2) value2
 /// ...
 /// else default
-class IfExpression: public NAryExpression, public idgs::util::CloneEnabler<IfExpression, Expression> {
-public:
-  IfExpression();
-  virtual ~IfExpression();
-
+class WhenExpression: public NAryExpression, public idgs::util::CloneEnabler<WhenExpression, Expression> {
 public:
   virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
 
   virtual const std::string& name() {
-    static std::string name("IF");
+    static std::string name("WHEN");
+    return name;
+  }
+
+  virtual const std::string* alias() override {
+    static std::string alias = "IF";
+    return &alias;
+  }
+
+  virtual bool parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
+      const idgs::actor::PbMessagePtr& value) override;
+};
+
+/// Parameters: [expr, cond_value1, value1, cond_value2, value2, ... , cond_valueN, valueN, default]
+/// logic:
+/// if(expr == cond_value1) value1
+/// else if(expr == cond_value2) value2
+/// ...
+/// else default
+class CaseExpression: public NAryExpression, public idgs::util::CloneEnabler<CaseExpression, Expression> {
+public:
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("CASE");
     return name;
   }
 
   virtual bool parse(const idgs::pb::Expr& entryExp, const idgs::actor::PbMessagePtr& key,
       const idgs::actor::PbMessagePtr& value) override;
 };
+
+/// Parameters: [expr, default]
+/// logic:
+/// if(expr is null) default
+/// else expr
+class NvlExpression: public BinaryExpression, public idgs::util::CloneEnabler<NvlExpression, Expression> {
+public:
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("NVL");
+    return name;
+  }
+};
+
+/// Parameters: [v1, v2... vn]
+/// logic:
+/// if(v1 is not null) v1
+/// else if (v2 is not null) v2
+/// ...
+/// else if (vn is not null) vn
+/// else NULL
+class CoalesceExpression: public NAryExpression, public idgs::util::CloneEnabler<CoalesceExpression, Expression> {
+public:
+  virtual protobuf::PbVariant evaluate(ExpressionContext* ctx) const;
+
+  virtual const std::string& name() {
+    static std::string name("COALESCE");
+    return name;
+  }
+};
+
 
 ///
 /// variable set expression

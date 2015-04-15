@@ -24,15 +24,14 @@ using namespace idgs::client;
 using namespace idgs::store;
 
 TEST(replicated_store, get) {
-  TEST_TIMEOUT(10);
-
-  std::shared_ptr<NationKey> key(new NationKey);
+  std::shared_ptr<NationKey> key = std::make_shared<NationKey>();
   key->set_n_nationkey(10000);
 
-  std::shared_ptr<idgs::store::pb::GetRequest> request(new idgs::store::pb::GetRequest);
+  std::shared_ptr<idgs::store::pb::GetRequest> request = std::make_shared<idgs::store::pb::GetRequest>();
+  request->set_schema_name("tpch");
   request->set_store_name("Nation");
 
-  ClientActorMessagePtr clientActorMsg(new ClientActorMessage);
+  ClientActorMessagePtr clientActorMsg = std::make_shared<ClientActorMessage>();
   clientActorMsg->setOperationName(OP_GET);
   clientActorMsg->setChannel(TC_TCP);
   clientActorMsg->setDestActorId(ACTORID_STORE_SERVCIE);
@@ -44,18 +43,19 @@ TEST(replicated_store, get) {
   clientActorMsg->setAttachment(STORE_ATTACH_KEY, key);
 
   ClientSetting setting;
-  setting.clientConfig = "integration_test/store_it/client1.conf";
+  setting.clientConfig = "conf/client_8800.conf";
   ResultCode code;
 
-  code = ::idgs::util::singleton<TcpClientPool>::getInstance().loadConfig(setting);
+  auto& pool = getTcpClientPool();
+  code = pool.loadConfig(setting);
   ASSERT_EQ(RC_SUCCESS, code);
 
-  std::shared_ptr<TcpClientInterface> client =
-      ::idgs::util::singleton<TcpClientPool>::getInstance().getTcpClient(code);
+  auto client = pool.getTcpClient(code);
   ASSERT_EQ(RC_SUCCESS, code);
 
   // response
-  ClientActorMessagePtr tcpResponse = client->sendRecv(clientActorMsg, &code);
+  ClientActorMessagePtr tcpResponse;
+  code = client->sendRecv(clientActorMsg, tcpResponse);
   ASSERT_EQ(RC_SUCCESS, code);
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "Error in get data to replicated store, cause by " << getErrorDescription(code);
@@ -92,5 +92,5 @@ TEST(replicated_store, get) {
   ASSERT_EQ("Intel", nation.n_comment());
 
   client->close();
-  ::idgs::util::singleton<TcpClientPool>::getInstance().close();
+  getTcpClientPool().close();
 }

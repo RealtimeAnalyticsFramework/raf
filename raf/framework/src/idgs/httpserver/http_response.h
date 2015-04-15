@@ -11,9 +11,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include <asio.hpp>
 #include "http_header.h"
 
-namespace idgs{
-namespace http {
-namespace server {
+namespace idgs {
+namespace httpserver {
 
 /// A reply to be sent to a client.
 class HttpResponse {
@@ -24,19 +23,22 @@ public:
     created = 201,
     accepted = 202,
     no_content = 204,
+
     multiple_choices = 300,
     moved_permanently = 301,
     moved_temporarily = 302,
     not_modified = 304,
+
     bad_request = 400,
     unauthorized = 401,
     forbidden = 403,
     not_found = 404,
+
     internal_server_error = 500,
     not_implemented = 501,
     bad_gateway = 502,
     service_unavailable = 503
-  } status;
+  };
 
   const std::string& getContent() const {
     return content;
@@ -46,13 +48,23 @@ public:
     this->content = content;
   }
 
-  const std::vector<idgs::http::server::HttpHeader>& getHeaders() const {
+  const std::vector<idgs::httpserver::HttpHeader>& getHeaders() const {
     return headers;
   }
 
-  void setHeaders(
-      const std::vector<idgs::http::server::HttpHeader>& headers) {
+  void setHeaders(const std::vector<idgs::httpserver::HttpHeader>& headers) {
     this->headers = headers;
+  }
+
+  void addHeader(const std::string& name, const std::string& value) {
+    struct HttpHeader h;
+    h.header_name = name;
+    h.header_value = value;
+    headers.push_back(h);
+  }
+
+  void setStatus (enum StatusType status) {
+    this->status = status;
   }
 
   /// Convert the reply into a vector of buffers. The buffers do not own the
@@ -68,17 +80,14 @@ public:
   static HttpResponse stockRedirectRespons(std::string& redUri);
 
 private:
+  enum StatusType status;
 
   /// The headers to be included in the reply.
-  std::vector<idgs::http::server::HttpHeader> headers;
+  std::vector<idgs::httpserver::HttpHeader> headers;
 
   /// The content to be sent in the reply.
   std::string content;
-
-
-
 };
 
-} // namespace server
-} // namespace http
-}
+} // namespace httpserver
+} // namespace idgs

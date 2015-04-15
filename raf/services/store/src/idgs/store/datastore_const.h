@@ -16,48 +16,91 @@ namespace store {
 extern const std::string STORE_MODULE_DESCRIPTOR_NAME; //= "store";
 extern const std::string STORE_MODULE_DESCRIPTOR_DESCRIPTION; //= "Service store actor descriptor";
 
+extern const std::string OPERATION_NAME; // = "operation";
 extern const std::string STORE_ATTACH_KEY; //= "key";
 extern const std::string STORE_ATTACH_VALUE; //= "value";
+extern const std::string STORE_ATTACH_LAST_VALUE; //= "value";
+extern const std::string STORE_ATTACH_VERSION_VALUE; //= "value";
 extern const std::string STORE_ATTACH_LISTENER; //= "STORE_ATTACH_LISTENER";
 
-/// Actor id of handle crud operation.
-extern const std::string ACTORID_STORE_SERVCIE; //= "DATA_STORE_ACTOR";
-extern const std::string DATA_AGGREGATOR_ACTOR; //= "DataAggregatorActor";
-extern const std::string DATA_SIZE_AGGREGATOR_ACTOR; //= "DataSizeAggregatorActor";
-extern const std::string DATA_REPLICATED_STORE_SYNC_ACTOR; //= "ReplicatedStoreSyncStatefulActor";
-extern const std::string LISTENER_MANAGER; //= "ListenerManager";
+/// Actor id of handle CRUD operation.
+extern const std::string ACTORID_STORE_SERVCIE; //= "store.service";
+extern const std::string DATA_AGGREGATOR_ACTOR; //= "store.aggregator";
+extern const std::string LISTENER_MANAGER; //= "store.listener_manager";
 
 /// Option names of actor 'DATA_STORE_ACTOR'
-extern const std::string OP_INSERT; //= "DATA_STORE_INSERT";
-extern const std::string OP_UPDATE; //= "DATA_STORE_UPDATE";
-extern const std::string OP_GET; //= "DATA_STORE_GET";
-extern const std::string OP_DELETE; //= "DATA_STORE_REMOVE";
-extern const std::string OP_COUNT; //= "DATA_STORE_SIZE";
-extern const std::string OP_TRUNCATE; //= "DATA_CLEAR";
+extern const std::string OP_INSERT; //= "insert";
+extern const std::string OP_UPDATE; //= "update";
+extern const std::string OP_GET; //= "get";
+extern const std::string OP_DELETE; //= "delete";
+extern const std::string OP_COUNT; //= "count";
+extern const std::string OP_TRUNCATE; //= "truncate";
 
-extern const std::string DATA_STORE_LOCAL_INSERT; //= "DATA_STORE_LOCAL_INSERT";
-extern const std::string DATA_STORE_LOCAL_UPDATE; //= "DATA_STORE_LOCAL_UPDATE";
-extern const std::string DATA_STORE_LOCAL_GET; //= "DATA_STORE_LOCAL_GET";
-extern const std::string DATA_STORE_LOCAL_REMOVE; //= "DATA_STORE_LOCAL_REMOVE";
-extern const std::string DATA_STORE_LOCAL_SIZE; //= "DATA_STORE_LOCAL_SIZE";
-extern const std::string LOCAL_DATA_CLEAR; //= "LOCAL_DATA_CLEAR";
+extern const std::string OP_INTERNAL_INSERT; //= "DATA_STORE_LOCAL_INSERT";
+extern const std::string OP_INTERNAL_UPDATE; //= "DATA_STORE_LOCAL_UPDATE";
+extern const std::string OP_INTERNAL_GET; //= "DATA_STORE_LOCAL_GET";
+extern const std::string OP_INTERNAL_DELETE; //= "DATA_STORE_LOCAL_REMOVE";
+extern const std::string OP_INTERNAL_COUNT; //= "DATA_STORE_LOCAL_COUNT";
+extern const std::string OP_INTERNAL_TRUNCATE; //= "DATA_STORE_LOCAL_TRUNCATE";
 
-extern const std::string DATA_STORE_INSERT_RESPONSE; //= "DATA_STORE_INSERT_RESPONSE";
-extern const std::string DATA_STORE_UPDATE_RESPONSE; //= "DATA_STORE_UPDATE_RESPONSE";
-extern const std::string DATA_STORE_GET_RESPONSE; //= "DATA_STORE_GET_RESPONSE";
-extern const std::string DATA_STORE_REMOVE_RESPONSE; //= "DATA_STORE_REMOVE_RESPONSE";
-extern const std::string DATA_STORE_SIZE_RESPONSE; //= "DATA_STORE_SIZE_RESPONSE";
-extern const std::string DATA_CLEAR_RESPONSE; //= "DATA_CLEAR_RESPONSE";
-
-/// Actor id of handle sync data operation.
-extern const std::string DATA_STORE_SYNC_ACTOR; //= "DATA_STORE_SYNC_ACTOR";
-
-/// Option names of actor 'DATA_STORE_SYNC_ACTOR'
-extern const std::string DATA_STORE_SYNC_REQUEST; //= "DATA_STORE_SYNC_REQUEST";
-extern const std::string DATA_STORE_SYNC; //= "DATA_STORE_SYNC";
-extern const std::string DATA_STORE_SYNC_RESPONSE; //= "DATA_STORE_SYNC_RESPONSE";
+extern const std::string OP_INSERT_RESPONSE; //= "DATA_STORE_INSERT_RESPONSE";
+extern const std::string OP_UPDATE_RESPONSE; //= "DATA_STORE_UPDATE_RESPONSE";
+extern const std::string OP_GET_RESPONSE; //= "DATA_STORE_GET_RESPONSE";
+extern const std::string OP_DELETE_RESPONSE; //= "DATA_STORE_REMOVE_RESPONSE";
+extern const std::string OP_COUNT_RESPONSE; //= "DATA_STORE_COUNT_RESPONSE";
+extern const std::string OP_TRUNCATE_RESPONSE; //= "DATA_CLEAR_RESPONSE";
 
 /// Option names of actor 'LISTENER_MANAGER'
+
+/// Actor ID of migration actor
+extern const std::string MIGRATION_SOURCE_ACTOR; // = "store.migration_source";
+extern const std::string MIGRATION_TARGET_ACTOR; // = "store.migration_target";
+extern const std::string STORE_MIGRATION_SOURCE_ACTOR; // = "store.store_migration_source";
+extern const std::string STORE_MIGRATION_TARGET_ACTOR; // = "store.store_migration_target";
+
+/// Operation names of actor 'XXX_MIGRATION_ACTOR', for data migration
+extern const std::string MIGRATION_REQUEST; // = "MIGRATION_REQUEST";
+extern const std::string MIGRATION_DATA; //= "MIGRATION_DATA";
+extern const std::string STORE_MIGRATION_COMPLETE; //= "STORE_MIGRATION_COMPLETE";
+extern const std::string PARTITION_MIGRATION_COMPLETE; // = "PARTITION_MIGRATION_COMPLETE";
+extern const std::string CANCEL_MIGRATION; // = "CANCEL_MIGRATION";
+extern const std::string SOURCE_MEMBER_LEAVE; // = "SOURCE_MEMBER_LEAVE";
+
+/// Actor ID of synchronization actor
+extern const std::string SYNC_TARGET_ACTOR; // = "store.sync_target";
+extern const std::string STORE_SYNC_TARGET_ACTOR; // = "store.store_sync_target";
+extern const std::string SYNC_SOURCE_ACTOR; // = "store.sync_source";
+extern const std::string STORE_SYNC_SOURCE_ACTOR; // = "store.store_sync_source";
+
+/// Operation names of actor 'XXX_REPLICATION_ACTOR', for data migration
+extern const std::string SYNC_REQUEST; // = "SYNC_REQUEST";
+extern const std::string SYNC_DATA; // = "SYNC_DATA";
+extern const std::string SYNC_COMPLETE; // = "SYNC_COMPLETE";
+
+/// Actor id of store schema
+extern const std::string ACTORID_SCHEMA_SERVCIE; //= "store.schema_service";
+extern const std::string DATA_STORE_SCHEMA_AGGR_ACTOR; //= "store.schema_aggregator";
+
+/// Operation names of DATA_STORE_SCHEMA_XXX_ACTOR
+extern const std::string OP_SHOWSTORES; //= "OP_SHOWSTORES";
+extern const std::string OP_SHOWSTORES_RESPONSE; //= "OP_SHOWSTORES_RESPONSE";
+extern const std::string OP_CREATE_SCHEMA; //= "OP_CREATE_SCHEMA";
+extern const std::string OP_LOCAL_CREATE_SCHEMA; //= "OP_LOCAL_CREATE_SCHEMA";
+extern const std::string OP_CREATE_SCHEMA_RESPONSE; //= "OP_CREATE_SCHEMA_RESPONSE";
+extern const std::string OP_DROP_SCHEMA; //= "OP_DROP_SCHEMA";
+extern const std::string OP_LOCAL_DROP_SCHEMA; //= "OP_LOCAL_DROP_SCHEMA";
+extern const std::string OP_DROP_SCHEMA_RESPONSE; //= "OP_DROP_SCHEMA_RESPONSE";
+extern const std::string OP_CREATE_STORE; //= "OP_CREATE_STORE";
+extern const std::string OP_LOCAL_CREATE_STORE; //= "OP_LOCAL_CREATE_STORE";
+extern const std::string OP_CREATE_STORE_RESPONSE; //= "OP_CREATE_STORE_RESPONSE";
+extern const std::string OP_DROP_STORE; //= "OP_DROP_STORE";
+extern const std::string OP_LOCAL_DROP_STORE; //= "OP_LOCAL_DROP_STORE";
+extern const std::string OP_DROP_STORE_RESPONSE; //= "OP_DROP_STORE_RESPONSE";
+
+extern const std::string OP_DESTROY; // = "DESTROY";
+
+// listener
+extern const std::string BACKUP_STORE_LISTENER; // = "backup";
 
 } //namespace store
 } // namespace idgs

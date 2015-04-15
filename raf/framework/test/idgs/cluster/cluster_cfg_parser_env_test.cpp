@@ -21,14 +21,14 @@ using namespace idgs::pb;
 
 TEST(cluster_cfg_parser_env_test, parse_env) {
   ClusterConfig config;
-  ResultCode rs = ClusterCfgParser::parse(config, "framework/conf/cluster.conf");
+  ResultCode rs = ClusterCfgParser::parse(config, "conf/cluster.conf");
   EXPECT_EQ(RC_SUCCESS, rs);
   EXPECT_EQ(5, config.thread_count());
   EXPECT_EQ(5, config.io_thread_count());
-  EXPECT_EQ("202.106.46.151", config.member().publicaddress().host());
-  EXPECT_EQ(10086, config.member().publicaddress().port());
-  EXPECT_EQ("192.168.0.254", config.member().inneraddress().host());
-  EXPECT_EQ(10010, config.member().inneraddress().port());
+  EXPECT_EQ("202.106.46.151", config.member().public_address().host());
+  EXPECT_EQ(10086, config.member().public_address().port());
+  EXPECT_EQ("192.168.0.254", config.member().inner_address().host());
+  EXPECT_EQ(10010, config.member().inner_address().port());
   EXPECT_EQ(32, config.member().weight());
   EXPECT_FALSE(config.member().service().local_store());
   EXPECT_FALSE(config.member().service().client_agent());

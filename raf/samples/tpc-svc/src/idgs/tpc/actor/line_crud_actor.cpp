@@ -9,12 +9,9 @@
 #include "idgs_gch.h" 
 #endif // defined(__GNUC__) || defined(__clang__) $
 #include "line_crud_actor.h"
-#include "idgs/actor/rpc_framework.h"
-#include "idgs/store/datastore_const.h"
-#include "idgs/store/data_store.h"
+#include "idgs/store/store_module.h"
 #include "idgs/tpc/pb/tpc_crud.pb.h"
 #include "idgs/util/utillity.h"
-#include "protobuf/message_helper.h"
 
 using namespace idgs::tpc::pb;
 using namespace idgs::pb;
@@ -27,7 +24,7 @@ namespace idgs {
 namespace tpc {
 namespace actor {
 
-const std::string& LINECRUD_ACTOR_ID = "linecrud_actor";
+const std::string& LINECRUD_ACTOR_ID = "tpc.linecrud";
 const std::string& LINECRUD_ACTOR_DESCRIPTION = "linecrud_actor_description";
 const std::string& OP_CRUD_MAPPER = "linecrud_mapper_operation";
 const std::string& OP_CRUD_MULTICAST_MAPPER = "linecrud_multicast_mapper_operation";
@@ -43,16 +40,18 @@ const idgs::actor::ActorMessageHandlerMap& LineCrudActor::getMessageHandlerMap()
   static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = { { OP_CRUD_MAPPER,
       static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleStoreMapper) }, { OP_CRUD_MULTICAST_MAPPER,
       static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleMulticastStoreMapper) }, { OP_CRUD_REQUEST,
-      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleLineCRUD) }, { DATA_STORE_INSERT_RESPONSE,
+      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleLineCRUD) }, { OP_INSERT_RESPONSE,
       static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleInsertResponse) }, };
   return handlerMap;
 }
 
 ActorDescriptorPtr LineCrudActor::generateActorDescriptor() {
   static std::shared_ptr<ActorDescriptorWrapper> descriptor;
-  if (descriptor)
+  if (descriptor) {
     return descriptor;
-  descriptor.reset(new ::ActorDescriptorWrapper);
+  }
+
+  descriptor = std::make_shared<ActorDescriptorWrapper>();
 
   descriptor->setName(LINECRUD_ACTOR_ID);
   descriptor->setDescription(LINECRUD_ACTOR_DESCRIPTION);
@@ -126,7 +125,7 @@ void LineCrudActor::handleLineInsert(const ActorMessagePtr& requestActorMsg) {
   responseActorMsg->setDestActorId(requestActorMsg->getSourceActorId());
   responseActorMsg->setDestMemberId(requestActorMsg->getSourceMemberId());
   responseActorMsg->setOperationName(OP_CRUD_RESPONSE);
-  std::shared_ptr<RawlineCrudResponse> response_payload(new RawlineCrudResponse);
+  std::shared_ptr<RawlineCrudResponse> response_payload = std::make_shared<RawlineCrudResponse>();
   total_line_count += line_size;
   response_payload->set_total_line_count(total_line_count);
   response_payload->set_total_resp_count(total_resp_count);
@@ -188,21 +187,21 @@ void LineCrudActor::handleMulticastStoreMapper(const idgs::actor::ActorMessagePt
   for (auto it = mapper_config->mapper().begin(); it != mapper_config->mapper().end(); ++it) {
 //          const std::string& file_name = it->file_name();
     const std::string& store_name = it->store_name();
-    StoreConfigWrapperPtr store_config_wrapper_ptr;
-    ResultCode rs = ::idgs::util::singleton<idgs::store::DataStore>::getInstance().loadStoreConfig(store_name,
-        store_config_wrapper_ptr);
-    if (rs != idgs::RC_OK) {
-      LOG(ERROR)<< "load store config  error, " << getErrorDescription(rs) << ", store name: " << store_name;
+    auto store = idgs_store_module()->getDataStore()->getStore(store_name);
+    if (!store) {
+      LOG(ERROR)<< "store named " << store_name << " is not found.";
     }
+
+    auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+
     ParsedStoreDescriptor descriptor;
     descriptor.mapper->CopyFrom(*it);
     const std::string& key_type = store_config_wrapper_ptr->getStoreConfig().key_type();
     const std::string& value_type = store_config_wrapper_ptr->getStoreConfig().value_type();
     descriptor.key_type = key_type;
     descriptor.value_type = value_type;
-    PbMessagePtr key_type_msg = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(key_type);
-    PbMessagePtr value_type_msg = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(
-        value_type);
+    PbMessagePtr key_type_msg = store_config_wrapper_ptr->newKey();
+    PbMessagePtr value_type_msg = store_config_wrapper_ptr->newValue();
     if (it->fields_size() > 0) { /// user defined fields
       descriptor.fieldDescriptor.reserve(it->fields_size());
       for (auto ft = it->fields().begin(); ft != it->fields().end(); ++ft) {
@@ -253,7 +252,7 @@ idgs::actor::ActorMessagePtr LineCrudActor::genInsertActorMsg(const std::string&
     LOG(ERROR)<< "parseLine error, error code: " << *rc << ", error message: " << getErrorDescription(*rc);
     return ActorMessagePtr(NULL);
   }
-  std::shared_ptr<InsertRequest> pay_load(new InsertRequest());
+  std::shared_ptr<InsertRequest> pay_load = std::make_shared<InsertRequest>();
   pay_load->set_store_name(store_name);
   pay_load->set_options(option);
   ActorMessagePtr actorMsg = createActorMessage();
@@ -263,7 +262,6 @@ idgs::actor::ActorMessagePtr LineCrudActor::genInsertActorMsg(const std::string&
   actorMsg->setPayload(pay_load);
   actorMsg->setAttachment(STORE_ATTACH_KEY, pair.first);
   actorMsg->setAttachment(STORE_ATTACH_VALUE, pair.second);
-//        actorMsg->setChannel(TC_AUTO);
   return actorMsg;
 }
 
@@ -291,9 +289,12 @@ KeyValueMessagePair LineCrudActor::parseLine(const std::string& store_name, cons
   const ParsedStoreDescriptor& descriptor = store_descriptor_cache.at(store_name);
   vector<string> result;
   idgs::str::split(line, descriptor.mapper->seperator(), result);
-  PbMessagePtr key = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(descriptor.key_type);
-  PbMessagePtr value = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().createMessage(
-      descriptor.value_type);
+
+  auto store = idgs_store_module()->getDataStore()->getStore(store_name);
+  auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+
+  PbMessagePtr key = store_config_wrapper_ptr->newKey();
+  PbMessagePtr value = store_config_wrapper_ptr->newValue();
   if (!key.get()) {
     LOG(ERROR)<< "Parse line error, key message is null, store descriptor: " << descriptor.toString();
     *rc = RC_PARSE_LINE_ERROR;
@@ -323,20 +324,20 @@ KeyValueMessagePair LineCrudActor::parseLine(const std::string& store_name, cons
     *rc = RC_PARSE_LINE_ERROR;
     return KeyValueMessagePair(NULL, NULL);
   }
+
+  protobuf::MessageHelper helper;
   for (size_t index = 0, size = result.size(); index < size; ++index) {
     std::string result_value = str::trim(result.at(index));
     const ParsedStoreFieldDescriptor& field_descriptor = descriptor.fieldDescriptor.at(index);
     if (field_descriptor.type == KEY_TYPE) {
-      *rc = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().setMessageValue(key.get(),
-          field_descriptor.descriptor, result_value);
+      *rc = helper.setMessageValue(key.get(), field_descriptor.descriptor, result_value);
       if (*rc != RC_SUCCESS) {
         LOG(ERROR)<< "set Message KEY's field value error, error code: " << *rc
         << ", field index: " << index << ", field name: " << field_descriptor.descriptor->name() << ", field value: " << result_value << ", line: " << line;
         return KeyValueMessagePair(NULL, NULL);
       }
-    }
-    else if(field_descriptor.type == VALUE_TYPE) {
-      *rc = ::idgs::util::singleton<protobuf::MessageHelper>::getInstance().setMessageValue(value.get(), field_descriptor.descriptor, result_value);
+    } else if(field_descriptor.type == VALUE_TYPE) {
+      *rc = helper.setMessageValue(value.get(), field_descriptor.descriptor, result_value);
       if(*rc != RC_SUCCESS) {
         LOG(ERROR) << "set Message VALUE's field value error, error code: " << *rc
         << ", field index: " << index << ", field name: " << field_descriptor.descriptor->name() << ", field value: " << result_value << ", line: " << line;

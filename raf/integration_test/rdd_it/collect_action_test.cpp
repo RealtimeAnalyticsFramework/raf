@@ -10,57 +10,45 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/client/rdd/rdd_client.h"
 #include "idgs/rdd/rdd_const.h"
 #include "idgs/rdd/pb/rdd_action.pb.h"
-#include "protobuf/message_helper.h"
-#include "idgs/store/data_map.h"
+#include "idgs/expr/expression_helper.h"
 
 using namespace std;
 using namespace idgs;
 using namespace idgs::pb;
-using namespace idgs::util;
 using namespace idgs::rdd::pb;
 using namespace idgs::client::rdd;
 using namespace protobuf;
 
 TEST(collect_action_test, collect_action) {
-
   /// create store delegate
-  ResultCode code = singleton<RddClient>::getInstance().init("integration_test/rdd_it/client.conf");
+  RddClient client;
+  ResultCode code = client.init("conf/client.conf");
   if (code != RC_SUCCESS) {
     LOG(ERROR) << "init rdd client error, caused by " << getErrorDescription(code);
   }
   const std::string store_name = "ssb_lineorder";
   LOG(INFO)<< "create store delegate, store_name: " << store_name;
-  DelegateRddRequestPtr request(new CreateDelegateRddRequest);
-  DelegateRddResponsePtr response(new CreateDelegateRddResponse);
+  DelegateRddRequestPtr request = std::make_shared<CreateDelegateRddRequest>();
+  DelegateRddResponsePtr response = std::make_shared<CreateDelegateRddResponse>();
+  request->set_schema_name("ssb");
   request->set_store_name(store_name);
-  singleton<RddClient>::getInstance().createStoreDelegateRDD(request, response);
+  client.createStoreDelegateRDD(request, response);
   auto delegate_actor_id = response->rdd_id();
   LOG_IF(FATAL, delegate_actor_id.actor_id().empty() || delegate_actor_id.actor_id().compare("Unknown Actor") == 0) << delegate_actor_id.DebugString();
   /// sleep for a while
   sleep(5);
 
   /// do action
-  ActionRequestPtr action_request(new ActionRequest);
-  ActionResponsePtr action_response(new ActionResponse);
-  ActionResultPtr action_result(new idgs::rdd::pb::CollectActionResult);
+  ActionRequestPtr action_request = std::make_shared<ActionRequest>();
+  ActionResponsePtr action_response = std::make_shared<ActionResponse>();
+  ActionResultPtr action_result = std::make_shared<idgs::rdd::pb::CollectActionResult>();
   action_request->set_action_id("test_collect_action");
   action_request->set_action_op_name(idgs::rdd::COLLECT_ACTION);
 
   /// lo_orderkey=5952
-  auto filter_expr = action_request->mutable_filter();
-  filter_expr->set_type(EQ);
-  /// lo_orderkey=5952
-  /// field: lo_orderkey
-  auto exp = filter_expr->add_expression();
-  exp->set_type(FIELD);
-  exp->set_value("lo_orderkey");
-  /// const: 5952
-  exp = filter_expr->add_expression();
-  exp->set_type(CONST);
-  exp->set_const_type(UINT64);
-  exp->set_value("5952");
+  MOVE_EXPR(action_request->mutable_filter(), EQ(FIELD("lo_orderkey"), CONST("5952", UINT64)));
 
-  auto rc  =singleton<RddClient>::getInstance().sendAction(action_request, action_response, action_result, delegate_actor_id);
+  auto rc = client.sendAction(action_request, action_response, action_result, delegate_actor_id);
   ASSERT_EQ(RC_SUCCESS, rc);
   CollectActionResult* result = dynamic_cast<CollectActionResult*>(action_result.get());
   assert(result);
@@ -72,9 +60,10 @@ TEST(collect_action_test, collect_action) {
 //  5952|3|29|71|1|19970414|3-MEDIUM|0|43|4175601|12862499|1|4133844|58264|1|19970606|MAIL|
 //  5952|4|29|158|2|19970414|3-MEDIUM|0|23|2433745|12862499|0|2433745|63489|7|19970627|TRUCK|
 
+  auto& storeConfigWrapper = client.getStoreConfigWrapper(store_name);
   ASSERT_EQ(4, result->pair_size());
-  auto key = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.ssb.pb.LineOrderKey");
-  auto value = ::idgs::util::singleton<MessageHelper>::getInstance().createMessage("idgs.sample.ssb.pb.LineOrder");
+  auto key = storeConfigWrapper->newKey();
+  auto value = storeConfigWrapper->newValue();
   for(auto rt = result->pair().begin(); rt != result->pair().end(); ++rt) {
     ProtoSerdes<DEFAULT_PB_SERDES>::deserialize(rt->key(), key.get());
     ASSERT_EQ(5952, key->GetReflection()->GetUInt64(*key, key->GetDescriptor()->FindFieldByName("lo_orderkey")));
