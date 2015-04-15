@@ -2,7 +2,6 @@
 This is the guide for the user to build docker images of RAF. For the user who is the new to docker, please refer this [guide](https://docs.docker.com/userguide/).
 
 ##Build RAF base images
-----------
 RAF base image is the enviroment that has all the dependcy libraries been built in. It is basic for the compile and development 
 enviroment.
 
