@@ -12,7 +12,8 @@
 
 #include "idgs/store/datastore_const.h"
 
-#include "idgs/store/store.h"
+#include "idgs/store/replicated_store.h"
+
 
 namespace idgs {
 namespace store {

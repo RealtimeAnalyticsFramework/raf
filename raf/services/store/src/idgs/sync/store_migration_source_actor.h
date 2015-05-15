@@ -11,7 +11,8 @@
 #include "idgs/actor/stateful_actor.h"
 
 #include "idgs/store/datastore_const.h"
-#include "idgs/store/store.h"
+#include "idgs/store/partitioned_store.h"
+
 
 #include "idgs/sync/pb/data_sync.pb.h"
 
@@ -51,7 +52,7 @@ private:
   int32_t partId;
 
   int32_t batchSize;
-  PartitionStore* pstore;
+  PartitionedStore* pstore;
 
   std::shared_ptr<StoreMap> map;
   std::shared_ptr<StoreMap::Iterator> it;

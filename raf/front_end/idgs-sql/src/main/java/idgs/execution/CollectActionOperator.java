@@ -31,8 +31,9 @@ public class CollectActionOperator extends ActionOperator {
   @Override
   public void handleResult(Message actionResult, ResultSet resultSet) {
     CollectActionResult result = (CollectActionResult) actionResult;
-    DynamicMessage.Builder keyBuilder = resultSet.newKeyBuilder();
-    DynamicMessage.Builder valueBuilder = resultSet.newValueBuilder();
+    ResultSetMetadata metadata = resultSet.getResultSetMetadata();
+    DynamicMessage.Builder keyBuilder = metadata.newKeyBuilder();
+    DynamicMessage.Builder valueBuilder = metadata.newValueBuilder();
 
     ProtoSerde protoSerde = ProtoSerdeFactory.createSerde(PayloadSerdes.PB_BINARY_VALUE);
     for (int i = 0; i < result.getPairCount(); ++ i) {

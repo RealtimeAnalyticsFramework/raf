@@ -12,7 +12,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 namespace idgs {
 namespace actor {
-typedef std::function<void(ActorMessagePtr msg)> ActorOperation;
+// typedef std::function<void(ActorMessagePtr msg)> ActorOperation;
 
 
 ///

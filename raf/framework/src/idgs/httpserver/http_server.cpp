@@ -7,8 +7,9 @@
  */
 
 #include "http_server.h"
-#include "static_http_servlet.h"
+#include "idgs/idgslogging.h"
 
+#include "static_http_servlet.h"
 #include "actor_http_servlet.h"
 #include "shell_http_servlet.h"
 #include "sql_http_servlet.h"

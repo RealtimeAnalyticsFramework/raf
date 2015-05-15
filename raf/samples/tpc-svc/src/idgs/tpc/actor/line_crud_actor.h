@@ -9,19 +9,20 @@
 
 #include <atomic>
 #include "idgs/actor/stateless_actor.h"
-#include "idgs/store/store_config_wrapper.h"
+#include "idgs/store/store_config.h"
 
 #include "idgs/store/parsed_store_descriptor.h"
 
 namespace idgs {
 namespace tpc {
 namespace actor {
-extern const std::string& LINECRUD_ACTOR_ID; // = "linecrud_actor";
-extern const std::string& LINECRUD_ACTOR_DESCRIPTION; // = "linecrud_actor_description";
-extern const std::string& OP_CRUD_MAPPER; // = "linecrud_mapper_operation";
-extern const std::string& OP_CRUD_MULTICAST_MAPPER; // = "linecrud_multicast_mapper_operation";
-extern const std::string& OP_CRUD_REQUEST; // = "linecrud_request_operation";
-extern const std::string& OP_CRUD_RESPONSE; // = "linecrud_response_operation";
+
+extern const char LINECRUD_ACTOR_ID[]; // = "linecrud_actor";
+extern const char LINECRUD_ACTOR_DESCRIPTION[]; // = "linecrud_actor_description";
+extern const char OP_CRUD_MAPPER[]; // = "linecrud_mapper_operation";
+extern const char OP_CRUD_MULTICAST_MAPPER[]; // = "linecrud_multicast_mapper_operation";
+extern const char OP_CRUD_REQUEST[]; // = "linecrud_request_operation";
+extern const char OP_CRUD_RESPONSE[]; // = "linecrud_response_operation";
 
 class LineCrudActor: public idgs::actor::StatelessActor {
 public:

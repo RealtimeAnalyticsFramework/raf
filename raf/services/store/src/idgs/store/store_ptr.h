@@ -40,9 +40,17 @@ public:
     return storePointer;
   }
 
+  uint64_t getVersion() const {
+    return timestamp;
+  }
+
+  void setVersion(uint64_t t) {
+    timestamp = t;
+  }
+
 private:
   std::shared_ptr<_Tp> storePointer;
-  time_t timestamp;
+  uint64_t timestamp;
 };
 
 } // namespace store

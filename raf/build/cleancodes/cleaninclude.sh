@@ -130,7 +130,7 @@ do
           continue
         fi
 	
-	make -j8 -k >/dev/null 2>&1
+	make -j -k >/dev/null 2>&1
         if make >/dev/null  2>&1;
         then
             grep -v REMOVEINCLUDE $file > tmp && mv tmp $file

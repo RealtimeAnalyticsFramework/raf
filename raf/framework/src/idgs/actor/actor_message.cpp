@@ -13,6 +13,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/actor/actor_message.h"
 
 #include "idgs/application.h"
+#include "idgs/util/backtrace.h"
 
 using namespace std;
 using namespace idgs::pb;
@@ -21,7 +22,6 @@ namespace idgs {
 namespace actor {
 ActorMessage::ActorMessage() :
     rpcMessage(), payload(), rpcBuffer(NULL), orientation(APP_ORIENTED) {
-
 }
 
 void ActorMessage::extractRawAttachments() {
@@ -75,19 +75,21 @@ idgs::ResultCode ActorMessage::toRpcBuffer() {
 //  }
 
   // encode whole message
-  std::string buff;
-  if (!protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::serialize(getRpcMessage().get(), &buff)) {
+  int totalSize = getRpcMessage()->ByteSize();
+  freeRpcBuffer();
+  rpcBuffer = std::make_shared<idgs::net::RpcBuffer>();
+  auto& byteBuffer = rpcBuffer->byteBuffer();
+  auto b = idgs::net::ByteBuffer::allocate(totalSize);
+  byteBuffer.swap(b);
+  rpcBuffer->setBodyLength(totalSize);
+  if (!protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::serialize(getRpcMessage().get(), byteBuffer->data(), byteBuffer->capacity())) {
     LOG(ERROR)<< "serialize actor message error! " << getRpcMessage()->DebugString();
     code = RC_ERROR;
     return code;
   }
-  
-  freeRpcBuffer();
-  rpcBuffer = std::make_shared<idgs::net::RpcBuffer>();
-  rpcBuffer->setBodyLength(buff.size());
-  rpcBuffer->reserveBuffer();
-  memcpy(rpcBuffer->getBody(), buff.data(), buff.size());
-
+  DVLOG(5) << "bytebuffer, length: " << byteBuffer->capacity() << ", buffer: " << dumpBinaryBuffer2(byteBuffer->data(), byteBuffer->capacity());
+  DVLOG(5) << "rpc buffer, length: " << rpcBuffer->byteBuffer()->capacity() << ", buffer: " << dumpBinaryBuffer2(rpcBuffer->byteBuffer()->data(), rpcBuffer->byteBuffer()->capacity());
+  DVLOG(5) << "getrpcbuffer, length: " << getRpcBuffer()->byteBuffer()->capacity() << ", buffer: " << dumpBinaryBuffer2(getRpcBuffer()->byteBuffer()->data(), getRpcBuffer()->byteBuffer()->capacity());
   return code;
 }
 
@@ -311,11 +313,27 @@ bool ActorMessage::parseAttachments(const std::string& keyName, const std::strin
 idgs::ResultCode ActorMessage::parseRpcBuffer() {
   if (!rpcBuffer) {
     DVLOG(3) << "RPC buffer is NULL";
-    return RC_OK;
+    return RC_ERROR;
   }
 
-  protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::deserializeFromArray(getRpcBuffer()->getBody(),
-      getRpcBuffer()->getBodyLength(), getRpcMessage().get());
+  auto& byteBuffer = getRpcBuffer()->byteBuffer();
+  if (!byteBuffer) {
+    DVLOG(3) << "bytebuffer is NULL";
+    return RC_ERROR;
+  } else {
+    DVLOG(5) << "Bodylength: " << rpcBuffer->getBodyLength()
+        << ", bytebuffer length: " <<  byteBuffer->capacity();
+//        << ", buffer: " << dumpBinaryBuffer2(byteBuffer->data(), byteBuffer->capacity());
+  }
+  auto ret = protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::deserializeFromArray(
+      byteBuffer->data(),
+      byteBuffer->capacity(), getRpcMessage().get());
+  if (!ret) {
+    LOG(ERROR) << "Failed to deserialize message, length: " <<  byteBuffer->capacity()
+        << ", buffer: " << dumpBinaryBuffer2(byteBuffer->data(), byteBuffer->capacity())
+        << ", stack: " << idgs::util::stacktrace();
+    return RC_ERROR;
+  }
 
   extractRawAttachments();
 

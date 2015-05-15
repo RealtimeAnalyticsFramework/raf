@@ -1,7 +1,0 @@
-.deps
-Makefile.in
-Makefile
-it_*
-*.pb.cc
-*.pb.h
-.libs

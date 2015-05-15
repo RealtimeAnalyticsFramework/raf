@@ -19,13 +19,12 @@ enum ParsedFieldType {
 struct ParsedStoreFieldDescriptor {
   ParsedFieldType type;
   const google::protobuf::FieldDescriptor* descriptor;
+
+
   ParsedStoreFieldDescriptor() :
       type(UNKNOWN_TYPE), descriptor(NULL) {
-
   }
-  ParsedStoreFieldDescriptor(const ParsedStoreFieldDescriptor& descriptor) = default;
-  ParsedStoreFieldDescriptor(ParsedStoreFieldDescriptor&& descriptor) = default;
-  ParsedStoreFieldDescriptor& operator =(const ParsedStoreFieldDescriptor& other) = default;
+
   std::string toString() const {
     std::stringstream s;
     s << "type: " << type << std::ends;
@@ -35,15 +34,15 @@ struct ParsedStoreFieldDescriptor {
     return s.str();
   }
 };
+
 typedef std::shared_ptr<google::protobuf::Message> PbMessagePtr;
+
 struct ParsedStoreDescriptor {
   std::string key_type;
   std::string value_type;
   idgs::store::pb::StoreFileMapper* mapper;
   std::vector<ParsedStoreFieldDescriptor> fieldDescriptor;
-  ParsedStoreDescriptor(const ParsedStoreDescriptor& descriptor) = default;
-  ParsedStoreDescriptor(ParsedStoreDescriptor&& descriptor) = default;
-  ParsedStoreDescriptor& operator =(const ParsedStoreDescriptor& other) = default;
+
   ParsedStoreDescriptor() :
       key_type("unknown"), value_type("unknown"), mapper(
           new idgs::store::pb::StoreFileMapper) {
@@ -60,7 +59,7 @@ struct ParsedStoreDescriptor {
   }
 };
 typedef std::pair<std::shared_ptr<google::protobuf::Message>, std::shared_ptr<google::protobuf::Message>> KeyValueMessagePair;
-typedef std::shared_ptr<idgs::store::StoreConfigWrapper> StoreConfigWrapperPtr;
+typedef std::shared_ptr<idgs::store::StoreConfig> StoreConfigWrapperPtr;
 typedef std::map<std::string, ParsedStoreDescriptor> StoreDescriptorMap;
 }
 }

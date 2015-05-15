@@ -133,7 +133,7 @@ TEST(count_action_test, count) {
   MessageHelper helper;
   helper.registerDynamicMessage("integration_test/rdd_it/rdd_it.proto");
 
-  auto& storeConfigWrapper = idgs::rdd::if_expr_test::client.getStoreConfigWrapper("LineItem");
+  auto& storeConfigWrapper = idgs::rdd::if_expr_test::client.getStoreConfig("LineItem");
 
   for (int32_t i = 0; i < result->pair_size(); ++ i) {
     string key_str = result->pair(i).key();

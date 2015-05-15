@@ -8,26 +8,32 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
 public class OrderByIT extends TestCase {
 
   public void testOrderByAscTable() {
-    String sql = "select * from customer t order by c_name";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select * ")
+       .append("  from   tpch.customer t")
+       .append("  order  by c_name");
+    
+    System.out.println("run test sql : ");
+    System.out.println(sql.toString());
 
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       assertTrue(resultSet.getRowCount() > 0);
       
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data1 = resultSet.getResultData(i);
+        RowData data1 = resultSet.getResultData(i);
         String c_name1 = (String) data1.getFieldValue("c_name");
 
         if (i + 1 < resultSet.getRowCount()) {
-          ResultData data2 = resultSet.getResultData(i + 1);
+          RowData data2 = resultSet.getResultData(i + 1);
           String c_name2 = (String) data2.getFieldValue("c_name");
           
           assertTrue(c_name1.compareTo(c_name2) <= 0);
@@ -39,19 +45,25 @@ public class OrderByIT extends TestCase {
   }
   
   public void testOrderByDescTable() {
-    String sql = "select * from customer order by c_name desc";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select * ")
+       .append("  from   tpch.customer t")
+       .append("  order  by c_name desc");
+    
+    System.out.println("run test sql : ");
+    System.out.println(sql.toString());
     
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);;
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       assertTrue(resultSet.getRowCount() > 0);
       
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data1 = resultSet.getResultData(i);
+        RowData data1 = resultSet.getResultData(i);
         String c_name1 = (String) data1.getFieldValue("c_name");
 
         if (i + 1 < resultSet.getRowCount()) {
-          ResultData data2 = resultSet.getResultData(i + 1);
+          RowData data2 = resultSet.getResultData(i + 1);
           String c_name2 = (String) data2.getFieldValue("c_name");
           
           assertTrue(c_name1.compareTo(c_name2) >= 0);

@@ -1,7 +1,0 @@
-config.h
-stamp-h1
-idgs_gch.h
-*.gch
-*.pch
-*.in
-Makefile

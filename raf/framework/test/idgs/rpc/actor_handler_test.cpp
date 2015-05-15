@@ -37,7 +37,7 @@ public:
   }
 
   virtual const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-    static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+    static idgs::actor::ActorMessageHandlerMap handlerMap = {
         {"foo", static_cast<idgs::actor::ActorMessageHandler>(&TestHandlerActor::foo)},
         {"bar", static_cast<idgs::actor::ActorMessageHandler>(&TestHandlerActor::bar)},
     };
@@ -60,6 +60,5 @@ TEST(actor_handler, dummy) {
   msg->setOperationName("bar");
   a.process(msg);
   LOG(INFO) << "Last operation: " << a.lastOperation;
-
 }
 

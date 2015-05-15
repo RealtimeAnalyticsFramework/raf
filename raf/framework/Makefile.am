@@ -44,6 +44,7 @@ ACTOR_SRCFILES = \
   src/idgs/actor/actor_descriptor_mgr.cpp
 	
 NET_SRCFILES = \
+  src/idgs/net/byte_buffer.cpp \
   src/idgs/net/async_tcp_server.cpp \
   src/idgs/net/stateful_tcp_actor.cpp \
   src/idgs/net/member_endpoint.cpp \

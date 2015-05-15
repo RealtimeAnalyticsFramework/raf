@@ -21,6 +21,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/util/utillity.h"
 
 #include "protobuf/type_composer.h"
+#include "idgs/store/listener/listener_manager.h"
 
 using namespace std;
 using namespace idgs::actor;
@@ -188,16 +189,6 @@ ActorDescriptorPtr RddInternalServiceActor::generateActorDescriptor() {
   return descriptor;
 }
 
-const RddLocal* RddInternalServiceActor::getRddLocal(const std::string& rddName) {
-  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-  auto it = rddLocalMap.find(rddName);
-  if (it == rddLocalMap.end()) {
-    return NULL;
-  } else {
-    return &it->second;
-  }
-}
-
 void RddInternalServiceActor::handleCreateStoreDelegate(const ActorMessagePtr& msg) {
   CreateDelegateRddRequest* request = dynamic_cast<CreateDelegateRddRequest*>(msg->getPayload().get());
   const string& rddName = request->rdd_name();
@@ -222,18 +213,19 @@ void RddInternalServiceActor::handleCreateStoreDelegate(const ActorMessagePtr& m
     sendResponse(msg, CREATE_RDD_RESPONSE, response);
     return;
   }
+
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
 
-  auto& configWrapper = store->getStoreConfigWrapper();
+  auto& configWrapper = store->getStoreConfig();
   auto it = rddLocalMap.find(rddName);
   if (it != rddLocalMap.end()) {
-    auto listener = it->second.getRddStoreListener();
+    auto listener = it->second->getRddStoreListener();
     if (listener) {
       auto& listeners = const_cast<vector<idgs::store::StoreListener*>&>(configWrapper->getStoreListener());
       listeners.erase(remove(listeners.begin(),listeners.end(), listener));
     }
 
-    rddLocalMap.erase(rddName);
+    rddLocalMap.erase(it);
   }
 
   VLOG(1) << "Store Delegate RDD " << rddName << " created, the state is INIT.";
@@ -244,13 +236,14 @@ void RddInternalServiceActor::handleCreateStoreDelegate(const ActorMessagePtr& m
   response->mutable_rdd_id()->set_member_id(localMemberId);
   idgs_application()->getRpcFramework()->getActorManager()->registerSessionActor(rdd->getActorId(), rdd);
 
-  rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
-  RddLocal& rddLocal = rddLocalMap[rddName];
-  rddLocal.setRddInfo(rddName, localMemberId, rdd->getActorId(), INIT);
-  rddLocal.setTransformerMsg(msg);
-  rddLocal.setDelegateRdd(true);
-  rdd->setRddLocal(&rddLocal);
+  std::shared_ptr<RddLocal> rddLocal = std::make_shared<RddLocal>();
+  rddLocal->setRddInfo(rddName, localMemberId, rdd->getActorId(), INIT);
+  rddLocal->setTransformerMsg(msg);
+  rddLocal->setDelegateRdd(true);
 
+  rddLocalMap.insert(std::make_pair(rddName, rddLocal));
+
+  rdd->setRddLocal(rddLocal);
   rdd->process(const_cast<const ActorMessagePtr&>(msg));
 
   DVLOG(3) << "handle create store delegate RDD done, send response to client";
@@ -281,7 +274,7 @@ void RddInternalServiceActor::handleCreateDelegatePartition(const ActorMessagePt
     return;
   }
 
-  auto& configWrapper = store->getStoreConfigWrapper();
+  auto& configWrapper = store->getStoreConfig();
 
   auto config = configWrapper->getStoreConfig();
   auto storeKeyTemplate = configWrapper->getKeyTemplate();
@@ -303,35 +296,37 @@ void RddInternalServiceActor::handleCreateDelegatePartition(const ActorMessagePt
   auto& rddActorId = msg->getSourceActorId();
   tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
 
-  auto itRddLocal = rddLocalMap.find(rddName);
-  if (itRddLocal != rddLocalMap.end()) {
-    auto rddId = itRddLocal->second.getRddId();
+  auto rddLocalIt = rddLocalMap.find(rddName);
+  if (rddLocalIt != rddLocalMap.end()) {
+    auto rddId = rddLocalIt->second->getRddId();
     if (rddId.member_id() != rddMemberId || rddId.actor_id() != rddActorId) {
-      auto listener = itRddLocal->second.getRddStoreListener();
+      auto listener = rddLocalIt->second->getRddStoreListener();
       if (listener) {
         auto& listeners = const_cast<vector<idgs::store::StoreListener*>&>(configWrapper->getStoreListener());
         listeners.erase(remove(listeners.begin(),listeners.end(), listener));
       }
 
-      rddLocalMap.erase(rddName);
-      rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
+      rddLocalMap.erase(rddLocalIt);
+      rddLocalMap.insert(std::make_pair(rddName, std::make_shared<RddLocal>()));
+      rddLocalIt = rddLocalMap.find(rddName);
     }
   } else {
-    rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
+    rddLocalMap.insert(std::make_pair(rddName, std::make_shared<RddLocal>()));
+    rddLocalIt = rddLocalMap.find(rddName);
   }
 
-  RddLocal& rddLocal = rddLocalMap[rddName];
-  rddLocal.setRddInfo(rddName, rddMemberId, rddActorId, CREATED);
-  rddLocal.setPersistType(ORDERED);
-  rddLocal.setTransformerMsg(msg);
-  rddLocal.setDelegateRdd(true);
+  std::shared_ptr<RddLocal>& rddLocal = rddLocalIt->second;
+  rddLocal->setRddInfo(rddName, rddMemberId, rddActorId, CREATED);
+  rddLocal->setPersistType(ORDERED);
+  rddLocal->setTransformerMsg(msg);
+  rddLocal->setDelegateRdd(true);
 
   auto keyTemplate = configWrapper->newKey();
   auto valueTemplate = configWrapper->newValue();
-  rddLocal.setKeyValueTemplate(keyTemplate, valueTemplate);
-  rddLocal.setReplicatedRdd(config.partition_type() == idgs::store::pb::REPLICATED);
+  rddLocal->setKeyValueTemplate(keyTemplate, valueTemplate);
+  rddLocal->setReplicatedRdd(config.partition_type() == idgs::store::pb::REPLICATED);
 
-  auto& partitions = rddLocal.getLocalPartitions();
+  auto& partitions = rddLocal->getLocalPartitions();
   auto it = partitions.begin();
   auto actorFramework = idgs_application()->getRpcFramework()->getActorManager();
   for (; it != partitions.end(); ++ it) {
@@ -343,15 +338,15 @@ void RddInternalServiceActor::handleCreateDelegatePartition(const ActorMessagePt
     rddPart->mutable_actor_id()->set_actor_id(rddPartition->getActorId());
     rddPart->mutable_actor_id()->set_member_id(msg->getDestMemberId());
 
-    rddLocal.addLocalPartition((* it), rddPartition);
+    rddLocal->addLocalPartition((* it), rddPartition);
 
-    rddPartition->setRddLocal(&rddLocal);
+    rddPartition->setRddLocal(rddLocal);
     rddPartition->initPartitionStore(store);
   }
 
   RddStoreListener* listener = new RddStoreListener;
-  rddLocal.setRddStoreListener(listener);
-  listener->setRddLocal(&rddLocal);
+  rddLocal->setRddStoreListener(listener);
+  listener->setRddLocal(rddLocal);
   configWrapper->addStoreListener(listener);
 
   response->set_result_code(RRC_SUCCESS);
@@ -386,12 +381,12 @@ void RddInternalServiceActor::handleCreateRdd(const ActorMessagePtr& msg) {
   response->mutable_rdd_id()->set_member_id(localMemberId);
   idgs_application()->getRpcFramework()->getActorManager()->registerSessionActor(rdd->getActorId(), rdd);
 
-  rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
-  RddLocal& rddLocal = rddLocalMap[rddName];
-  rddLocal.setRddInfo(rddName, localMemberId, rdd->getActorId(), INIT);
+  std::shared_ptr<RddLocal> rddLocal = std::make_shared<RddLocal>();
+  rddLocal->setRddInfo(rddName, localMemberId, rdd->getActorId(), INIT);
 
-  rdd->setRddLocal(&rddLocal);
+  rddLocalMap.insert(std::make_pair(rddName, rddLocal));
 
+  rdd->setRddLocal(rddLocal);
   rdd->process(const_cast<const ActorMessagePtr&>(msg));
 
   response->set_result_code(RRC_SUCCESS);
@@ -413,33 +408,35 @@ void RddInternalServiceActor::handleCreateRddPartition(const ActorMessagePtr& ms
 
   auto itRddLocal = rddLocalMap.find(rddName);
   if (itRddLocal != rddLocalMap.end()) {
-    auto rddId = itRddLocal->second.getRddId();
+    auto rddId = itRddLocal->second->getRddId();
     isRddMember = (rddId.member_id() == rddMemberId) && (rddId.actor_id() == rddActorId);
     if (!isRddMember) {
       rddLocalMap.erase(rddName);
-      rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
+      rddLocalMap.insert(std::make_pair(rddName, std::make_shared<RddLocal>()));
+      itRddLocal = rddLocalMap.find(rddName);
     }
   } else {
-    rddLocalMap.insert(pair<string, RddLocal>(rddName, RddLocal()));
+    rddLocalMap.insert(std::make_pair(rddName, std::make_shared<RddLocal>()));
+    itRddLocal = rddLocalMap.find(rddName);
   }
 
-  RddLocal& rddLocal = rddLocalMap[rddName];
-  rddLocal.setTransformerMsg(msg);
+  std::shared_ptr<RddLocal>& rddLocal = itRddLocal->second;
+  rddLocal->setTransformerMsg(msg);
   if (isRddMember) {
-    rddLocal.setRddState(CREATED);
+    rddLocal->setRddState(CREATED);
   } else {
-    rddLocal.setRddInfo(rddName, rddMemberId, rddActorId, CREATED);
+    rddLocal->setRddInfo(rddName, rddMemberId, rddActorId, CREATED);
   }
 
-  auto& partitions = rddLocal.getLocalPartitions();
+  auto& partitions = rddLocal->getLocalPartitions();
   auto it = partitions.begin();
   auto actorFramework = idgs_application()->getRpcFramework()->getActorManager();
   for (; it != partitions.end(); ++ it) {
     PairRddPartition* rddPartition = new PairRddPartition(rddName, (* it));
     actorFramework->registerSessionActor(rddPartition->getActorId(), rddPartition);
 
-    rddLocal.addLocalPartition((* it), rddPartition);
-    rddPartition->setRddLocal(&rddLocal);
+    rddLocal->addLocalPartition((* it), rddPartition);
+    rddPartition->setRddLocal(rddLocal);
 
     auto rddPart = response->add_rdd_partition();
     rddPart->set_partition((* it));
@@ -455,12 +452,19 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
   RddActorInfo* rddActorInfo = dynamic_cast<RddActorInfo*>(msg->getPayload().get());
   const string& rddName = rddActorInfo->rdd_name();
 
-  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
-  RddLocal& rddLocal = rddLocalMap[rddName];
-
   shared_ptr<RddResponse> response = make_shared<RddResponse>();
-  if (!rddLocal.isDelegateRdd()) {
-    CreateRddRequest* request = dynamic_cast<CreateRddRequest*>(rddLocal.getTransformerMsg()->getPayload().get());
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+  auto it = rddLocalMap.find(rddName);
+  if (it == rddLocalMap.end()) {
+    response->set_result_code(RRC_RDD_NOT_FOUND);
+    sendResponse(msg, RDD_PARTITION_PREPARED, response);
+    return;
+  }
+
+  std::shared_ptr<RddLocal>& rddLocal = it->second;
+
+  if (!rddLocal->isDelegateRdd()) {
+    CreateRddRequest* request = dynamic_cast<CreateRddRequest*>(rddLocal->getTransformerMsg()->getPayload().get());
     auto inRddSize = request->in_rdd_size();
 
     for (int32_t i = 0; i < inRddSize; ++ i) {
@@ -471,7 +475,7 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
         return;
       }
 
-      auto state = pit->second.getRddState();
+      auto state = pit->second->getRddState();
       if (state == ERROR) {
         LOG(ERROR) << "RDD named " << cldRddName << " is error.";
         response->set_result_code(RRC_RDD_ERROR);
@@ -496,22 +500,22 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
     auto& outputRddInfo = request->out_rdd();
     if (outputRddInfo.has_persist_type()) {
       auto persistType = request->out_rdd().persist_type();
-      rddLocal.setPersistType(persistType);
+      rddLocal->setPersistType(persistType);
     } else {
       static char* t = getenv("DEFAULT_PERSIST_TYPE");
       if (t && string(t) == "NONE") {
-        rddLocal.setPersistType(NONE);
+        rddLocal->setPersistType(NONE);
       } else {
-        rddLocal.setPersistType(ORDERED);
+        rddLocal->setPersistType(ORDERED);
       }
     }
 
     if (outputRddInfo.has_input_sync()) {
-      rddLocal.setUpstreamSync(outputRddInfo.input_sync());
+      rddLocal->setUpstreamSync(outputRddInfo.input_sync());
     }
 
-    rddLocal.setRepartition(request->repartition());
-    rddLocal.setTransformer(transformer);
+    rddLocal->setRepartition(request->repartition());
+    rddLocal->setTransformer(transformer);
 
     RddResultCode code = registerPbMessage(outputRddInfo, to_string(msg->getDestMemberId()));
     if (code != RRC_SUCCESS) {
@@ -524,7 +528,7 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
     auto helper = idgs_rdd_module()->getMessageHelper();
     auto keyTemplate = helper->createMessage(outputRddInfo.key_type_name());
     auto valueTemplate = helper->createMessage(outputRddInfo.value_type_name());
-    rddLocal.setKeyValueTemplate(keyTemplate, valueTemplate);
+    rddLocal->setKeyValueTemplate(keyTemplate, valueTemplate);
 
     bool isReplicatedRdd = true;
     auto opMgr = idgs_rdd_module()->getRddOperatorManager();
@@ -534,18 +538,18 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
       auto& cldRddName = request->in_rdd(i).rdd_name();
       auto& rddlocal = rddLocalMap[cldRddName];
 
-      rddLocal.addUpstreamRddLocal(&rddlocal);
-      rddlocal.addDownstreamRddLocal(&rddLocal);
+      rddLocal->addUpstreamRddLocal(rddlocal);
+      rddlocal->addDownstreamRddLocal(rddLocal);
 
       RddOperator* rddOp = NULL;
-      if (!rddLocal.isUpstreamSync() && i > 0) {
+      if (!rddLocal->isUpstreamSync() && i > 0) {
         opName = DEFAULT_OPERATOR;
-        rddlocal.setPersistType(ORDERED);
+        rddlocal->setPersistType(ORDERED);
       }
 
       auto& op = opMgr->get(opName);
       rddOp = (op) ? op->clone() : opMgr->get(DEFAULT_OPERATOR)->clone();
-      if (!rddOp->parse(request->in_rdd(i), outputRddInfo, &rddlocal, &rddLocal)) {
+      if (!rddOp->parse(request->in_rdd(i), outputRddInfo, rddlocal, rddLocal)) {
         response->set_result_code(RRC_INVALID_RDD_INPUT);
         sendResponse(msg, RDD_PARTITION_PREPARED, response);
         return;
@@ -557,25 +561,25 @@ void RddInternalServiceActor::handlePartitionCreated(const idgs::actor::ActorMes
         fstOp->paramOperators.push_back(rddOp);
       }
 
-      rddlocal.addRddOperator(msg, rddOp);
-      isReplicatedRdd = isReplicatedRdd & rddlocal.isReplicatedRdd();
+      rddlocal->addRddOperator(msg, rddOp);
+      isReplicatedRdd = isReplicatedRdd & rddlocal->isReplicatedRdd();
     }
-    rddLocal.setReplicatedRdd(isReplicatedRdd);
-    rddLocal.setMainRddOperator(fstOp);
+    rddLocal->setReplicatedRdd(isReplicatedRdd);
+    rddLocal->setMainRddOperator(fstOp);
 
     VLOG(1) << "RDD " << rddName << " transformer : " << transformerName
-                                 << ", persist type : " << PersistType_Name(rddLocal.getPersistType())
-                                 << ", repartition : " << (rddLocal.isRepartition() ? "true" : "false")
-                                 << ", replicated : " << (rddLocal.isReplicatedRdd() ? "true" : "false")
-                                 << ", synchronize : " << (rddLocal.isUpstreamSync() ? "true" : "false");
+                                 << ", persist type : " << PersistType_Name(rddLocal->getPersistType())
+                                 << ", repartition : " << (rddLocal->isRepartition() ? "true" : "false")
+                                 << ", replicated : " << (rddLocal->isReplicatedRdd() ? "true" : "false")
+                                 << ", synchronize : " << (rddLocal->isUpstreamSync() ? "true" : "false");
   }
 
   if (msg->getSourceMemberId() != msg->getDestMemberId()) {
-    rddLocal.setRddState(rddActorInfo->state());
+    rddLocal->setRddState(rddActorInfo->state());
     auto itPartition = rddActorInfo->rdd_partition().begin();
     for (; itPartition != rddActorInfo->rdd_partition().end(); ++ itPartition) {
-      rddLocal.addPartitionActor(itPartition->partition(), itPartition->actor_id());
-      rddLocal.setPartitionState(itPartition->partition(), pb::PREPARED);
+      rddLocal->addPartitionActor(itPartition->partition(), itPartition->actor_id());
+      rddLocal->setPartitionState(itPartition->partition(), pb::PREPARED);
     }
   }
 
@@ -609,7 +613,7 @@ void RddInternalServiceActor::handleRddActionRequest(const ActorMessagePtr& msg)
     return;
   }
 
-  const ActorId& rddId = it->second.getRddId();
+  const ActorId& rddId = it->second->getRddId();
   auto respMsg = msg->createRouteMessage(rddId.member_id(), rddId.actor_id());
   idgs::actor::sendMessage(respMsg);
 }
@@ -628,7 +632,7 @@ void RddInternalServiceActor::handleRddDestroy(const ActorMessagePtr& msg) {
     LOG(ERROR) << "RDD named " << rddName << " is not found on member " << msg->getSourceMemberId() << ", please retry.";
     code = RRC_RDD_NOT_FOUND;
   } else {
-    auto& rddid = it->second.getRddId();
+    auto& rddid = it->second->getRddId();
     ActorMessagePtr message = createActorMessage();
     message->setDestMemberId(rddid.member_id());
     message->setDestActorId(rddid.actor_id());
@@ -655,17 +659,19 @@ void RddInternalServiceActor::handleRemoveRddLocal(const idgs::actor::ActorMessa
 
   auto it = rddLocalMap.find(rddName);
   if (it != rddLocalMap.end()) {
-    if (it->second.isDelegateRdd()) {
-      CreateDelegateRddRequest* request = dynamic_cast<CreateDelegateRddRequest*>(it->second.getTransformerMsg()->getPayload().get());
+    if (it->second->isDelegateRdd()) {
+      CreateDelegateRddRequest* request = dynamic_cast<CreateDelegateRddRequest*>(it->second->getTransformerMsg()->getPayload().get());
 
       const string& storeName = request->store_name();
 
       auto store = idgs::store::idgs_store_module()->getDataStore()->getStore(storeName);
-      auto& configWrapper = store->getStoreConfigWrapper();
+      auto& configWrapper = store->getStoreConfig();
 
       auto& listeners = const_cast<vector<idgs::store::StoreListener*>&>(configWrapper->getStoreListener());
-      listeners.erase(remove(listeners.begin(),listeners.end(), it->second.getRddStoreListener()));
+      listeners.erase(remove(listeners.begin(),listeners.end(), it->second->getRddStoreListener()));
     }
+
+    it->second->onDestroy();
     rddLocalMap.erase(it);
   }
 }
@@ -682,7 +688,7 @@ void RddInternalServiceActor::handleRddStateSync(const idgs::actor::ActorMessage
     return;
   }
 
-  it->second.setRddState(state);
+  it->second->setRddState(state);
 }
 
 void RddInternalServiceActor::handlePersistTypeSync(const idgs::actor::ActorMessagePtr& msg) {
@@ -697,7 +703,7 @@ void RddInternalServiceActor::handlePersistTypeSync(const idgs::actor::ActorMess
     LOG(ERROR) << "RDD named " << rddName << " is not found.";
     code = RRC_RDD_NOT_FOUND;
   } else {
-    it->second.setPersistType(payload->persist_type());
+    it->second->setPersistType(payload->persist_type());
   }
 
   response->set_result_code(code);
@@ -706,8 +712,10 @@ void RddInternalServiceActor::handlePersistTypeSync(const idgs::actor::ActorMess
 
 void RddInternalServiceActor::handleListRdd(const idgs::actor::ActorMessagePtr& msg) {
   shared_ptr<idgs::rdd::pb::ListRddResponse> response = make_shared<idgs::rdd::pb::ListRddResponse>();
-  for ( auto& en : rddLocalMap) {
-    const auto& m = en.second.getTransformerMsg();
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+
+  for (auto& en : rddLocalMap) {
+    const auto& m = en.second->getTransformerMsg();
     const auto& operationName = m->getOperationName();
     if (operationName == CREATE_DELEGATE_PARTITION || operationName == CREATE_STORE_DELEGATE_RDD) {
       *response->add_store_delegate() = *dynamic_cast<idgs::rdd::pb::CreateDelegateRddRequest*>(m->getPayload().get());
@@ -748,8 +756,9 @@ RddResultCode RddInternalServiceActor::registerPbMessage(const OutRddInfo& out, 
   }
 
   const string& rddName = out.rdd_name();
+  std::string protoPath(RDD_DYNAMIC_PROTO_PATH);
   if (out.has_proto_message()) {
-    string fileName = RDD_DYNAMIC_PROTO_PATH + "DM_" + rddName + "_" + suffix + ".proto";
+    string fileName = protoPath + "DM_" + rddName + "_" + suffix + ".proto";
     sys::saveFile(fileName, out.proto_message());
     registerPbMessage(fileName);
   } else {
@@ -762,7 +771,7 @@ RddResultCode RddInternalServiceActor::registerPbMessage(const OutRddInfo& out, 
 
     if (keyPackage != valuePackage) {
       if (!isKeyReg) {
-        string keyFileName = RDD_DYNAMIC_PROTO_PATH + "DM_" + rddName + "_KEY_" + suffix + ".proto";
+        string keyFileName = protoPath + "DM_" + rddName + "_KEY_" + suffix + ".proto";
         DynamicMessage dmKey;
         dmKey.name = keyName;
         for (int32_t i = 0; i < out.key_fields_size(); ++i) {
@@ -783,7 +792,7 @@ RddResultCode RddInternalServiceActor::registerPbMessage(const OutRddInfo& out, 
       }
 
       if (!isValueReg) {
-        string valueFileName = RDD_DYNAMIC_PROTO_PATH + "DM_" + rddName + "_VALUE_" + suffix + ".proto";
+        string valueFileName = protoPath + "DM_" + rddName + "_VALUE_" + suffix + ".proto";
         DynamicMessage dmValue;
         dmValue.name = valueName;
         for (int32_t i = 0; i < out.value_fields_size(); ++i) {
@@ -833,7 +842,7 @@ RddResultCode RddInternalServiceActor::registerPbMessage(const OutRddInfo& out, 
         composer.addMessage(dmValue);
       }
 
-      string fileName = RDD_DYNAMIC_PROTO_PATH + "DM_" + rddName + "_" + suffix + ".proto";
+      string fileName = protoPath + "DM_" + rddName + "_" + suffix + ".proto";
       composer.saveFile(fileName);
       registerPbMessage(fileName);
     }
@@ -873,9 +882,10 @@ void RddInternalServiceActor::destroyAllRddActor() {
   auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   auto it = rddLocalMap.begin();
   for (; it != rddLocalMap.end(); ++ it) {
-    if (it->second.isDelegateRdd() && it->second.getRddId().member_id() == localMemberId) {
-      DVLOG(2) << "Destroy actor " << it->second.getRddId().actor_id();
-      terminate(it->second.getRddId().actor_id(), localMemberId);
+    auto& rddId = it->second->getRddId();
+    if (it->second->isDelegateRdd() && rddId.member_id() == localMemberId) {
+      DVLOG(2) << "Destroy actor " << rddId.actor_id();
+      terminate(rddId.actor_id(), localMemberId);
     }
   }
 }

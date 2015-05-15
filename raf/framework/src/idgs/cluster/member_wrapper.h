@@ -83,11 +83,19 @@ public:
     return member.state();
   }
 
+  void setFlags(uint64_t flags) {
+    member.set_flags(flags);
+  }
+
   void setLeading(bool flag) {
-    member.mutable_service()->set_leading(flag);
+    if (flag) {
+      member.set_flags(member.flags() | static_cast<uint64_t>(idgs::pb::MF_LEADING));
+    } else {
+      member.set_flags(member.flags() & (~static_cast<uint64_t>(idgs::pb::MF_LEADING)));
+    }
   }
   bool isLeading() const {
-    return member.service().leading();
+    return member.flags() & static_cast<uint64_t>(idgs::pb::MF_LEADING);
   }
 
   friend std::ostream& operator <<(std::ostream& os, const MemberWrapper& mw);

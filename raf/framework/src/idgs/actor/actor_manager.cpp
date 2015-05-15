@@ -156,29 +156,29 @@ std::string ActorManager::toString() {
   function_footprint();
   stringstream ss;
 
-  if (!serviceActorMap.empty()) {
-    ss << "============================== Named Actors ==============================" << endl;
-    ss << "Name                          Class" << endl;
-    ss << "--------------------------------------------------------------------------" << endl;
-    for (auto itr = serviceActorMap.begin(); itr != serviceActorMap.end(); ++itr) {
-      ss << itr->first << "\t\t" << idgs::util::demangle(typeid((*(itr->second))).name()) << endl;
-    }
-    ss << "==========================================================================" << endl;
-  }
-
-  if (!sessionActorMap.empty()) {
-    map<string, uint32_t> actorCount;
-    for (auto itr = sessionActorMap.begin(); itr != sessionActorMap.end(); ++itr) {
-      actorCount[idgs::util::demangle(typeid((*(itr->second))).name())]++;
-    }
-    ss << "============================== Session Actors ============================" << endl;
-    ss << "Count                         Class" << endl;
-    ss << "--------------------------------------------------------------------------" << endl;
-    for (auto itr = actorCount.begin(); itr != actorCount.end(); ++itr) {
-      ss << itr->second << "\t\t\t" << itr->first << endl;
-    }
-    ss << "==========================================================================" << endl;
-  }
+//  if (!serviceActorMap.empty()) {
+//    ss << "============================== Named Actors ==============================" << endl;
+//    ss << "Name                          Class" << endl;
+//    ss << "--------------------------------------------------------------------------" << endl;
+//    for (auto itr = serviceActorMap.begin(); itr != serviceActorMap.end(); ++itr) {
+//      ss << itr->first << "\t\t" << idgs::util::demangle(typeid((*(itr->second))).name()) << endl;
+//    }
+//    ss << "==========================================================================" << endl;
+//  }
+//
+//  if (!sessionActorMap.empty()) {
+//    map<string, uint32_t> actorCount;
+//    for (auto itr = sessionActorMap.begin(); itr != sessionActorMap.end(); ++itr) {
+//      actorCount[idgs::util::demangle(typeid((*(itr->second))).name())]++;
+//    }
+//    ss << "============================== Session Actors ============================" << endl;
+//    ss << "Count                         Class" << endl;
+//    ss << "--------------------------------------------------------------------------" << endl;
+//    for (auto itr = actorCount.begin(); itr != actorCount.end(); ++itr) {
+//      ss << itr->second << "\t\t\t" << itr->first << endl;
+//    }
+//    ss << "==========================================================================" << endl;
+//  }
 
   return ss.str();
 }

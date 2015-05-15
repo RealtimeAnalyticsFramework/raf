@@ -21,7 +21,8 @@ public:
   virtual ~TpchQ6Transformer();
 
   virtual const std::string& getName() override {
-    return TPCH_Q6_TRANSFORMER;
+    static std::string name(TPCH_Q6_TRANSFORMER);
+    return name;
   }
 
   TpchQ6Transformer(const TpchQ6Transformer& other) = delete;

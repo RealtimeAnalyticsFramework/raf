@@ -8,55 +8,30 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package idgs.execution;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
-import com.google.protobuf.Descriptors.FieldDescriptor;
 
 public class ResultSet {
 
-  private Descriptor keyDescriptor;
+  private ResultSetMetadata metadata;
   
-  private Descriptor valueDescriptor;
-  
-  private Map<String, FieldDescriptor> keyFieldDescriptors;
-  
-  private Map<String, FieldDescriptor> valueFieldDescriptors;
-  
-  private List<ResultData> results;
+  private List<RowData> results;
   
   private int rowNum;
   
   public ResultSet(Descriptor keyDescriptor, Descriptor valueDescriptor) {
-    this.keyDescriptor = keyDescriptor;
-    this.valueDescriptor = valueDescriptor;
-    
-    results = new ArrayList<ResultData>();
+    results = new ArrayList<RowData>();
     rowNum = 0;
-    
-    int keyFieldSize = keyDescriptor.getFields().size();
-    keyFieldDescriptors = new HashMap<String, FieldDescriptor>();
-    for (int i = 0; i < keyFieldSize; ++ i) {
-      FieldDescriptor desc = keyDescriptor.getFields().get(i);
-      keyFieldDescriptors.put(desc.getName(), desc);
-    }
-
-    int valueFieldSize = valueDescriptor.getFields().size();
-    valueFieldDescriptors = new HashMap<String, FieldDescriptor>();
-    for (int i = 0; i < valueFieldSize; ++ i) {
-      FieldDescriptor desc = valueDescriptor.getFields().get(i);
-      valueFieldDescriptors.put(desc.getName(), desc);
-    }
+    metadata = new ResultSetMetadata(keyDescriptor, valueDescriptor);
   }
   
   public void addResult(DynamicMessage key, DynamicMessage value) {
-    results.add(new ResultData(key, value, keyFieldDescriptors, valueFieldDescriptors));
+    results.add(new RowData(key, value, metadata));
   }
   
-  public ResultData getResultData(int index) {
+  public RowData getResultData(int index) {
     if (index < 0 || index >= getRowCount()) {
       return null;
     }
@@ -67,7 +42,7 @@ public class ResultSet {
     return results.size();
   }
   
-  public List<ResultData> getResults(int maxRow) {
+  public List<RowData> getResults(int maxRow) {
     int start = rowNum;
     int end = Math.min(rowNum + maxRow, results.size());
     rowNum += maxRow;
@@ -78,29 +53,9 @@ public class ResultSet {
     
     return results.subList(start, end);
   }
+  
+  public ResultSetMetadata getResultSetMetadata() {
+    return metadata;
+  }
 
-  public Descriptor getKeyMetadata() {
-    return keyDescriptor;
-  }
-
-  public Descriptor getValueMetadata() {
-    return valueDescriptor;
-  }
-  
-  public DynamicMessage.Builder newKeyBuilder() {
-    if (keyDescriptor == null) {
-      return null;
-    } else {
-      return DynamicMessage.newBuilder(keyDescriptor);
-    }
-  }
-  
-  public DynamicMessage.Builder newValueBuilder() {
-    if (valueDescriptor == null) {
-      return null;
-    } else {
-      return DynamicMessage.newBuilder(valueDescriptor);
-    }
-  }
-  
 }

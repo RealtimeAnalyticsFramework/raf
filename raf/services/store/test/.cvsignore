@@ -1,8 +1,0 @@
-*.pb.h
-*.pb.cc
-.libs
-.dirstamp
-dynamic_proto_test
-store_ptr_test
-datastore_test
-store_listener_test

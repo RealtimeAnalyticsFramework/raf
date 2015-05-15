@@ -8,11 +8,13 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package printer;
 
 import java.text.DecimalFormat;
+import java.util.List;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 
-import idgs.execution.ResultData;
+import idgs.execution.ResultSetMetadata;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 
 public class DefaultResultPrinter implements ResultPrinter {
@@ -54,25 +56,27 @@ public class DefaultResultPrinter implements ResultPrinter {
       rows = MAX_SIZE;
     }
     
-    Descriptor valueDescriptor = resultSet.getValueMetadata();
-    int fieldSize = valueDescriptor.getFields().size();
+    ResultSetMetadata metadata = resultSet.getResultSetMetadata();
+    Descriptor valueDescriptor = metadata.getValueMetadata();
+    List<FieldDescriptor> fields = valueDescriptor.getFields();
+    int fieldSize = fields.size();
     int[] colLength = new int[fieldSize];
     String[] schemas = new String[fieldSize];
     
     for (int i = 0; i < fieldSize; ++ i) {
-      FieldDescriptor desc = valueDescriptor.getFields().get(i);
+      FieldDescriptor desc = fields.get(i);
       schemas[i] = desc.getName();
       colLength[i] = schemas[i].length();
     }
     
     for (int index = start; index < start + rows; ++ index) {
-      ResultData result = resultSet.getResultData(index);
+      RowData result = resultSet.getResultData(index);
       if (result == null) {
         break;
       }
       
       for (int i = 0; i < fieldSize; ++ i) {
-        FieldDescriptor desc = valueDescriptor.getFields().get(i);
+        FieldDescriptor desc = fields.get(i);
         Object v = result.getValue().getField(desc);
         String s = formatValue(v, -1);
         colLength[i] = Math.max(colLength[i], s.length());
@@ -99,14 +103,14 @@ public class DefaultResultPrinter implements ResultPrinter {
     sb.append(line);
     
     for (int index = start; index < start + rows; ++ index) {
-      ResultData result = resultSet.getResultData(index);
+      RowData result = resultSet.getResultData(index);
       if (result == null) {
         break;
       }
       
       sb.append("|");
       for (int i = 0; i < fieldSize; ++ i) {
-        FieldDescriptor desc = valueDescriptor.getFields().get(i);
+        FieldDescriptor desc = fields.get(i);
         Object v = result.getValue().getField(desc);
         String s = formatValue(v, colLength[i]);
         

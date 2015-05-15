@@ -231,14 +231,14 @@ ResultCode RddClient::init(const std::string& clientConfig) {
   return code;
 }
 
-const idgs::store::StoreConfigWrapperPtr& RddClient::getStoreConfigWrapper(const std::string& storeName) const {
+const idgs::store::StoreConfigWrapperPtr& RddClient::getStoreConfig(const std::string& storeName) const {
   auto store = getTcpClientPool().getDataStore()->getStore(storeName);
   if (!store) {
     static idgs::store::StoreConfigWrapperPtr null;
     return null;
   }
 
-  return store->getStoreConfigWrapper();
+  return store->getStoreConfig();
 }
 
 }

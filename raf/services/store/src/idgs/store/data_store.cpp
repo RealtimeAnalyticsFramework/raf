@@ -13,15 +13,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "data_store.h"
 
 #include "idgs/application.h"
-
-
 #include "idgs/store/config_parser.h"
 #include "idgs/store/listener/store_listener_factory.h"
-
-
 #include "idgs/util/utillity.h"
 
-using namespace google::protobuf;
 
 namespace idgs {
 namespace store {
@@ -35,7 +30,7 @@ DataStore::~DataStore() {
   function_footprint();
 }
 
-ResultCode DataStore::initialize(const string& configFilePath) {
+ResultCode DataStore::initialize(const std::string& configFilePath) {
   DVLOG(1) << "Load data store configuration: " << configFilePath;
   auto status = loadCfgFile(configFilePath);
   if (status != RC_SUCCESS) {
@@ -58,11 +53,13 @@ ResultCode DataStore::start() {
 }
 
 ResultCode DataStore::stop() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+
   schemaMap.clear();
   return RC_SUCCESS;
 }
 
-ResultCode DataStore::loadCfgFile(const string& configFilePath) {
+ResultCode DataStore::loadCfgFile(const std::string& configFilePath) {
   pb::DataStoreConfig config;
   auto code = StoreConfigParser::parseStoreConfigFromFile(configFilePath, &config);
   if (code != RC_SUCCESS) {
@@ -97,14 +94,14 @@ ResultCode DataStore::createDataStore(const pb::DataStoreConfig& dataStoreConfig
     tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
     auto sit = schemaMap.find(it->schema_name());
     if (sit == schemaMap.end()) {
-      schemaMap.insert(std::pair<std::string, StoreSchemaWrapperPtr>(it->schema_name(), std::make_shared<StoreSchemaWrapper>(it->schema_name())));
+      schemaMap.insert(std::pair<std::string, StoreSchemaPtr>(it->schema_name(), std::make_shared<StoreSchema>(it->schema_name())));
     }
 
     auto& schema = schemaMap[it->schema_name()];
     auto& helper = schema->getMessageHelper();
 
     if (it->has_proto_filename()) {
-      const string& filename = it->proto_filename();
+      const std::string& filename = it->proto_filename();
       DVLOG(2) << "register protobuf file : " << filename;
       do {
         code = helper.registerDynamicMessage(filename);
@@ -117,7 +114,7 @@ ResultCode DataStore::createDataStore(const pb::DataStoreConfig& dataStoreConfig
           idgsHome = getenv("IDGS_HOME");
         }
 
-        string path = idgsHome + "/" + filename;
+        std::string path = idgsHome + "/" + filename;
         code = helper.registerDynamicMessage(path);
         if (code != RC_SUCCESS) {
           LOG(ERROR) << "error when register protobuf file : " << path << " casused by " << getErrorDescription(code);
@@ -127,8 +124,8 @@ ResultCode DataStore::createDataStore(const pb::DataStoreConfig& dataStoreConfig
     }
 
     if (it->has_proto_content()) {
-      const string& content = it->proto_content();
-      string filename = "/tmp/idgs/proto/dynamic_proto_file_m" + std::to_string(localMemberId) + ".proto";
+      const std::string& content = it->proto_content();
+      std::string filename = "/tmp/idgs/proto/dynamic_proto_file_m" + std::to_string(localMemberId) + ".proto";
       sys::saveFile(filename, content);
       DVLOG(2) << "register protobuf with content : " << content;
       code = helper.registerDynamicMessage(filename);
@@ -143,19 +140,19 @@ ResultCode DataStore::createDataStore(const pb::DataStoreConfig& dataStoreConfig
 
     auto storeIt = it->store_config().begin();
     for (; storeIt != it->store_config().end(); ++ storeIt) {
-      string keyType = storeIt->key_type();
+      std::string keyType = storeIt->key_type();
       if (!helper.isMessageRegistered(keyType)) {
         LOG(ERROR)<< "store " << storeIt->name() << ", key type " << keyType << " is not register to system.";
         return RC_KEY_TYPE_NOT_REGISTERED;
       }
 
-      string valueType = storeIt->value_type();
+      std::string valueType = storeIt->value_type();
       if (!helper.isMessageRegistered(valueType)) {
         LOG(ERROR)<< "store " << storeIt->name() << ", value type " << valueType << " is not register to system.";
         return RC_VALUE_TYPE_NOT_REGISTERED;
       }
 
-      StoreConfigWrapperPtr storeConfigWrapper = std::make_shared<StoreConfigWrapper>();
+      StoreConfigWrapperPtr storeConfigWrapper = std::make_shared<StoreConfig>();
       storeConfigWrapper->setSchema(it->schema_name());
 
       auto key = helper.getPbPrototype(keyType);
@@ -208,18 +205,19 @@ ResultCode DataStore::dropStore(const std::string& schemaName, const std::string
 }
 
 ResultCode DataStore::startDataStore() {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
   auto it = schemaMap.begin();
   for (; it != schemaMap.end(); ++ it) {
     auto& stores = it->second->getStores();
-    for (int32_t i = 0; i < stores.size(); ++ i) {
-      auto& storeConfigWrapper = stores.at(i)->getStoreConfigWrapper();
+    for (auto& en : stores) {
+      auto& storeConfigWrapper = en.second->getStoreConfig();
 
       auto code = storeConfigWrapper->buildStoreListener();
       if (code != RC_SUCCESS) {
         return code;
       }
 
-      stores.at(i)->initialize();
+      en.second->initialize();
     }
   }
 
@@ -232,22 +230,27 @@ bool DataStore::isInit() {
 
 StorePtr DataStore::getStore(const std::string& storeName) {
   tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
-  auto it = schemaMap.begin();
-  for (; it != schemaMap.end(); ++ it) {
+  StorePtr result;
+  for (auto it = schemaMap.begin(); it != schemaMap.end(); ++ it) {
     auto store = it->second->getStore(storeName);
     if (store) {
-      return store;
+      if (result) {
+        LOG(ERROR) << "There are more than ONE stores named " << storeName;
+      } else {
+        result = store;
+      }
     }
   }
 
-  static StorePtr nullStore;
-  return nullStore;
+  return result;
 }
 
 StorePtr DataStore::getStore(const std::string& schemaName, const std::string& storeName) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
   auto it = schemaMap.find(schemaName);
   if (it == schemaMap.end()) {
-    static StorePtr nullStore;
+    LOG(ERROR) << "No schema named " << schemaName;
+    StorePtr nullStore;
     return nullStore;
   }
 
@@ -255,11 +258,12 @@ StorePtr DataStore::getStore(const std::string& schemaName, const std::string& s
 }
 
 ResultCode DataStore::getStores(std::vector<StorePtr>& stores) {
-  auto it = schemaMap.begin();
-  for (; it != schemaMap.end(); ++ it) {
-    auto code = getStores(it->first, stores);
-    if (code != RC_SUCCESS) {
-      return code;
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+
+  for (auto it = schemaMap.begin(); it != schemaMap.end(); ++ it) {
+    auto store = it->second->getStores();
+    for (auto& en : store) {
+      stores.push_back(en.second);
     }
   }
 
@@ -267,13 +271,16 @@ ResultCode DataStore::getStores(std::vector<StorePtr>& stores) {
 }
 
 ResultCode DataStore::getStores(const std::string& schemaName, std::vector<StorePtr>& stores) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
   auto it = schemaMap.find(schemaName);
   if (it == schemaMap.end()) {
     return RC_SCHEMA_NOT_FOUND;
   }
 
   auto store = it->second->getStores();
-  stores.insert(stores.end(), store.begin(), store.end());
+  for (auto& en : store) {
+    stores.push_back(en.second);
+  }
 
   return RC_SUCCESS;
 }
@@ -286,5 +293,5 @@ void DataStore::unregisterStoreListener(StoreListener* listener) {
   StoreListenerFactory::unregisterStoreListener(listener->getName());
 }
 
-}//namespace store
+} //namespace store
 } // namespace idgs

@@ -28,6 +28,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
 import org.apache.hadoop.hive.ql.io.RCFileOutputFormat;
@@ -47,6 +49,8 @@ public class StoreMetadata {
   
   private Map<String, StoreConfig> storeCache;
   
+  private Map<String, String> schemaNames;
+  
   private Map<String, String> storeNames;
   
   private static StoreMetadata instance;
@@ -55,8 +59,13 @@ public class StoreMetadata {
     if (storeCache == null) {
       storeCache = new HashMap<String, StoreConfig>();
     }
+    
     if (storeNames == null) {
       storeNames = new HashMap<String, String>();
+    }
+    
+    if (schemaNames == null) {
+      schemaNames = new HashMap<String, String>();
     }
   }
   
@@ -67,33 +76,43 @@ public class StoreMetadata {
     
     return instance;
   }
-  
-  public String getStoreName(String tableName) {
-    return storeNames.get(tableName.toLowerCase());
+
+  public String getSchemaName(String dbName) {
+    return schemaNames.get(dbName.toLowerCase());
   }
   
-  public StoreConfig getStoreConfig(String storeName) {
-    return storeCache.get(storeName);
+  public String getStoreName(String dbName, String tableName) {
+    return storeNames.get(dbName.toLowerCase() + "." + tableName.toLowerCase());
+  }
+  
+  public StoreConfig getStoreConfig(String schemaName, String storeName) {
+    return storeCache.get(schemaName + "." + storeName);
   }
   
   public void initMetadata(HiveConf hiveConf, DataStoreConfig storeConfig) throws IdgsException {
     Hive db = null;
 
+    Map<String, String> dbMap = new HashMap<String, String>();
     Map<String, String> tableMap = new HashMap<String, String>();
     try {
       db = Hive.get(hiveConf);
-      for (String tbl : db.getAllTables()) {
-        tableMap.put(tbl.toLowerCase(), tbl.toLowerCase());
+      for (String database : db.getAllDatabases()) {
+        dbMap.put(database.toLowerCase(), database);
+        List<String> tblList = db.getAllTables(database);
+        for (String tbl : tblList) {
+          tableMap.put(database.toLowerCase() + "." + tbl.toLowerCase(), tbl);
+        }
       }
     } catch (HiveException e) {
       LOG.error("initialize store metadata error, caused by " + e.getMessage());
       throw new IdgsException(e);
     }
-
+    
     String storeCfgFile = IdgsConfVars.getVar(hiveConf, IdgsConfVars.STORE_CONFIG_FILE);
     URL url = IdgsCliDriver.class.getClassLoader().getResource(storeCfgFile);
     
     List<StoreSchema> schemas = storeConfig.getSchemasList();
+    LOG.info("schemas " + schemas.size());
     for (int i = 0; i < schemas.size(); ++ i) {
       StoreSchema schema = schemas.get(i);
       
@@ -103,17 +122,31 @@ public class StoreMetadata {
       }
       registerStoreMessage(schema, baseDir, storeCfgFile);
       
+      String dbName = schema.getSchemaName().toLowerCase();
+      if (!dbMap.containsKey(dbName)) {
+        try {
+          Database database = new Database();
+          database.setName(dbName);
+          db.createDatabase(database);
+        } catch (AlreadyExistsException e) {
+          LOG.warn("database " + schema.getSchemaName() + " is already exists.");
+        } catch (HiveException e) {
+          LOG.error("error create database " + schema.getSchemaName(), e);
+        }
+      }
+
+      schemaNames.put(dbName, schema.getSchemaName());
       for (StoreConfig store : schema.getStoreConfigList()) {
         if (!store.hasFieldSeperator()) {
           store = store.toBuilder().setFieldSeperator("\\|").build();
         }
         
-        storeNames.put(store.getName().toLowerCase(), store.getName());
-        storeCache.put(store.getName(), store);
+        storeNames.put(dbName + "." + store.getName().toLowerCase(), store.getName());
+        storeCache.put(schema.getSchemaName() + "." + store.getName(), store);
         
         String tableName = store.getName().toLowerCase();
-        if (tableMap.containsKey(tableName)) {
-          LOG.info("table " + tableName + " exists, next table.");
+        if (tableMap.containsKey(dbName + "." + tableName)) {
+          LOG.info("table " + dbName + "." + tableName + " exists, next table.");
           continue;
         }
         
@@ -129,7 +162,7 @@ public class StoreMetadata {
         }
         
         try {
-          createLocalHiveTable(db, tableName, store.getFieldSeperator(), keyType, valueType);
+          createLocalHiveTable(db, dbName, tableName, store.getFieldSeperator(), keyType, valueType);
         } catch (HiveException e) {
           LOG.error("creating table " + store.getName() + " error, caused by " + e.getMessage(), e);
         }
@@ -211,9 +244,8 @@ public class StoreMetadata {
     }
   }
   
-  private void createLocalHiveTable(Hive db, String tableName, String seperator, String keyType, String valueType) throws HiveException {
+  private void createLocalHiveTable(Hive db, String dbName, String tableName, String seperator, String keyType, String valueType) throws HiveException {
     Table tbl = db.newTable(tableName);
-    tbl.getProperty("");
     
     List<FieldSchema> fields = new ArrayList<FieldSchema>();
     
@@ -227,6 +259,7 @@ public class StoreMetadata {
       fields.add(new FieldSchema(field.getName(), TypeUtils.javaTypeToHive(field.getJavaType()), ""));
     }
 
+    tbl.setDbName(dbName);
     tbl.setProperty("EXTERNAL", "TRUE");
     tbl.setTableType(TableType.EXTERNAL_TABLE);
     

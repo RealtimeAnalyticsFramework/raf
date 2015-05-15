@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #pragma once
 
 #include "idgs/store/listener/listener_context.h"
-#include "idgs/store/store_config_wrapper.h"
+#include "idgs/store/store_config.h"
 
 namespace idgs {
 namespace store {
@@ -37,7 +37,7 @@ public:
 
   virtual idgs::ResultCode init(std::map<std::string, std::string> props) = 0;
 
-  void setStoreConfig(std::shared_ptr<StoreConfigWrapper> config) {
+  void setStoreConfig(std::shared_ptr<StoreConfig> config) {
     storeConfig = config;
   }
 
@@ -86,7 +86,7 @@ protected:
   }
 
 private:
-  std::shared_ptr<idgs::store::StoreConfigWrapper> storeConfig;
+  std::shared_ptr<idgs::store::StoreConfig> storeConfig;
   uint32_t listenerIndex;
 };
 

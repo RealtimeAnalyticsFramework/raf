@@ -17,23 +17,23 @@ case4() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
-  dist/itest/it_rpc_tcp_test_server  1>case4_server.log 2>&1 &
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
+  $BUILD_DIR/target/itest/it_rpc_tcp_test_server  1>case4_server.log 2>&1 &
   SRV_PID1=$!
   
   sleep 3
 
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
-  dist/itest/it_rpc_tcp_test_server2  1>case4_server2.log 2>&1 &
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
+  $BUILD_DIR/target/itest/it_rpc_tcp_test_server2  1>case4_server2.log 2>&1 &
   SRV_PID2=$!
   
   sleep 3
   
-  GLOG_v=10 run_test dist/itest/it_rpc_tcp_test_client 
+  GLOG_v=10 run_test $BUILD_DIR/target/itest/it_rpc_tcp_test_client 
   
   sleep 2
   
@@ -52,7 +52,7 @@ case5() {
   cd $WORKSPACE/idgs/
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
-  run_test dist/utest/actor_descriptor_dump_test 
+  run_test $BUILD_DIR/target/utest/actor_descriptor_dump_test 
   
   #echo "########################"
 }
@@ -67,8 +67,8 @@ case6() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start 1 server."
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case6_1.log 2>&1 &
   SRV_PID1=$!
   
@@ -98,8 +98,8 @@ case7() {
   dist/bin/idgs -c conf/cluster.conf   1>case7_1.log 2>&1 &
   SRV_PID1=$!
   echo "start server 2."
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case7_2.log 2>&1 &
   SRV_PID2=$!
   
@@ -130,15 +130,15 @@ case8() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start 1 server"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
-  dist/itest/it_rpc_tcp_test_server2  1>case8_server.log 2>&1 &
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
+  $BUILD_DIR/target/itest/it_rpc_tcp_test_server2  1>case8_server.log 2>&1 &
   SRV_PID1=$!
   sleep 2
   echo "start 1 client"
-  dist/itest/it_rpc_tcp_test_client2  1>case8_client.log 2>&1 &
+  $BUILD_DIR/target/itest/it_rpc_tcp_test_client2  1>case8_client.log 2>&1 &
   echo "start 2 client"
-  run_test dist/itest/it_rpc_tcp_test_client2
+  run_test $BUILD_DIR/target/itest/it_rpc_tcp_test_client2
   
   sleep 2
   

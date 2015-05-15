@@ -7,10 +7,14 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package idgs.metadata;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+
 import idgs.exception.IdgsException;
 import idgs.store.pb.PbStoreConfig.DataStoreConfig;
 
 public interface StoreLoader {
+  
+  public void init(HiveConf conf);
 
   public DataStoreConfig loadDataStoreConf() throws IdgsException;
   

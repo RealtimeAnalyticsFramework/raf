@@ -16,7 +16,7 @@ import java.util.Map;
 import printer.DefaultResultPrinter;
 import printer.ResultPrinter;
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -25,8 +25,8 @@ public class SsbQ1_1IT extends TestCase {
   public void testSSBQ1_1() {
     StringBuffer sql = new StringBuffer();
     sql.append("  SELECT sum(lo.lo_extendedprice * lo.lo_discount) AS revenue\n")
-       .append("  FROM   ssb_lineorder lo\n")
-       .append("         JOIN ssb_date d\n")
+       .append("  FROM   ssb.ssb_lineorder lo\n")
+       .append("         JOIN ssb.ssb_date d\n")
        .append("           ON lo.lo_orderdate = d.d_datekey\n")
        .append("  WHERE  d.d_year = 1992\n")
        .append("         AND lo.lo_discount BETWEEN 1 AND 3\n")
@@ -79,7 +79,7 @@ public class SsbQ1_1IT extends TestCase {
         } else {
           assertEquals(1, resultSet.getRowCount());
 
-          ResultData data = resultSet.getResultData(0);
+          RowData data = resultSet.getResultData(0);
           Object value = data.getFieldValue("revenue");
           assertNotNull(value);
           assertTrue(value instanceof Double);

@@ -60,7 +60,7 @@ const ::idgs::actor::ActorDescriptorPtr& PartitionManagerActor::generateActorDes
 
   // whole partition table event actor descriptor
   ::idgs::actor::ActorOperationDescriporWrapper whole_partition_table_evt;
-  whole_partition_table_evt.setName(WHOLE_PARTITION_TABLE);
+  whole_partition_table_evt.setName(OID_WHOLE_PARTITION_TABLE);
   whole_partition_table_evt.setDescription("whole partition table sent by leading to new joined members");
   whole_partition_table_evt.setPayloadType("idgs.pb.WholePartitionEvent");
   descriptor->setInOperation(whole_partition_table_evt.getName(), whole_partition_table_evt);
@@ -68,14 +68,14 @@ const ::idgs::actor::ActorDescriptorPtr& PartitionManagerActor::generateActorDes
 
   // delta partition event actor descriptor
   ::idgs::actor::ActorOperationDescriporWrapper delta_partition_evt;
-  delta_partition_evt.setName(DELTA_PARTITIONS);
+  delta_partition_evt.setName(OID_DELTA_PARTITIONS);
   delta_partition_evt.setDescription("delta partition sent by leading to all");
   delta_partition_evt.setPayloadType("idgs.pb.DeltaPartitionEvent");
   descriptor->setInOperation(delta_partition_evt.getName(), delta_partition_evt);
   descriptor->setOutOperation(delta_partition_evt.getName(), delta_partition_evt);
 
   ::idgs::actor::ActorOperationDescriporWrapper partition_status_change_evt;
-  partition_status_change_evt.setName(PARTITION_STATE_CHANGED);
+  partition_status_change_evt.setName(OID_PARTITION_STATE_CHANGED);
   partition_status_change_evt.setDescription("update partition status");
   partition_status_change_evt.setPayloadType("idgs.pb.PartitionStatusChangeEvent");
   descriptor->setInOperation(partition_status_change_evt.getName(), partition_status_change_evt);
@@ -87,11 +87,23 @@ const ::idgs::actor::ActorDescriptorPtr& PartitionManagerActor::generateActorDes
 }
 
 const idgs::actor::ActorMessageHandlerMap& PartitionManagerActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
-      {WHOLE_PARTITION_TABLE,        static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleWholePartitionTableEvent)},
-      {DELTA_PARTITIONS,             static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleDeltaPartitionEvent)},
-      {PARTITION_STATE_CHANGED,      static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handlePartitionStatusChangedEvent)},
-      {OID_LIST_PARTITIONS,      static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleListPartitions)}
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      { OID_WHOLE_PARTITION_TABLE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleWholePartitionTableEvent),
+          &idgs::pb::WholePartitionEvent::default_instance()
+      }},
+      { OID_DELTA_PARTITIONS, {
+          static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleDeltaPartitionEvent),
+          &idgs::pb::DeltaPartitionEvent::default_instance()
+      }},
+      { OID_PARTITION_STATE_CHANGED, {
+          static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handlePartitionStatusChangedEvent),
+          &idgs::pb::PartitionStatusChangeEvent::default_instance()
+      }},
+      { OID_LIST_PARTITIONS, {
+          static_cast<idgs::actor::ActorMessageHandler>(&PartitionManagerActor::handleListPartitions),
+          NULL
+      }}
   };
   return handlerMap;
 }
@@ -145,7 +157,7 @@ void PartitionManagerActor::memberStatusChanged(const MemberWrapper& member) {
       DeltaPartitionEvent evt;
       balance(changedMember, evt);
     }
-    member_manager->multicastMemberStatus(changedMember.getId(), idgs::pb::MS_PREPARED);
+    member_manager->mcastMemberStatus(changedMember.getId(), idgs::pb::MS_PREPARED);
   } else if(changedMember.getState() == idgs::pb::MS_INACTIVE) { /// leave
     if(changedMember.isLeading()) { /// leading leave
       recalculate();
@@ -279,11 +291,11 @@ idgs::ResultCode PartitionManagerActor::multicastWholePartitionTable(uint32_t jo
   auto evt = std::make_shared<idgs::pb::WholePartitionEvent>();
   evt->set_joinedmemberid(joinedMemberId);
   genPartitionTable(*evt->mutable_table());
-  return multicastPartitionMessage(WHOLE_PARTITION_TABLE, evt);
+  return multicastPartitionMessage(OID_WHOLE_PARTITION_TABLE, evt);
 }
 
 idgs::ResultCode PartitionManagerActor::multicastDeltaPartitionEvent(const std::shared_ptr<idgs::pb::DeltaPartitionEvent>& deltaPartitionEvent) {
-  return multicastPartitionMessage(DELTA_PARTITIONS, deltaPartitionEvent);
+  return multicastPartitionMessage(OID_DELTA_PARTITIONS, deltaPartitionEvent);
 }
 
 std::string PartitionManagerActor::toString() {

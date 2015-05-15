@@ -17,3 +17,13 @@ else
   echo "genertate new Makefile"
   mv Makefile.am.tmp Makefile.am
 fi
+
+SLFB_TMP=`tac Makefile.am | sed -n 2p`
+echo $SLFB_TMP
+SLFB=${SLFB_TMP/\\/""}
+echo $SLFB
+sed '$d' -i Makefile.am
+sed '$d' -i Makefile.am
+echo "$SLFB" >> Makefile.am
+echo <<END  >> Makefile.am
+

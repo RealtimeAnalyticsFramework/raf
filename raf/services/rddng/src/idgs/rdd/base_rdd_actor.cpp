@@ -44,7 +44,7 @@ const std::string& BaseRddActor::getRddName() const {
   return rddName;
 }
 
-void BaseRddActor::setRddLocal(RddLocal* rddlocal) {
+void BaseRddActor::setRddLocal(const std::shared_ptr<RddLocal>& rddlocal) {
   rddLocal = rddlocal;
 }
 
@@ -741,7 +741,6 @@ void BaseRddActor::onDestroy() {
   // muticast internal service actor to remove rddLocal
   shared_ptr<DestroyRddRequest> request = make_shared<DestroyRddRequest>();
   request->set_rdd_name(rddLocal->getRddName());
-
   multicastRddMessage(REMOVE_RDD_LOCAL, request);
 
   idgs::actor::StatefulActor::onDestroy();
@@ -749,9 +748,6 @@ void BaseRddActor::onDestroy() {
 
 void BaseRddActor::multicastRddMessage(const std::string& opName, const idgs::actor::PbMessagePtr& payload) {
   auto cluster = idgs_application()->getClusterFramework();
-  partitionSize = cluster->getPartitionCount();
-  localMemberId = cluster->getLocalMember()->getId();
-
   auto members = cluster->getMemberManager()->getMemberTable();
   auto it = members.begin();
   for (; it != members.end(); ++ it) {

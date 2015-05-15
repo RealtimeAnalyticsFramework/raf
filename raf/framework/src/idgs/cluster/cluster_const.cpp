@@ -10,53 +10,58 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 namespace idgs {
 namespace cluster {
+//
+// module name and descriptor
+//
+const char CLUSTER_MODULE_DESCRIPTOR_NAME[] = "cluster";
+const char CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION[] = "Cluster's Actor Descriptors";
 
-/// ====================================================Actor ID==============================================
-const std::string AID_MEMBER = "cluster.member";
-const std::string MEMBER = "MEMBER";
-const std::string MEMBER_STATUS = "MEMBER_STATUS";
-const std::string WHOLE_MEMBERSHIP_TABLE = "WHOLE_MEMBERSHIP_TABLE";
-const std::string DELTA_MEMBER_AND_JOIN_POSITION = "DELTA_MEMBER_AND_JOIN_POSITION";
-const std::string OID_CPG_CONFIG_CHANGE = "CPG_CONFIG_CHANGE";
-const std::string OID_LIST_MEMBERS = "list_members";
-const std::string OID_GET_CLUSTER_CFG = "get_cluster_cfg";
+//
+// Actor id and operation names
+//
+const char AID_MEMBER[] = "cluster.member";
+const size_t AID_MEMBER_LENGTH = sizeof(AID_MEMBER)/sizeof(char);
 
-const std::string AID_PARTITION = "cluster.partition";
-const std::string WHOLE_PARTITION_TABLE = "WHOLE_PARTITION_TABLE";
-const std::string DELTA_PARTITIONS = "DELTA_PARTITIONS";
-const std::string PARTITION_STATE_CHANGED = "PARTITION_STATE_CHANGED";
-const std::string CLUSTER_MODULE_DESCRIPTOR_NAME = "cluster";
-const std::string CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION = "Cluster's Actor Descriptors";
-const std::string OID_LIST_PARTITIONS = "list_partitions";
+const char OID_MEMBER[] = "MEMBER";
+const char OID_WHOLE_MEMBERSHIP_TABLE[] = "WHOLE_MEMBERSHIP_TABLE";
+const char OID_DELTA_MEMBER_AND_JOIN_POSITION[] = "DELTA_MEMBER_AND_JOIN_POSITION";
+const char OID_CPG_CONFIG_CHANGE[] = "CPG_CONFIG_CHANGE";
 
-/// ====================================================Actor ID==============================================
+const char OID_MEMBER_FLAGS[] = "FLAGS";
+const char OID_MEMBER_STATUS[] = "MEMBER_STATUS";
+const char OID_LIST_MEMBERS[] = "list_members";
+const char OID_GET_CLUSTER_CFG[] = "get_cluster_cfg";
 
-/// ====================================================Env. Variable==============================================
-const char* ENV_VAR_GROUP = "idgs_group";
-const char* ENV_VAR_THREAD_COUNT = "idgs_thread_count";
-const char* ENV_VAR_IO_THREAD_COUNT = "idgs_io_thread_count";
-const char* ENV_VAR_MAX_IDLE_THREAD = "idgs_max_idle_thread";
-const char* ENV_VAR_REPARTITION_BATCH = "idgs_repartition_batch";
+const char AID_PARTITION[] = "cluster.partition";
+const size_t AID_PARTITION_LENGTH = sizeof(AID_PARTITION)/sizeof(char);
+const char OID_WHOLE_PARTITION_TABLE[] = "WHOLE_PARTITION_TABLE";
+const char OID_DELTA_PARTITIONS[] = "DELTA_PARTITIONS";
+const char OID_PARTITION_STATE_CHANGED[] = "PARTITION_STATE_CHANGED";
+const char OID_LIST_PARTITIONS[] = "list_partitions";
 
-const char* ENV_VAR_MTU = "idgs_mtu";
-const char* ENV_VAR_TCP_BATCH = "idgs_tcp_batch";
-const char* ENV_VAR_PARTITION_COUNT = "idgs_partition_count";
-const char* ENV_VAR_GROUP_NAME = "idgs_group_name";
+//
+// Environment variables to override configuration file.
+//
+const char ENV_VAR_GROUP[] =  "idgs_group";
+const char ENV_VAR_PARTITION_COUNT[] =  "idgs_partition_count";
 
+const char ENV_VAR_WEIGHT[] =  "idgs_weight";
+const char ENV_VAR_THREAD_COUNT[] =   "idgs_thread_count";
+const char ENV_VAR_IO_THREAD_COUNT[] =  "idgs_io_thread_count";
+const char ENV_VAR_MAX_IDLE_THREAD[] =  "idgs_max_idle_thread";
 
-const char* ENV_VAR_IP = "idgs_member_ip";
-const char* ENV_VAR_PORT = "idgs_member_port";
-const char* ENV_VAR_INNERIP = "idgs_member_innerIp";
-const char* ENV_VAR_INNERPORT = "idgs_member_innerPort";
+const char ENV_VAR_MTU[] =  "idgs_mtu";
+const char ENV_VAR_BATCH_MESSAGE[] =  "idgs_tcp_batch";
+const char ENV_VAR_BATCH_BUFFER[] =  "idgs_tcp_buffer";
 
-const char* ENV_VAR_LOAD_FACTOR = "idgs_member_load_factor";
-const char* ENV_VAR_IS_LOCAL_STORE = "idgs_member_service_local_store";
-const char* ENV_VAR_IS_DIST_COMPUTING = "idgs_member_service_dist_computing";
-const char* ENV_VAR_IS_CLIENT_AGENT = "idgs_member_service_client_agent";
-const char* ENV_VAR_IS_ADMIN_CONSOLE = "idgs_member_service_admin_console";
-const char* ENV_VAR_MODULE_PREFIX = "idgs_modules_";
-/// ====================================================Env. Variable==============================================
+const char ENV_VAR_PUBLIC_HOST[] =  "idgs_public_host";
+const char ENV_VAR_PUBLIC_PORT[] =  "idgs_public_port";
+const char ENV_VAR_INNER_HOST[] =  "idgs_inner_host";
+const char ENV_VAR_INNER_PORT[] =  "idgs_inner_port";
 
-}// end namespace cluster
-} // end namespace idgs
+const char ENV_VAR_LOCAL_STORE[] =  "idgs_local_store";
+const char ENV_VAR_MODULE_PREFIX[] =  "idgs_modules_";
+
+} // namespace cluster
+} // namespace idgs
 

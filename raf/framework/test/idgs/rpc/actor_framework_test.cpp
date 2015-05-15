@@ -5,7 +5,7 @@ Copyright (c) <2013>, Intel Corporation All Rights Reserved.
 The source code, information and material ("Material") contained herein is owned by Intel Corporation or its suppliers or licensors, and title to such Material remains with Intel Corporation or its suppliers or licensors. The Material contains proprietary information of Intel or its suppliers and licensors. The Material is protected by worldwide copyright laws and treaty provisions. No part of the Material may be used, copied, reproduced, modified, published, uploaded, posted, transmitted, distributed or disclosed in any way without Intel's prior express written permission. No license under any patent, copyright or other intellectual property rights in the Material is granted to or conferred upon you, either expressly, by implication, inducement, estoppel or otherwise. Any license under such intellectual property rights must be express and approved by Intel in writing.
 
 Unless otherwise agreed by Intel in writing, you may not remove or alter this notice or any other notice embedded in Materials by Intel or Intel’s suppliers or licensors in any way.
-*/
+ */
 #if defined(__GNUC__) || defined(__clang__) 
 #include "idgs_gch.h" 
 #endif // GNUC_ $
@@ -18,58 +18,49 @@ using namespace idgs::actor;
 
 
 namespace idgs {
-  namespace actor {
-    namespace actor_framework_test {
-      static int count_ = 0;
+namespace actor {
+namespace actor_framework_test {
+static int count_ = 0;
 
-      class TestStatefulActor: public StatefulActor {
-        public:
+class TestStatefulActor: public StatefulActor {
+public:
 
-          TestStatefulActor() {}
+  TestStatefulActor() {}
 
-          ~TestStatefulActor() {
-            msg_queue.clear();
-          }
-
-          virtual const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-             static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap;
-             return handlerMap;
-           }
-
-          /// @todo
-          virtual const idgs::actor::ActorDescriptorPtr& getDescriptor() const {
-            static idgs::actor::ActorDescriptorPtr nullDesc(NULL);
-            DLOG(WARNING) << __FUNCTION__ << " should be overridden, class: " << typeid(*this).name();
-            return nullDesc;
-          }
-
-          const std::string& getActorName() const override{
-            static const std::string actorName("TestStatefulActor");
-            return actorName;
-          }
-
-
-
-          void process(const ActorMessagePtr& msg) override{
-            DVLOG(1) << "Stateful Actor process is called" << std::endl;
-            count_++;
-          }
-      };
-
-      class TestStatelessActor: public StatelessActor {
-        public:
-          void process(const ActorMessagePtr& msg) override {
-            DVLOG(1) << "Stateless Actor process is called" << std::endl;
-            count_++;
-          }
-          virtual const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-             static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap;
-             return handlerMap;
-           }
-      };
-
-    }
+  ~TestStatefulActor() {
+    msg_queue.clear();
   }
+
+  /// @todo
+  virtual const idgs::actor::ActorDescriptorPtr& getDescriptor() const {
+    static idgs::actor::ActorDescriptorPtr nullDesc(NULL);
+    DLOG(WARNING) << __FUNCTION__ << " should be overridden, class: " << typeid(*this).name();
+    return nullDesc;
+  }
+
+  const std::string& getActorName() const override{
+    static const std::string actorName("TestStatefulActor");
+    return actorName;
+  }
+
+
+
+  void process(const ActorMessagePtr& msg) override{
+    DVLOG(1) << "Stateful Actor process is called" << std::endl;
+    count_++;
+  }
+};
+
+class TestStatelessActor: public StatelessActor {
+public:
+  void process(const ActorMessagePtr& msg) override {
+    DVLOG(1) << "Stateless Actor process is called" << std::endl;
+    count_++;
+  }
+};
+
+}
+}
 }
 
 using namespace idgs::pb;

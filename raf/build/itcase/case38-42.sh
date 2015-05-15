@@ -19,16 +19,16 @@ case38() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case38_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case38_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -42,10 +42,10 @@ case38() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case38_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case38_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -92,16 +92,16 @@ case39() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case39_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case39_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -115,10 +115,10 @@ case39() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case39_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case39_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -163,16 +163,16 @@ case40() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case40_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case40_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -186,10 +186,10 @@ case40() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case40_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case40_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -231,16 +231,16 @@ case41() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case41_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case41_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -254,10 +254,10 @@ case41() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case41_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case41_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -298,16 +298,16 @@ case42() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case42_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case42_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -321,10 +321,10 @@ case42() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case42_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case42_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";

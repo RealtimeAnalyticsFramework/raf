@@ -14,21 +14,21 @@ check_load(){
   for store_name in $store_names
   do
   	export RDD_CHECK_STORE_NAME=$store_name
-  	dist/itest/partition_count_action_it  
+  	$BUILD_DIR/target/itest/partition_count_action_it  
   done
 }
 
 cd $WORKSPACE/idgs
 
-THREAD_COUNT=50
+THREAD_COUNT=150
 
 start_servers() {
   ensure_corosync
   
   echo "start idgs server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   run_bg dist/bin/idgs -c conf/cluster.conf 2>idgs_ssb_srv1.log &
   IDGS_PID1=$!
   export IDGS_PID1
@@ -36,9 +36,9 @@ start_servers() {
   echo "wait for 2 seconds"
   sleep 2
   echo "start idgs server 2"
-  export idgs_member_port=7750
-  export idgs_member_innerPort=7751
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7750
+  export idgs_inner_port=7751
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf 2>idgs_ssb_srv2.log &
   IDGS_PID2=$!
   export IDGS_PID2
@@ -63,9 +63,9 @@ udpload() {
   start_servers
 
   echo "in cluster client"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
-  export idgs_member_service_local_store=false
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
+  export idgs_local_store=false
   dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t $THREAD_COUNT -o ssb-udptps.txt 1>load.log 2>&1
   RC_CODE=$?
   if [ $RC_CODE -ne 0 ] ; then
@@ -101,7 +101,7 @@ run_tcpload() {
 
   tcpload
   #check_load
-  dist/itest/ssb_Q1_1 1>ssbq1.log 2>&1
+  $BUILD_DIR/target/itest/ssb_Q1_1 1>ssbq1.log 2>&1
   RC_CODE=$?
   if [ $RC_CODE -ne 0 ] ; then
     exit $RC_CODE

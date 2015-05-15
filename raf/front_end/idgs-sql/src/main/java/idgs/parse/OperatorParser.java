@@ -9,6 +9,7 @@ package idgs.parse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ import org.apache.hadoop.hive.ql.exec.SelectOperator;
 import org.apache.hadoop.hive.ql.exec.TableScanOperator;
 import org.apache.hadoop.hive.ql.exec.UnionOperator;
 import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.ql.parse.OpParseContext;
 import org.apache.hadoop.hive.ql.parse.ParseContext;
 import org.apache.hadoop.hive.ql.plan.AggregationDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
@@ -44,7 +46,6 @@ import idgs.exception.IdgsParseException;
 import idgs.execution.ActionOperator;
 import idgs.execution.CollectActionOperator;
 import idgs.execution.DelegateOperator;
-import idgs.execution.DestroyOperator;
 import idgs.execution.FilterTransformerOperator;
 import idgs.execution.GroupTransformerOperator;
 import idgs.execution.HashJoinTransformerOperator;
@@ -58,6 +59,7 @@ import idgs.metadata.StoreMetadata;
 import idgs.pb.PbExpr.DataType;
 import idgs.pb.PbExpr.Expr;
 import idgs.rdd.pb.PbRddService.FieldNamePair;
+import idgs.rdd.pb.PbRddService.FieldNamePair.Builder;
 import idgs.rdd.pb.PbRddTransform.JoinType;
 import idgs.store.pb.PbStoreConfig.StoreConfig;
 import idgs.util.TypeUtils;
@@ -69,6 +71,8 @@ public class OperatorParser {
   private ParseContext pctx;
   
   private FileSinkOperator sinkOp;
+  
+  LinkedHashMap<Operator<? extends OperatorDesc>, OpParseContext> opParseCtx;
   
   /**
    * construct to make parse hive operators to idgs operators
@@ -106,36 +110,25 @@ public class OperatorParser {
       return null;
     }
     
-    // generate finally action operator, it is CollectActionOperator or TopNActionOperator
-    ActionOperator actionOp = genActionOperator();
-    
     // parse all hive operators
-    actionOp.setChildrenOperators(parseOperator(sinkOp));
-    
-    if (actionOp.getChildrenOperators() == null || actionOp.getChildrenOperators().size() != 1) {
-      return null;
+    List<IdgsOperator> opList = parseOperator(sinkOp);
+    if (opList == null || opList.size() != 1) {
+      throw new IdgsParseException("parse operator error");
     }
-    
+
     // add a filter operator before action operator to change column alias.
-    IdgsOperator operator = actionOp.getChildrenOperators().get(0);
-    if (operator.getOutputKeyFields() != null || operator.getOutputValueFields() != null) {
-      actionOp.clearOperator();
-      IdgsOperator filterTrans = new FilterTransformerOperator();
-      filterTrans.addChildOperator(operator);
-      actionOp.addChildOperator(filterTrans);
-    }
+    IdgsOperator operator = opList.get(0);
+    // generate finally action operator, it is CollectActionOperator or TopNActionOperator
+    ActionOperator actionOp = genActionOperator(operator);
     
     if (LOG.isDebugEnabled()) {
       LOG.debug(actionOp.toTreeString());
     }
     
-    DestroyOperator destroyOp = new DestroyOperator();
-    destroyOp.addChildOperator(actionOp);
-    
-    return destroyOp;
+    return actionOp;
   }
   
-  private ActionOperator genActionOperator() throws IdgsParseException {
+  private ActionOperator genActionOperator(IdgsOperator operator) throws IdgsParseException {
     Operator<? extends OperatorDesc> op = sinkOp.getParentOperators().get(0);
     // hive operator is ExtractOperator, use TopNActionOperator to handle sql with order by.
     int limit = -1;
@@ -144,17 +137,59 @@ public class OperatorParser {
       op = op.getParentOperators().get(0);
     }
     
-    if (op instanceof ExtractOperator) {
-      ExtractOperator extractOp = (ExtractOperator) op;
-      
+    Operator<? extends OperatorDesc> orderbyOp = null;
+    
+    if (op.getParentOperators().size() == 1) {
+      Operator<? extends OperatorDesc> rsOp = op.getParentOperators().get(0);
+      if (rsOp instanceof ReduceSinkOperator) {
+        if (!((ReduceSinkOperator) rsOp).getConf().getOrder().equals("")) {
+          orderbyOp = rsOp;
+        }
+      }
+    }
+
+    IdgsOperator chOp = null;
+    if (operator.getOutputKeyFields() != null || operator.getOutputValueFields() != null) {
+      IdgsOperator filterTrans = new FilterTransformerOperator();
+      filterTrans.addChildOperator(operator);
+      chOp = filterTrans;
+    } else {
+      chOp = operator;
+    }
+    
+    ActionOperator topOp = null;
+    if (orderbyOp != null) {
+      ArrayList<ColumnInfo> colInfoList = pctx.getOpParseCtx().get(op).getRowResolver().getColumnInfos();
       // column mapping from hive internal name to real alias.
       Map<String, String> fieldSchemas = new HashMap<String, String>();
-      for (ColumnInfo colInfo : extractOp.getSchema().getSignature()) {
+      for (ColumnInfo colInfo : colInfoList) {
         fieldSchemas.put(colInfo.getInternalName(), colInfo.getAlias());
       }
-
-      ReduceSinkOperator reduceOp = (ReduceSinkOperator) extractOp.getParentOperators().get(0);
-      TopNActionOperator topOp = new TopNActionOperator();
+      
+      List<FieldNamePair> fields = operator.getOutputValueFields();
+      for (int i = 0; i < fields.size(); ++ i) {
+        FieldNamePair field = fields.get(i);
+        String alias = field.getFieldAlias();
+        if (fieldSchemas.containsKey(alias)) {
+          field = field.toBuilder().setFieldAlias(fieldSchemas.get(alias)).build();
+          fields.set(i, field);
+        }
+      }
+      
+      ReduceSinkOperator reduceOp = (ReduceSinkOperator) orderbyOp;
+      topOp = new TopNActionOperator();
+      
+      SelectOperator selOp = (SelectOperator) op;
+      Map<String, String> mapping = new HashMap<String, String>();
+      List<ExprNodeDesc> colList = selOp.getConf().getColList();
+      List<String> colNames = selOp.getConf().getOutputColumnNames();
+      for (int i = 0; i < colList.size(); ++ i) {
+        ExprNodeDesc node = selOp.getConf().getColList().get(i);
+        if (node instanceof ExprNodeColumnDesc) {
+          String column = ((ExprNodeColumnDesc) node).getColumn();
+          mapping.put(column, colNames.get(i));
+        }
+      }
       
       // order type of column, "+" is asc and "-" is desc
       String order = reduceOp.getConf().getOrder();
@@ -166,30 +201,41 @@ public class OperatorParser {
       /// handle each order by field, add to TopNActionOperator
       for (int i = 0; i < keyCols.size(); ++ i) {
         ExprNodeDesc node = keyCols.get(i);
+        DataType dataType = getDataType(node);
+        String keyName = keyOutputNames.get(i);
+        
         FieldNamePair.Builder builder = FieldNamePair.newBuilder();
-        builder.setFieldAlias(keyOutputNames.get(i));
-        builder.setFieldType(TypeUtils.hiveToDataType(node.getTypeInfo().getTypeName()));
+        builder.setFieldAlias(keyName);
+        builder.setFieldType(dataType);
         builder.setExpr(ExprFactory.buildExpression(node, fieldSchemas));
         FieldNamePair field = builder.build();
+        
+        if (!(node instanceof ExprNodeColumnDesc)) {
+          if (mapping.containsKey("KEY." + keyName)) {
+            String internalAilas = mapping.get("KEY." + keyName);
+            if (fieldSchemas.containsKey(internalAilas)) {
+              String alias = fieldSchemas.get(internalAilas);
+              fields.add(field.toBuilder().setFieldAlias(alias).build());
+            }
+          }
+        }
         
         boolean desc = false;
         if (i < order.length()) {
           desc = (order.charAt(i) == '-');
         }
-        topOp.addOrderField(field, desc);
+        ((TopNActionOperator) topOp).addOrderField(field, desc);
       }
-      
-      if (limit > 0) {
-        topOp.setLimit(limit);
-      }
-      return topOp;
     } else {
-      CollectActionOperator topOp = new CollectActionOperator();
-      if (limit > 0) {
-        topOp.setLimit(limit);
-      }
-      return topOp;
+      topOp = new CollectActionOperator();
     }
+
+    if (limit > 0) {
+      topOp.setLimit(limit);
+    }
+    topOp.addChildOperator(chOp);
+    
+    return topOp;
   }
   
   /**
@@ -248,15 +294,26 @@ public class OperatorParser {
     // get store name from table name
     TableScanOperator tabOp = (TableScanOperator) operator;
     Table tbl = pctx.getTopToTable().get(tabOp);
+    String dbName = tbl.getDbName();
     String tableName = tbl.getTableName();
-    String storeName = StoreMetadata.getInstance().getStoreName(tableName);
-    StoreConfig cfg = StoreMetadata.getInstance().getStoreConfig(storeName);
+    StoreMetadata metadata = StoreMetadata.getInstance();
+    String schemaName = metadata.getSchemaName(dbName);
+    if (schemaName == null) {
+      throw new IdgsParseException("schema " + dbName + " is not found.");
+    }
+    
+    String storeName = metadata.getStoreName(dbName, tableName);
+    if (storeName == null) {
+      throw new IdgsParseException("store " + dbName + "." + tableName + " is not found.");
+    }
+    
+    StoreConfig cfg = metadata.getStoreConfig(schemaName, storeName);
     if (cfg == null) {
-      throw new IdgsParseException("no store named " + storeName + " found.");
+      throw new IdgsParseException("store " + schemaName + "." + storeName + " is not found.");
     }
     
     // make delegate operator and set its filter and select
-    IdgsOperator delegate = new DelegateOperator(cfg);
+    IdgsOperator delegate = new DelegateOperator(schemaName, cfg);
     genFilterAndSelectExpr(operator, delegate);
     
     return delegate;
@@ -320,15 +377,15 @@ public class OperatorParser {
 
     ReduceSinkOperator reduceOp = (ReduceSinkOperator) operator.getParentOperators().get(0);
     ArrayList<ExprNodeDesc> valueCols = reduceOp.getConf().getValueCols();
+    ArrayList<ColumnInfo> reduceSchema = reduceOp.getSchema().getSignature();
     
-    for (int i = 0; i < valueCols.size(); ++ i) {
-      ExprNodeDesc colNode = valueCols.get(i);
-      String alias = "_col" + i;
-      FieldNamePair expr = genFieldExpr(colNode, alias);
-      if (colNode instanceof ExprNodeConstantDesc) {
-        fieldMapping.put(((ExprNodeConstantDesc) colNode).getExprString(), expr);
-      } else {
-        fieldMapping.put("VALUE." + alias, expr);
+    int valueIndex = 0;
+    for (ColumnInfo colInfo : reduceSchema) {
+      String alias = colInfo.getInternalName();
+      if (alias.startsWith("VALUE.")) {
+        ExprNodeDesc colNode = valueCols.get(valueIndex ++);
+        FieldNamePair expr = genFieldExpr(colNode, alias);
+        fieldMapping.put(alias, expr);
       }
     }
 
@@ -363,18 +420,13 @@ public class OperatorParser {
           continue;
         }
       } else if (node instanceof ExprNodeConstantDesc) {
-        FieldNamePair field = fieldMapping.get(((ExprNodeConstantDesc) node).getExprString());
-        if (field != null) {
-          FieldNamePair.Builder fieldBuilder = field.toBuilder().clone();
-          fieldBuilder.setFieldAlias(alias);
-          expr = fieldBuilder.build();
-        } else {
-          continue;
-        }
+        expr = genFieldExpr(node, alias);
       } else {
+        DataType dataType = getDataType(node);
+        
         FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
         fieldBuilder.setFieldAlias(alias);
-        fieldBuilder.setFieldType(TypeUtils.hiveToDataType(node.getTypeInfo().getTypeName()));
+        fieldBuilder.setFieldType(dataType);
         fieldBuilder.setExpr(ExprFactory.FIELD(alias));
         expr = fieldBuilder.build();
       }
@@ -404,14 +456,15 @@ public class OperatorParser {
         reduceTrans.addReduceField(alias + "_sum", "SUM", aggrDesc.getDistinct());
         reduceTrans.addReduceField(alias + "_count", "COUNT", aggrDesc.getDistinct());
       } else {
-        valueFields.add(expr);
+        DataType dataType = getDataType(node);
         
         FieldNamePair.Builder exprBuilder = FieldNamePair.newBuilder();
         exprBuilder.setFieldAlias(alias);
-        exprBuilder.setFieldType(TypeUtils.hiveToDataType(node.getTypeInfo().getTypeName()));
+        exprBuilder.setFieldType(dataType);
         exprBuilder.setExpr(ExprFactory.FIELD(alias));
         FieldNamePair reduceField = exprBuilder.build();
         
+        valueFields.add(expr);
         reduceFields.add(reduceField);
         filterFields.add(reduceField);
         reduceTrans.addReduceField(alias, reduceType, aggrDesc.getDistinct());
@@ -588,13 +641,8 @@ public class OperatorParser {
     ArrayList<ExprNodeDesc> valueCols = reduceOp.getConf().getValueCols();
     ArrayList<AggregationDesc> aggrs = groupOp.getConf().getAggregators();
     List<List<Integer>> distinctIndices = reduceOp.getConf().getDistinctColumnIndices();
-
-    // distinct column size = 1 and no value aggregation, return single reduce transformer 
-    if (keyCols.size() == 1 && valueCols.isEmpty()) {
-      IdgsOperator reduceByKeyTrans = genDistinctFieldOperator(keyCols.get(0), 0, op, distinctIndices, aggrs);
-      genFilterAndSelectExpr(operator, reduceByKeyTrans);
-      return reduceByKeyTrans;
-    }
+    
+    IdgsOperator reduceTransOp = genDistinctFieldOperator(keyCols.get(0), 0, op.clone(), distinctIndices, aggrs);
     
     // build more reduce transformer, and join them
     List<HashJoinTransformerOperator> joinTransList = new ArrayList<HashJoinTransformerOperator>();
@@ -604,7 +652,7 @@ public class OperatorParser {
       joinTrans.setJoinType(JoinType.INNER_JOIN);
       
       if (joinTransList.isEmpty()) {
-        joinTrans.addChildOperator(genDistinctFieldOperator(keyCols.get(0), 0, op.clone(), distinctIndices, aggrs));
+        joinTrans.addChildOperator(reduceTransOp);
       } else {
         joinTrans.addChildOperator(joinTransList.get(joinTransList.size() - 1));
       }
@@ -621,21 +669,34 @@ public class OperatorParser {
       joinTransList.add(joinTrans);
     }
     
-    // build reduce transformer with none distinct field 
-    HashJoinTransformerOperator joinTrans = joinTransList.get(joinTransList.size() - 1);
-    if (!valueCols.isEmpty()) {
-      IdgsOperator valueReduceTrans = genGroupByPlanWithNoKey(operator, op);
+    if (!joinTransList.isEmpty()) {
+      reduceTransOp = joinTransList.get(joinTransList.size() - 1);
+    }
+
+    // build reduce transformer with none distinct field
+    if (valueCols.isEmpty()) {
+      genFilterAndSelectExpr(operator, reduceTransOp);
+      return reduceTransOp;
+    } else {
+      IdgsOperator valueReduceTransOp = genGroupByPlanWithNoKey(operator, op.clone());
       
       HashJoinTransformerOperator valueJoinTrans = new HashJoinTransformerOperator();
       valueJoinTrans.setJoinType(JoinType.INNER_JOIN);
 
-      valueJoinTrans.addChildOperator(joinTrans);
-      valueJoinTrans.addChildOperator(valueReduceTrans);
+      valueJoinTrans.addChildOperator(reduceTransOp);
+      valueJoinTrans.addChildOperator(valueReduceTransOp);
+      
+      List<FieldNamePair> joinValueField = new ArrayList<FieldNamePair>();
+      for (IdgsOperator joinChildOp : valueJoinTrans.getChildrenOperators()) {
+        for (FieldNamePair field : joinChildOp.getOutputValueFields()) {
+          joinValueField.add(field);
+        }
+      }
+      
+      valueJoinTrans.setOutputValueFields(joinValueField);
       
       return valueJoinTrans;
     }
-    
-    return joinTrans;
   }
   
   /**
@@ -645,21 +706,25 @@ public class OperatorParser {
    */
   private IdgsOperator genGroupByPlanReuseKey(Operator<? extends OperatorDesc> operator, IdgsOperator op) throws IdgsParseException {
     GroupByOperator groupOp = (GroupByOperator) operator;
+    ArrayList<ExprNodeDesc> grpKeyCols = groupOp.getConf().getKeys();
+    
     ReduceSinkOperator reduceOp = (ReduceSinkOperator) operator.getParentOperators().get(0);
+    ArrayList<ExprNodeDesc> keyCols = reduceOp.getConf().getKeyCols();
     
     // build alias mapping
     Map<String, String> mapping = new HashMap<String, String>();
-    for (FieldNamePair field : op.getOutputValueFields()) {
-      mapping.put(field.getFieldAlias(), field.getExpr().getValue());
+    List<FieldNamePair> outputValueFields = op.getOutputValueFields();
+    if (outputValueFields != null) {
+      for (FieldNamePair field : outputValueFields) {
+        if (field.getExpr().getName().equals("FIELD")) {
+          mapping.put(field.getFieldAlias(), field.getExpr().getValue());
+        }
+      }
     }
 
-    ArrayList<ExprNodeDesc> keyCols = reduceOp.getConf().getKeyCols();
-    ArrayList<ExprNodeDesc> grpKeyCols = groupOp.getConf().getKeys();
-    List<FieldNamePair> keyFields = new ArrayList<FieldNamePair>();
-    
-    int index = 0;
-    
     // add key fields
+    List<FieldNamePair> keyFields = new ArrayList<FieldNamePair>();
+    int index = 0;
     for (int i = 0; i < grpKeyCols.size(); ++ i, ++ index) {
       ExprNodeDesc colNode = keyCols.get(i);
       String alias = "_col" + index;
@@ -681,75 +746,71 @@ public class OperatorParser {
       String alias = "_col" + index;
       valueFields.add(genFieldExpr(colNode, alias, mapping));
     }
-    
-    // build field template, key is field alias
-    Map<String, FieldNamePair> fieldMapping = new HashMap<String, FieldNamePair>();
-    ArrayList<ColumnInfo> colInfo = reduceOp.getSchema().getSignature();
-    int grpKeySize = grpKeyCols.size();
-    int distinctKeySize = keyCols.size() - grpKeySize;
-    List<List<Integer>> distinctIndices = reduceOp.getConf().getDistinctColumnIndices();
-    int distinctIndex = 0, valueIndex = 0;
-    for (int i = 0; i < colInfo.size(); ++ i) {
-      ColumnInfo col = colInfo.get(i);
 
-      FieldNamePair field = null;
-      if (i < grpKeySize) {
-        field = keyFields.get(i);
-        ++ valueIndex;
-      } else if (distinctIndex < distinctIndices.size()) {
-        int fieldPos = distinctIndices.get(distinctIndex ++).get(0);
-        if (fieldPos < keyFields.size()) {
-          field = keyFields.get(fieldPos);
-        } else {
-          field = valueFields.get(fieldPos - grpKeySize);
-        }
-        
-        ++ valueIndex;
-      } else {
-        field = valueFields.get(i - valueIndex + distinctKeySize);
-      }
-      
-      fieldMapping.put(col.getInternalName(), field);
-    }
-    
     // update child operator
     op.setOutputKeyFields(keyFields);
-
-    // add reduce type and field
+    
+    // build ReduceByKeyTransformer
+    ReduceByKeyTransformerOperator reduceByKeyTrans = new ReduceByKeyTransformerOperator();
     ArrayList<AggregationDesc> aggr = groupOp.getConf().getAggregators();
     if (aggr.isEmpty()) {
-      return op;
+      op.setOutputValueFields(valueFields);
     } else {
-      ReduceByKeyTransformerOperator reduceByKeyTrans = new ReduceByKeyTransformerOperator();
-      valueFields.clear();
-      int aggrIndex = keyFields.size();
-      for (int i = 0; i < aggr.size(); ++ i) {
-        AggregationDesc aggrDesc = aggr.get(i);
-        String fieldName = "_col" + (aggrIndex ++);
-        ExprNodeDesc node = aggrDesc.getParameters().get(0);
-        if (node instanceof ExprNodeColumnDesc) {
-          FieldNamePair field = fieldMapping.get(((ExprNodeColumnDesc) node).getColumn());
-          if (field != null) {
-            FieldNamePair.Builder fieldBuilder = field.toBuilder().clone();
-            fieldBuilder.setFieldAlias(fieldName);
-            valueFields.add(fieldBuilder.build());
-          }
-        } else {
-          FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
-          fieldBuilder.setFieldAlias(fieldName);
-          fieldBuilder.setFieldType(TypeUtils.hiveToDataType(node.getTypeInfo().getTypeName()));
-          fieldBuilder.setExpr(ExprFactory.FIELD(fieldName));
-          valueFields.add(fieldBuilder.build());
-        }
-        reduceByKeyTrans.addReduceField(fieldName, aggrDesc.getGenericUDAFName(), aggrDesc.getDistinct());   
+      Map<String, Integer> schemaMap = new HashMap<String, Integer>();
+      ArrayList<ColumnInfo> schemaList = reduceOp.getSchema().getSignature();
+      for (int i = 0; i < schemaList.size(); ++ i) {
+        ColumnInfo colInfo = schemaList.get(i);
+        schemaMap.put(colInfo.getInternalName(), i);
       }
       
-      op.setOutputValueFields(valueFields);
+
+      List<FieldNamePair> allFields = new ArrayList<FieldNamePair>();
+      allFields.addAll(keyFields);
+      allFields.addAll(valueFields);
       
-      reduceByKeyTrans.addChildOperator(op);
+      List<FieldNamePair> reduceFields = new ArrayList<FieldNamePair>();
+      List<List<Integer>> distinctIndices = reduceOp.getConf().getDistinctColumnIndices();
+      int aggrIndex = keyFields.size(), distinctIndex = 0;
+      for (int i = 0; i < aggr.size(); ++ i) {
+        String alias = "_col" + (aggrIndex ++);
+        AggregationDesc aggrDesc = aggr.get(i);
+        ExprNodeDesc node = aggrDesc.getParameters().get(0);
+        DataType dataType = getDataType(node);
+        
+        if (node instanceof ExprNodeColumnDesc) {
+          FieldNamePair expr = null;
+          if (aggrDesc.getDistinct()) {
+            expr = allFields.get(distinctIndices.get(distinctIndex ++).get(0));
+          } else {
+            expr = allFields.get(schemaMap.get(((ExprNodeColumnDesc) node).getColumn()));
+          }
+          
+          Builder exprBuilder = expr.toBuilder().clone();
+          exprBuilder.setFieldAlias(alias);
+          reduceFields.add(exprBuilder.build());
+        } else if (node instanceof ExprNodeConstantDesc) {
+          FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
+          fieldBuilder.setFieldAlias(alias);
+          fieldBuilder.setFieldType(dataType);
+          fieldBuilder.setExpr(ExprFactory.CONST(((ExprNodeConstantDesc) node).getValue().toString(), dataType));
+          reduceFields.add(fieldBuilder.build());
+        } else {
+          FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
+          fieldBuilder.setFieldAlias(alias);
+          fieldBuilder.setFieldType(dataType);
+          fieldBuilder.setExpr(ExprFactory.FIELD(alias));
+          reduceFields.add(fieldBuilder.build());
+        }
+        
+        reduceByKeyTrans.addReduceField(alias, aggrDesc.getGenericUDAFName(), aggrDesc.getDistinct());   
+      }
       
-      return reduceByKeyTrans;
+      op.setOutputValueFields(reduceFields);
     }
+    
+    reduceByKeyTrans.addChildOperator(op);
+    
+    return reduceByKeyTrans;    
   }
   
   /**
@@ -769,19 +830,46 @@ public class OperatorParser {
     List<FieldNamePair> outputValueFields = op.getOutputValueFields();
     if (outputValueFields != null) {
       for (FieldNamePair field : outputValueFields) {
-        mapping.put(field.getFieldAlias(), field.getExpr().getValue());
+        if (field.getExpr().getName().equals("FIELD")) {
+          mapping.put(field.getFieldAlias(), field.getExpr().getValue());
+        }
       }
     }
-
-    // fields template
-    Map<String, FieldNamePair> fieldMapping = new HashMap<String, FieldNamePair>();
+    
+    Map<String, ExprNodeConstantDesc> constKeyMap = new HashMap<String, ExprNodeConstantDesc>();
+    Operator<? extends OperatorDesc> pOp = reduceOp.getParentOperators().get(0);
+    if (pOp instanceof SelectOperator) {
+      SelectOperator selOp = (SelectOperator) pOp;
+      List<ExprNodeDesc> colList = selOp.getConf().getColList();
+      List<String> colNames = selOp.getConf().getOutputColumnNames();
+      for (int i = 0; i < colList.size(); ++ i) {
+        ExprNodeDesc node = colList.get(i);
+        if (node instanceof ExprNodeConstantDesc) {
+          constKeyMap.put(colNames.get(i), (ExprNodeConstantDesc) node);
+        }
+      }
+    }
     
     // add key fields
     List<FieldNamePair> keyFields = new ArrayList<FieldNamePair>();
     int index = 0;
     for (int i = 0; i < grpKeyCols.size(); ++ i, ++ index) {
-      ExprNodeDesc colNode = keyCols.get(i);
       String alias = "_col" + index;
+      ExprNodeDesc colNode = keyCols.get(i);
+      if (colNode instanceof ExprNodeColumnDesc) {
+        String colName = ((ExprNodeColumnDesc) colNode).getColumn();
+        if (constKeyMap.containsKey(colName)) {
+          ExprNodeConstantDesc constNode = constKeyMap.get(colName);
+          DataType dataType = getDataType(constNode);
+          FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
+          fieldBuilder.setFieldAlias(alias);
+          fieldBuilder.setFieldType(dataType);
+          fieldBuilder.setExpr(ExprFactory.CONST(constNode.getValue().toString(), dataType));
+          keyFields.add(fieldBuilder.build());
+          
+          continue;
+        }
+      }
       keyFields.add(genFieldExpr(colNode, alias, mapping));
     }
 
@@ -800,83 +888,79 @@ public class OperatorParser {
       String alias = "_col" + index;
       valueFields.add(genFieldExpr(colNode, alias, mapping));
     }
-
-    // build field template
-    ArrayList<ColumnInfo> colInfo = reduceOp.getSchema().getSignature();
-    int grpKeySize = grpKeyCols.size();
-    int distinctKeySize = keyCols.size() - grpKeySize;
-    List<List<Integer>> distinctIndices = reduceOp.getConf().getDistinctColumnIndices();
-    int distinctIndex = 0, valueIndex = 0;
-    for (int i = 0; i < colInfo.size(); ++ i) {
-      ColumnInfo col = colInfo.get(i);
-
-      FieldNamePair field = null;
-      if (i < grpKeySize) {
-        field = keyFields.get(i);
-        ++ valueIndex;
-      } else if (distinctIndex < distinctIndices.size()) {
-        int fieldPos = distinctIndices.get(distinctIndex ++).get(0);
-        if (fieldPos < keyFields.size()) {
-          field = keyFields.get(fieldPos);
-        } else {
-          field = valueFields.get(fieldPos - grpKeySize);
-        }
-        
-        ++ valueIndex;
-      } else {
-        field = valueFields.get(i - valueIndex + distinctKeySize);
-      }
-      
-      FieldNamePair.Builder fldBuilder = FieldNamePair.newBuilder();
-      fldBuilder.setFieldAlias(field.getFieldAlias());
-      fldBuilder.setFieldType(field.getFieldType());
-      fldBuilder.setExpr(ExprFactory.FIELD(field.getFieldAlias()));
-      field = fldBuilder.build();
-      
-      fieldMapping.put(col.getInternalName(), field);
-    }
     
-    // update child operator
     op.setOutputKeyFields(keyFields);
-    op.setOutputValueFields(valueFields);
-
-    // build GroupTransformOperator 
-    TransformerOperator groupTrans = new GroupTransformerOperator();
-
+    
     // build ReduceByKeyTransformer
+    TransformerOperator groupTrans = new GroupTransformerOperator();
     ReduceByKeyTransformerOperator reduceByKeyTrans = new ReduceByKeyTransformerOperator();
+    
     ArrayList<AggregationDesc> aggr = groupOp.getConf().getAggregators();
-    if (!aggr.isEmpty()) {
-      List<FieldNamePair> grpFields = new ArrayList<FieldNamePair>();
+    if (aggr.isEmpty()) {
+      op.setOutputValueFields(valueFields);
+    } else {
+      Map<String, Integer> schemaMap = new HashMap<String, Integer>();
+      ArrayList<ColumnInfo> schemaList = reduceOp.getSchema().getSignature();
+      for (int i = 0; i < schemaList.size(); ++ i) {
+        ColumnInfo colInfo = schemaList.get(i);
+        schemaMap.put(colInfo.getInternalName(), i);
+      }
 
-      int aggrIndex = keyFields.size();
+      List<FieldNamePair> allFields = new ArrayList<FieldNamePair>();
+      allFields.addAll(keyFields);
+      allFields.addAll(valueFields);
+      
+      List<FieldNamePair> opFields = new ArrayList<FieldNamePair>();
+      List<FieldNamePair> grpFields = new ArrayList<FieldNamePair>();
+      List<List<Integer>> distinctIndices = reduceOp.getConf().getDistinctColumnIndices();
+      int aggrIndex = keyFields.size(), distinctIndex = 0;
       for (int i = 0; i < aggr.size(); ++ i) {
         String alias = "_col" + (aggrIndex ++);
         AggregationDesc aggrDesc = aggr.get(i);
         ExprNodeDesc node = aggrDesc.getParameters().get(0);
+        DataType dataType = getDataType(node);
+        
         if (node instanceof ExprNodeColumnDesc) {
-          FieldNamePair field = fieldMapping.get(((ExprNodeColumnDesc) node).getColumn());
-          if (field != null) {
-            FieldNamePair.Builder fieldBuilder = field.toBuilder().clone();
-            fieldBuilder.setFieldAlias(alias);
-            grpFields.add(fieldBuilder.build());
+          FieldNamePair expr = null;
+          if (aggrDesc.getDistinct()) {
+            expr = allFields.get(distinctIndices.get(distinctIndex ++).get(0));
+          } else {
+            expr = allFields.get(schemaMap.get(((ExprNodeColumnDesc) node).getColumn()));
           }
+          
+          Builder exprBuilder = expr.toBuilder().clone();
+          exprBuilder.setFieldAlias(alias);
+          opFields.add(exprBuilder.build());
+        } else if (node instanceof ExprNodeConstantDesc) {
+          FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
+          fieldBuilder.setFieldAlias(alias);
+          fieldBuilder.setFieldType(dataType);
+          fieldBuilder.setExpr(ExprFactory.CONST(((ExprNodeConstantDesc) node).getValue().toString(), dataType));
+          opFields.add(fieldBuilder.build());
         } else {
           FieldNamePair.Builder fieldBuilder = FieldNamePair.newBuilder();
           fieldBuilder.setFieldAlias(alias);
-          fieldBuilder.setFieldType(TypeUtils.hiveToDataType(node.getTypeInfo().getTypeName()));
+          fieldBuilder.setFieldType(dataType);
           fieldBuilder.setExpr(ExprFactory.FIELD(alias));
-          grpFields.add(fieldBuilder.build());
+          opFields.add(fieldBuilder.build());
         }
-        reduceByKeyTrans.addReduceField(alias, aggrDesc.getGenericUDAFName(), aggrDesc.getDistinct());   
+        
+        reduceByKeyTrans.addReduceField(alias, aggrDesc.getGenericUDAFName(), aggrDesc.getDistinct());
+        
+        FieldNamePair.Builder grpBuilder = FieldNamePair.newBuilder();
+        grpBuilder.setFieldAlias(alias);
+        grpBuilder.setFieldType(dataType);
+        grpBuilder.setExpr(ExprFactory.FIELD(alias));
+        grpFields.add(grpBuilder.build());
       }
-    
+      
+      op.setOutputValueFields(opFields);
       groupTrans.setOutputValueFields(grpFields);
     }
     
     groupTrans.addChildOperator(op);
     reduceByKeyTrans.addChildOperator(groupTrans);
-    
+
     return reduceByKeyTrans;
   }
   
@@ -939,24 +1023,30 @@ public class OperatorParser {
     
     int valueIndex = 0;
     List<String> outputValueNames = joinOp.getConf().getOutputColumnNames();
+    Map<Byte, List<ExprNodeDesc>> exprMap = joinOp.getConf().getExprs();
+    
     for (int i = 0; i < joinOpList.size(); ++ i) {
       Operator<? extends OperatorDesc> op = joinOpList.get(i);
       ReduceSinkOperator reduceOp = (ReduceSinkOperator) op;
       ArrayList<ExprNodeDesc> keyCols = reduceOp.getConf().getKeyCols();
       
-      IdgsOperator chop = children.get(i);
-      Map<String, String> mapping = new HashMap<String, String>();
-      if (chop.getOutputValueFields() != null) {
-        for (FieldNamePair field : chop.getOutputValueFields()) {
-          mapping.put(field.getFieldAlias(), field.getExpr().getValue());
-        }
-      }
-      
       ArrayList<String> outputKeyName = reduceOp.getConf().getOutputKeyColumnNames();
       List<FieldNamePair> keyFields = new ArrayList<FieldNamePair>();
       ArrayList<ExprNodeDesc> valueCols = reduceOp.getConf().getValueCols();
       List<FieldNamePair> valueFields = new ArrayList<FieldNamePair>();
+
+      IdgsOperator chop = children.get(i);
+      Map<String, String> mapping = new HashMap<String, String>();
+      List<FieldNamePair> outputValueFields = chop.getOutputValueFields();
+      if (outputValueFields != null) {
+        for (FieldNamePair field : outputValueFields) {
+          if (field.getExpr().getName().equals("FIELD")) {
+            mapping.put(field.getFieldAlias(), field.getExpr().getValue()); 
+          }
+        }
+      }
       
+      List<ExprNodeDesc> nodeList = exprMap.get((byte) i);
       if (isReuseKey(chop, keyCols)) {
         for (int j = 0; j < keyCols.size(); ++ j) {
           ExprNodeDesc colNode = keyCols.get(j);
@@ -964,9 +1054,23 @@ public class OperatorParser {
           keyFields.add(genFieldExpr(colNode, alias, mapping));
         }
         
-        for (ExprNodeDesc colNode : valueCols) {
+        int kIndex = 0, vIndex = 0;
+        for (int j = 0; j < nodeList.size(); ++ j) {
+          ExprNodeDesc node = nodeList.get(j);
           String alias = outputValueNames.get(valueIndex ++);
-          valueFields.add(genFieldExpr(colNode, alias, mapping));
+          if (node instanceof ExprNodeColumnDesc) {
+            ExprNodeColumnDesc colNode = (ExprNodeColumnDesc) node;
+            String colName = colNode.getColumn();
+            if (colName.startsWith("KEY.")) {
+              valueFields.add(genFieldExpr(keyCols.get(kIndex ++), alias, mapping));
+            } else if (colName.startsWith("VALUE.")) {
+              valueFields.add(genFieldExpr(valueCols.get(vIndex ++), alias, mapping));
+            } else {
+              LOG.error("error when gen join transformer, caused by column name " + colName + "is not in key or value fields.");
+            }
+          } else {
+            LOG.error("error when gen join transformer, caused by expr node is not column node, but " + node.getName() + "(" + node.getExprString() + ")");
+          }
         }
         
         chop.setOutputKeyFields(keyFields);
@@ -976,26 +1080,45 @@ public class OperatorParser {
       } else {
         List<FieldNamePair> grpKeyFields = new ArrayList<FieldNamePair>();
         for (int j = 0; j < keyCols.size(); ++ j) {
-          ExprNodeDesc colNode = keyCols.get(j);
+          ExprNodeDesc node = keyCols.get(j);
+          DataType dataType = getDataType(node);
+          
           String alias = outputKeyName.get(j);
-          keyFields.add(genFieldExpr(colNode, alias, mapping));
+          keyFields.add(genFieldExpr(node, alias, mapping));
           
           FieldNamePair.Builder fldBuilder = FieldNamePair.newBuilder();
           fldBuilder.setFieldAlias(alias);
-          fldBuilder.setFieldType(TypeUtils.hiveToDataType(colNode.getTypeInfo().getTypeName()));
+          fldBuilder.setFieldType(dataType);
           fldBuilder.getExprBuilder().setName(ExprFactory.FIELD);
           fldBuilder.getExprBuilder().setValue(alias);
           grpKeyFields.add(fldBuilder.build());
         }
         
         List<FieldNamePair> grpValueFields = new ArrayList<FieldNamePair>();
-        for (ExprNodeDesc colNode : valueCols) {
+        
+        int kIndex = 0, vIndex = 0;
+        for (int j = 0; j < nodeList.size(); ++ j) {
+          ExprNodeDesc node = nodeList.get(j);
+          DataType dataType = getDataType(node);
+          
           String alias = outputValueNames.get(valueIndex ++);
-          valueFields.add(genFieldExpr(colNode, alias, mapping));
+          if (node instanceof ExprNodeColumnDesc) {
+            ExprNodeColumnDesc colNode = (ExprNodeColumnDesc) node;
+            String colName = colNode.getColumn();
+            if (colName.startsWith("KEY.")) {
+              valueFields.add(genFieldExpr(keyCols.get(kIndex ++), alias, mapping));
+            } else if (colName.startsWith("VALUE.")) {
+              valueFields.add(genFieldExpr(valueCols.get(vIndex ++), alias, mapping));
+            } else {
+              LOG.error("error when gen join transformer, caused by column name " + colName + "is not in key or value fields.");
+            }
+          } else {
+            LOG.error("error when gen join transformer, caused by expr node is not column node, but " + node.getName() + "(" + node.getExprString() + ")");
+          }
           
           FieldNamePair.Builder fldBuilder = FieldNamePair.newBuilder();
           fldBuilder.setFieldAlias(alias);
-          fldBuilder.setFieldType(TypeUtils.hiveToDataType(colNode.getTypeInfo().getTypeName()));
+          fldBuilder.setFieldType(dataType);
           fldBuilder.getExprBuilder().setName(ExprFactory.FIELD);
           fldBuilder.getExprBuilder().setValue(alias);
           grpValueFields.add(fldBuilder.build());
@@ -1007,8 +1130,8 @@ public class OperatorParser {
         GroupTransformerOperator grpTrans = new GroupTransformerOperator();
         grpTrans.setOutputKeyFields(grpKeyFields);
         grpTrans.setOutputValueFields(grpValueFields);
+
         grpTrans.addChildOperator(chop);
-        
         joinTrans.addChildOperator(grpTrans);
       }
     }
@@ -1103,17 +1226,21 @@ public class OperatorParser {
   }
   
   private FieldNamePair genFieldExpr(ExprNodeDesc colNode, String alias) throws IdgsParseException {
+    DataType dataType = getDataType(colNode);
+    
     FieldNamePair.Builder selBuilder = FieldNamePair.newBuilder();
     selBuilder.setFieldAlias(alias);
-    selBuilder.setFieldType(TypeUtils.hiveToDataType(colNode.getTypeInfo().getTypeName()));
+    selBuilder.setFieldType(dataType);
     selBuilder.setExpr(ExprFactory.buildExpression(colNode));
     return selBuilder.build();
   }
   
   private FieldNamePair genFieldExpr(ExprNodeDesc colNode, String alias, Map<String, String> mapping) throws IdgsParseException {
+    DataType dataType = getDataType(colNode);
+    
     FieldNamePair.Builder selBuilder = FieldNamePair.newBuilder();
     selBuilder.setFieldAlias(alias);
-    selBuilder.setFieldType(TypeUtils.hiveToDataType(colNode.getTypeInfo().getTypeName()));
+    selBuilder.setFieldType(dataType);
     selBuilder.setExpr(ExprFactory.buildExpression(colNode, mapping));
     return selBuilder.build();
   }
@@ -1187,6 +1314,16 @@ public class OperatorParser {
         }
       }
     }
+  }
+  
+  private DataType getDataType(ExprNodeDesc node) throws IdgsParseException {
+    String type = node.getTypeInfo().getTypeName();
+    DataType dataType = TypeUtils.hiveToDataType(type);
+    if (dataType == null) {
+      throw new IdgsParseException("data type " + type + " of " + node + " is not supported.");
+    }
+    
+    return dataType;
   }
   
 }

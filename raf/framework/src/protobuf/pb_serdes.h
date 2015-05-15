@@ -55,16 +55,13 @@ struct ProtoSerdes<PB_BINARY> {
     return true;
   };
   static inline bool serialize(const google::protobuf::Message* message, char* buff, size_t size) {
-    message->SerializeToArray(buff, size);
-    return true;
+    return message->SerializeToArray(buff, size);
   };
   static inline bool deserialize(const std::string& buffer, google::protobuf::Message* message) {
-    message->ParseFromString(buffer);
-    return true;
+    return message->ParseFromString(buffer);
   };
   static inline bool deserializeFromArray(const char* buffer, size_t len, google::protobuf::Message* message) {
-    message->ParseFromArray(buffer, len);
-    return true;
+    return message->ParseFromArray(buffer, len);
   };
 }; // struct ProtoSerdes
 

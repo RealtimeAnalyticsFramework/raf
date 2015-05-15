@@ -12,22 +12,11 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import junit.framework.TestCase;
+public class ConnectionIT extends BaseCase {
 
-public class ConnectionIT extends TestCase {
-  
-  private static final String driverName = "idgs.jdbc.IdgsJdbcDriver";
-  
-  static {
-    try {
-      Class.forName(driverName);
-    } catch (ClassNotFoundException e) {
-      e.printStackTrace();
-    }
-  }
-  
   public void testConnectionWithDefault() {
     Connection conn = null;
+    
     try {
       conn = DriverManager.getConnection("");
       assertTrue(conn != null);

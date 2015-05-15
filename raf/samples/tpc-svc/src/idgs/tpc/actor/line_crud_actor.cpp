@@ -12,6 +12,9 @@
 #include "idgs/store/store_module.h"
 #include "idgs/tpc/pb/tpc_crud.pb.h"
 #include "idgs/util/utillity.h"
+#include "idgs/store/listener/listener_manager.h"
+
+
 
 using namespace idgs::tpc::pb;
 using namespace idgs::pb;
@@ -24,12 +27,12 @@ namespace idgs {
 namespace tpc {
 namespace actor {
 
-const std::string& LINECRUD_ACTOR_ID = "tpc.linecrud";
-const std::string& LINECRUD_ACTOR_DESCRIPTION = "linecrud_actor_description";
-const std::string& OP_CRUD_MAPPER = "linecrud_mapper_operation";
-const std::string& OP_CRUD_MULTICAST_MAPPER = "linecrud_multicast_mapper_operation";
-const std::string& OP_CRUD_REQUEST = "linecrud_request_operation";
-const std::string& OP_CRUD_RESPONSE = "linecrud_response_operation";
+const char LINECRUD_ACTOR_ID[] = "tpc.linecrud";
+const char LINECRUD_ACTOR_DESCRIPTION[] = "linecrud_actor_description";
+const char OP_CRUD_MAPPER[] = "linecrud_mapper_operation";
+const char OP_CRUD_MULTICAST_MAPPER[] = "linecrud_multicast_mapper_operation";
+const char OP_CRUD_REQUEST[] = "linecrud_request_operation";
+const char OP_CRUD_RESPONSE[] = "linecrud_response_operation";
 
 LineCrudActor::LineCrudActor() :
     total_line_count(0), total_resp_count(0), total_error_resp_count(0) {
@@ -37,11 +40,24 @@ LineCrudActor::LineCrudActor() :
 }
 
 const idgs::actor::ActorMessageHandlerMap& LineCrudActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = { { OP_CRUD_MAPPER,
-      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleStoreMapper) }, { OP_CRUD_MULTICAST_MAPPER,
-      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleMulticastStoreMapper) }, { OP_CRUD_REQUEST,
-      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleLineCRUD) }, { OP_INSERT_RESPONSE,
-      static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleInsertResponse) }, };
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      { OP_CRUD_MAPPER, {
+          static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleStoreMapper),
+          &idgs::store::pb::StoreFileMapperConfig::default_instance()
+      }},
+      { OP_CRUD_MULTICAST_MAPPER, {
+          static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleMulticastStoreMapper),
+          &idgs::store::pb::StoreFileMapperConfig::default_instance()
+      }},
+      { OP_CRUD_REQUEST,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleLineCRUD),
+          &idgs::tpc::pb::RawlineCrudRequest::default_instance()
+      }},
+      { OP_INSERT_RESPONSE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&LineCrudActor::handleInsertResponse),
+          NULL
+      }},
+  };
   return handlerMap;
 }
 
@@ -192,7 +208,7 @@ void LineCrudActor::handleMulticastStoreMapper(const idgs::actor::ActorMessagePt
       LOG(ERROR)<< "store named " << store_name << " is not found.";
     }
 
-    auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+    auto& store_config_wrapper_ptr = store->getStoreConfig();
 
     ParsedStoreDescriptor descriptor;
     descriptor.mapper->CopyFrom(*it);
@@ -291,7 +307,7 @@ KeyValueMessagePair LineCrudActor::parseLine(const std::string& store_name, cons
   idgs::str::split(line, descriptor.mapper->seperator(), result);
 
   auto store = idgs_store_module()->getDataStore()->getStore(store_name);
-  auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+  auto& store_config_wrapper_ptr = store->getStoreConfig();
 
   PbMessagePtr key = store_config_wrapper_ptr->newKey();
   PbMessagePtr value = store_config_wrapper_ptr->newValue();

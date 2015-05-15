@@ -1,6 +1,5 @@
 echo off
 
-set SQL_ENGINE_HOME=../
 set CLASSPATH=.;..;..\javalib\protobuf-java-2.5.0.jar;javalib\*
 
 rem export JAVA_HOME=""

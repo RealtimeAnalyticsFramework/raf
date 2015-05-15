@@ -32,7 +32,6 @@ IDGS_CXXFLAGS="-O3 -DNDEBUG -I. -I./test -I./src"
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/framework/src "
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/services/store/src "
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/services/rddng/src "
-IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/services/admin/src "
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/client/c/src "
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I$SRC_DIR/samples/tpc-svc/src "
 IDGS_CXXFLAGS="$IDGS_CXXFLAGS -I${GTEST_HOME}/include "
@@ -63,5 +62,5 @@ for DIR in $SUBDIRS; do
 done
 
 
-make -j8 -k
+make -j -k
 make

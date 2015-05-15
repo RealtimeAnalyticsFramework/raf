@@ -25,6 +25,10 @@ public:
 
   virtual void onDestroy() override;
 
+  virtual bool stateful() override {
+    return false;
+  }
+
 protected:
   inline void setActorId(const std::string& id) {
     actorId = id;

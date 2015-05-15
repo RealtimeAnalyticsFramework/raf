@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration.expr;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -28,7 +28,7 @@ public class ArithmeticExprIT extends TestCase {
        .append("         c_custkey | 5 bitsub, \n")
        .append("         c_custkey ^ 5 bitxor, \n")
        .append("         ~c_custkey bitnot \n")
-       .append("  from customer \n")
+       .append("  from tpch.customer \n")
        .append("  limit 10");
     try {
       System.out.println("test sql : ");
@@ -38,7 +38,7 @@ public class ArithmeticExprIT extends TestCase {
       
       assertEquals(10, resultSet.getRowCount());
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         Long custkey = (Long) data.getFieldValue("c_custkey");
         Double acctbal = (Double) data.getFieldValue("c_acctbal");
         Double add = (Double) data.getFieldValue("add");

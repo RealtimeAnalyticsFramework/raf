@@ -20,4 +20,19 @@ conf_DATA = \
   conf/ssb_file_mapper.conf \
   conf/tpch_file_mapper.conf
 
+docs_DATA = \
+  docs/markdown.css \
+  docs/cluster.md \
+  docs/cluster.html \
+  docs/docker.md  \
+  docs/docker.html  \
+  docs/index.md  \
+  docs/index.html  \
+  docs/startup.md \
+  docs/startup.html
+
+
+install-exec-hook:
+	echo "install-exec-hook"
+	for MD in `ls @top_srcdir@/docs/*.md`; do @top_srcdir@/build/markdown.sh $$MD; done
 

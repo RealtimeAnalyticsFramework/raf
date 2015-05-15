@@ -11,7 +11,7 @@
 namespace idgs {
 namespace client {
 
-extern const std::string CLIENT_ACTOR_ID; // = "client_actor_id";
+extern const char CLIENT_ACTOR_ID[];
 
 }
 }

@@ -42,6 +42,7 @@ pb::RddResultCode CountAction::action(ActionContext* ctx, const BaseRddPartition
     result = count;
   }
 
+  DVLOG(2) << input->getPartitionName() << " catch " << (size_t) result << " data in count action.";
   ctx->addPartitionResult(result);
   return pb::RRC_SUCCESS;
 }

@@ -22,16 +22,16 @@ case24() {
   export GLOG_v=0
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case24_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case24_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -49,10 +49,10 @@ case24() {
 
   rm -f tpch-*.txt  
   echo "starting server 3 load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>case24_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 100 -o ssb-udptps.txt 1>case24_load.log 2>&1
   
   echo "run SSB Q1.1 test"
   
@@ -60,7 +60,7 @@ case24() {
   export ACTION_TIMEOUT=120
   echo "action timeout after $ACTION_TIMEOUT second(s)"
   
-  dist/itest/ssb_Q1_1 1>ut_result.log 2>it_case24.log
+  $BUILD_DIR/target/itest/ssb_Q1_1 1>ut_result.log 2>it_case24.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case24.log.";
@@ -79,7 +79,7 @@ case24() {
   echo "================================"
 
   # raw data result.
-  dist/itest/ssb_Q1_1_raw_data_result 1>ut_result.log 2 >>it_case24.log
+  $BUILD_DIR/target/itest/ssb_Q1_1_raw_data_result 1>ut_result.log 2 >>it_case24.log
   echo ""
   echo "============ RESULT ============"
   cat ut_result.log
@@ -99,16 +99,16 @@ case25() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case25_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case25_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -123,10 +123,10 @@ case25() {
 
   rm -f tpch-*.txt  
   echo "start server 3 to load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>case25_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 100 -o ssb-udptps.txt 1>case25_load.log 2>&1
   
   echo "run rdd name test"
   
@@ -134,7 +134,7 @@ case25() {
   export ACTION_TIMEOUT=120
   echo "action timeout after $ACTION_TIMEOUT second(s)"
   
-  dist/itest/it_rdd_name_test 1>ut_result.log 2>it_case25.log
+  $BUILD_DIR/target/itest/it_rdd_name_test 1>ut_result.log 2>it_case25.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case25.log.";
@@ -166,16 +166,16 @@ case26() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case26_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case26_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -196,15 +196,15 @@ case26() {
   echo "generate tpch data"
   build/tpch-gen.sh
 
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
     
   echo "load ssb data"
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case26.log 2>&1
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 100 -o ssb-udptps.txt 1>it_case26.log 2>&1
   
   echo "load tpch data"
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>>it_case26.log 2>&1
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 -o tpch-udptps.txt 1>>it_case26.log 2>&1
   
   echo "run union transformer test"
   
@@ -212,7 +212,7 @@ case26() {
   export ACTION_TIMEOUT=120
   echo "action timeout after $ACTION_TIMEOUT second(s)"
   
-  dist/itest/it_union_transformer_test 1>ut_result.log 2>>it_case26.log
+  $BUILD_DIR/target/itest/it_union_transformer_test 1>ut_result.log 2>>it_case26.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case26.log.";
@@ -235,16 +235,16 @@ case27() {
   export GLOG_v=0
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case27_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case27_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -259,10 +259,10 @@ case27() {
 
   rm -f tpch-*.txt
   echo "start server 3 load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>case27_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 -o tpch-udptps.txt 1>case27_load.log 2>&1
   
   sleep 5
 
@@ -272,7 +272,7 @@ case27() {
   export ACTION_TIMEOUT=120
   echo "action timeout after $ACTION_TIMEOUT second(s)"
   
-  dist/itest/it_reducebykey_transformer_test 1>ut_result.log 2>>it_case27.log
+  $BUILD_DIR/target/itest/it_reducebykey_transformer_test 1>ut_result.log 2>>it_case27.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";

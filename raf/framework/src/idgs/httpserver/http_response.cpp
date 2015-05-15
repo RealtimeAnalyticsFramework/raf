@@ -20,37 +20,37 @@ const char crlf[] = { '\r', '\n' };
 
 namespace status_strings {
 
-const std::string ok =
+const char ok[] =
   "HTTP/1.0 200 OK\r\n";
-const std::string created =
+const char created[] =
   "HTTP/1.0 201 Created\r\n";
-const std::string accepted =
+const char accepted[] =
   "HTTP/1.0 202 Accepted\r\n";
-const std::string no_content =
+const char no_content[] =
   "HTTP/1.0 204 No Content\r\n";
-const std::string multiple_choices =
+const char multiple_choices[] =
   "HTTP/1.0 300 Multiple Choices\r\n";
-const std::string moved_permanently =
+const char moved_permanently[] =
   "HTTP/1.0 301 Moved Permanently\r\n";
-const std::string moved_temporarily =
+const char moved_temporarily[] =
   "HTTP/1.0 302 Moved Temporarily\r\n";
-const std::string not_modified =
+const char not_modified[] =
   "HTTP/1.0 304 Not Modified\r\n";
-const std::string bad_request =
+const char bad_request[] =
   "HTTP/1.0 400 Bad Request\r\n";
-const std::string unauthorized =
+const char unauthorized[] =
   "HTTP/1.0 401 Unauthorized\r\n";
-const std::string forbidden =
+const char forbidden[] =
   "HTTP/1.0 403 Forbidden\r\n";
-const std::string not_found =
+const char not_found[] =
   "HTTP/1.0 404 Not Found\r\n";
-const std::string internal_server_error =
+const char internal_server_error[] =
   "HTTP/1.0 500 Internal Server Error\r\n";
-const std::string not_implemented =
+const char not_implemented[] =
   "HTTP/1.0 501 Not Implemented\r\n";
-const std::string bad_gateway =
+const char bad_gateway[] =
   "HTTP/1.0 502 Bad Gateway\r\n";
-const std::string service_unavailable =
+const char service_unavailable[] =
   "HTTP/1.0 503 Service Unavailable\r\n";
 
 asio::const_buffer toBuffer(HttpResponse::StatusType status) {

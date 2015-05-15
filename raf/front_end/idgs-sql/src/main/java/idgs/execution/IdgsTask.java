@@ -7,11 +7,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package idgs.execution;
 
+import java.util.List;
+
 import idgs.exception.IdgsException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.plan.api.StageType;
@@ -29,14 +30,17 @@ public class IdgsTask extends Task<IdgsWork> {
   
   @Override
   protected int execute(DriverContext driverContext) {
-    return process(work.getTopOp());
+    IdgsOperator op = work.getTopOp();
+    int ret = process(op);
+    
+    destroy(op.getChildrenOperators().get(0));
+    return ret;
   }
 
   private int process(IdgsOperator operator) {
     if (operator.getChildrenOperators() != null) {
       for (IdgsOperator op : operator.getChildrenOperators()) {
         int ret = process(op);
-        
         if (ret > 0) {
           return ret;
         }
@@ -48,12 +52,29 @@ public class IdgsTask extends Task<IdgsWork> {
       
       if (stepShowResult) {
         stepShowResults(operator);
-      }
+      }      
+
       return 0;
     } catch (IdgsException e) {
       e.printStackTrace();
       LOG.error(e.getMessage());
       return 2;
+    }
+  }
+  
+  private void destroy(IdgsOperator operator) {
+    try {
+      LOG.info("destroy " + operator.getName() + "Operator[" + operator.getRddName() + "]");
+      operator.destroy();
+    } catch (IdgsException ex) {
+      LOG.error(ex.getMessage());
+    }
+    
+    List<IdgsOperator> chOp = operator.getChildrenOperators();
+    if (chOp != null) {
+      for (IdgsOperator op : chOp) {
+        destroy(op);
+      }
     }
   }
   
@@ -87,13 +108,12 @@ public class IdgsTask extends Task<IdgsWork> {
     return StageType.MAPRED;
   }
 
-  @Override
-  protected void localizeMRTmpFilesImpl(Context ctx) {
-    super.localizeMRTmpFiles(ctx);
-  }
-  
   public ResultSet getResultSet() {
-    return work.getActionOperator().getResultSet();
+    IdgsOperator op = work.getTopOp();
+    if (op instanceof ActionOperator) {
+      return ((ActionOperator) op).getResultSet();
+    }
+    return null;
   }
   
 }

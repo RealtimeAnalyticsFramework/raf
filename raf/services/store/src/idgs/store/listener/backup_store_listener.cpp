@@ -11,8 +11,11 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "backup_store_listener.h"
 
-
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+#include "idgs/store/listener/backup_store_listener.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
 
 namespace idgs {
 namespace store {
@@ -57,7 +60,7 @@ ListenerResultCode BackupStoreListener::insert(ListenerContext* ctx) {
     ctx->setResultCode(idgs::store::pb::SRC_SUCCESS);
     return LRC_CONTINUE;
   } else {
-    PartitionInfo ps;
+    StoreOption ps;
     ps.partitionId = partId;
 
     auto& key = * ctx->getKey();
@@ -65,7 +68,7 @@ ListenerResultCode BackupStoreListener::insert(ListenerContext* ctx) {
     StoreValue<google::protobuf::Message> storeValue(value);
 
     auto store = idgs_store_module()->getDataStore()->getStore(storeName);
-    auto code = store->setData(key, storeValue, &ps);
+    auto code = store->put(key, storeValue, &ps);
 
     auto state = partition->getMemberState(localMemberId);
     if (state == idgs::pb::PS_SOURCE) {
@@ -120,7 +123,7 @@ ListenerResultCode BackupStoreListener::update(ListenerContext* ctx) {
     ctx->setResultCode(pb::SRC_SUCCESS);
     return LRC_CONTINUE;
   } else {
-    PartitionInfo ps;
+    StoreOption ps;
     ps.partitionId = partId;
 
     auto& key = * ctx->getKey();
@@ -128,7 +131,7 @@ ListenerResultCode BackupStoreListener::update(ListenerContext* ctx) {
     StoreValue<google::protobuf::Message> storeValue(value);
 
     auto store = idgs_store_module()->getDataStore()->getStore(storeName);
-    auto code = store->setData(key, storeValue, &ps);
+    auto code = store->put(key, storeValue, &ps);
 
     auto state = partition->getMemberState(localMemberId);
     if (state == idgs::pb::PS_SOURCE) {
@@ -189,7 +192,7 @@ ListenerResultCode BackupStoreListener::remove(ListenerContext* ctx) {
     ctx->setResultCode(pb::SRC_SUCCESS);
     return LRC_CONTINUE;
   } else {
-    PartitionInfo ps;
+    StoreOption ps;
     ps.partitionId = partId;
 
     auto& key = * ctx->getKey();
@@ -197,7 +200,7 @@ ListenerResultCode BackupStoreListener::remove(ListenerContext* ctx) {
     StoreValue<google::protobuf::Message> storeValue(value);
 
     auto store = idgs_store_module()->getDataStore()->getStore(storeName);
-    auto code = store->removeData(key, storeValue, &ps);
+    auto code = store->remove(key, storeValue, &ps);
 
     auto state = partition->getMemberState(localMemberId);
     if (state == idgs::pb::PS_SOURCE) {
@@ -223,9 +226,9 @@ ListenerResultCode BackupStoreListener::remove(ListenerContext* ctx) {
 }
 
 void BackupStoreListener::addToRedoLog(StorePtr& store, const int32_t& partition, const std::string& opName, const idgs::actor::PbMessagePtr& key, const idgs::actor::PbMessagePtr& value) {
-  auto type = store->getStoreConfigWrapper()->getStoreConfig().partition_type();
+  auto type = store->getStoreConfig()->getStoreConfig().partition_type();
   if (type == pb::PARTITION_TABLE) {
-    auto pstore = dynamic_cast<PartitionStore*>(store.get());
+    auto pstore = dynamic_cast<PartitionedStore*>(store.get());
     auto actors = pstore->getMigrationActors();
     auto it = actors.begin() ;
     for (; it != actors.end(); ++ it) {

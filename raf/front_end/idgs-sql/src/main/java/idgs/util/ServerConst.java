@@ -74,5 +74,5 @@ public class ServerConst {
   public static final String DM_VALUE = "DM_VALUE";
   
   // other
-  public static long timeout = 30000;
+  public static long timeout = 60000;
 }

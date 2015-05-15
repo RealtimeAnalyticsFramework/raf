@@ -106,7 +106,7 @@ public:
   }
 
   const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-    static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+    static idgs::actor::ActorMessageHandlerMap handlerMap = {
         {OP_INSERT,                  static_cast<idgs::actor::ActorMessageHandler>(&DataInsertActor::handleInsertRequest)},
         {OP_INSERT_RESPONSE, static_cast<idgs::actor::ActorMessageHandler>(&DataInsertActor::handleInsertResponse)}
     };
@@ -167,7 +167,7 @@ public:
   void init() {
   }
   const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-    static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+    static idgs::actor::ActorMessageHandlerMap handlerMap = {
         {OP_GET,                  static_cast<idgs::actor::ActorMessageHandler>(&DataGetActor::handleGetRequest)},
         {OP_GET_RESPONSE, static_cast<idgs::actor::ActorMessageHandler>(&DataGetActor::handleGetResponse)},
     };

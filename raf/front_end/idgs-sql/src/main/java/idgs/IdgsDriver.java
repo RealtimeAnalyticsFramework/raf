@@ -11,7 +11,7 @@ import idgs.execution.IdgsLoad;
 import idgs.execution.IdgsLoadTask;
 import idgs.execution.IdgsTask;
 import idgs.execution.IdgsWork;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import idgs.parse.IdgsSemanticAnalyzerFactory;
 
@@ -19,11 +19,15 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
+import org.apache.hadoop.hive.common.ValidTxnList;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Schema;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
@@ -32,7 +36,6 @@ import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.QueryPlan;
 import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.exec.TaskFactory;
-import org.apache.hadoop.hive.ql.exec.TaskFactory.taskTuple;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.log.PerfLogger;
 import org.apache.hadoop.hive.ql.metadata.AuthorizationException;
@@ -96,6 +99,9 @@ public class IdgsDriver extends Driver {
 
   public IdgsDriver(HiveConf conf) {
     try {
+      HiveConf.setBoolVar(conf, ConfVars.HIVEMAPSIDEAGGREGATE, false);
+      HiveConf.setBoolVar(conf, ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
+      
       this.conf = conf;
 
       planField = Driver.class.getDeclaredField("plan");
@@ -118,14 +124,14 @@ public class IdgsDriver extends Driver {
       errorMessage = (String) errorMessageField.get(this);
       LOG = (Log) logField.get(this);
 
-      doAuthMethod = Driver.class.getDeclaredMethod("doAuthorization", BaseSemanticAnalyzer.class);
+      doAuthMethod = Driver.class.getDeclaredMethod("doAuthorization", new Class<?>[] {BaseSemanticAnalyzer.class, String.class});
       doAuthMethod.setAccessible(true);
       saHooksMethod = Driver.class.getDeclaredMethod("getHooks", HiveConf.ConfVars.class, Class.class);
       saHooksMethod.setAccessible(true);
 
       // register task and work
-      TaskFactory.taskvec.add(new taskTuple<IdgsWork>(IdgsWork.class, IdgsTask.class));
-      TaskFactory.taskvec.add(new taskTuple<IdgsLoad>(IdgsLoad.class, IdgsLoadTask.class));
+      TaskFactory.taskvec.add(new TaskFactory.TaskTuple<IdgsWork>(IdgsWork.class, IdgsTask.class));
+      TaskFactory.taskvec.add(new TaskFactory.TaskTuple<IdgsLoad>(IdgsLoad.class, IdgsLoadTask.class));
     } catch (Exception ex) {
       ex.printStackTrace();
     }
@@ -159,16 +165,11 @@ public class IdgsDriver extends Driver {
   }
 
   @Override
-  public void init() {
-    super.init();
-  }
-
-  @Override
   public int compile(String cmd, boolean resetTaskIds) {
     LOG.info("cmd: " + cmd);
     long startTime = System.currentTimeMillis();
     PerfLogger perfLogger = PerfLogger.getPerfLogger();
-    perfLogger.PerfLogBegin(LOG, PerfLogger.COMPILE);
+    perfLogger.PerfLogBegin(IdgsDriver.class.getName(), PerfLogger.COMPILE);
 
     if (plan != null) {
       close();
@@ -192,6 +193,11 @@ public class IdgsDriver extends Driver {
       ParseDriver parseDriver = new ParseDriver();
       ASTNode astTree = parseDriver.parse(command, context);
       astTree = ParseUtils.findRootNonNullToken(astTree);
+      
+      SessionState.get().initTxnMgr(conf);
+      ValidTxnList txns = SessionState.get().getTxnMgr().getValidTxns();
+      String txnStr = txns.toString();
+      conf.set(ValidTxnList.VALID_TXNS_KEY, txnStr);
 
       BaseSemanticAnalyzer semantic = IdgsSemanticAnalyzerFactory.get(conf, astTree);
       @SuppressWarnings("unchecked")
@@ -230,14 +236,14 @@ public class IdgsDriver extends Driver {
       // do the authorization check
       if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED)) {
         try {
-          perfLogger.PerfLogBegin(LOG, PerfLogger.DO_AUTHORIZATION);
+          perfLogger.PerfLogBegin(IdgsDriver.class.getName(), PerfLogger.DO_AUTHORIZATION);
           // Use reflection to invoke doAuthorization().
-          doAuthMethod.invoke(this, semantic);
+          doAuthMethod.invoke(this, semantic, cmd);
         } catch (AuthorizationException ex) {
           LOG.error("Authorization failed:" + ex.getMessage() + ". Use show grant to get more details.");
           return 403;
         } finally {
-          perfLogger.PerfLogEnd(LOG, PerfLogger.DO_AUTHORIZATION);
+          perfLogger.PerfLogEnd(IdgsDriver.class.getName(), PerfLogger.DO_AUTHORIZATION);
         }
       }
 
@@ -261,7 +267,7 @@ public class IdgsDriver extends Driver {
       LOG.error(errorMessage + "\n" + org.apache.hadoop.util.StringUtils.stringifyException(e));
       return (12);
     } finally {
-      perfLogger.PerfLogEnd(LOG, PerfLogger.COMPILE);
+      perfLogger.PerfLogEnd(IdgsDriver.class.getName(), PerfLogger.COMPILE);
       restoreSession(queryState);
     }
   }
@@ -281,8 +287,9 @@ public class IdgsDriver extends Driver {
     }
   }
   
+  @SuppressWarnings("unchecked")
   @Override
-  public boolean getResults(ArrayList<String> result) throws IOException, CommandNeedRetryException {
+  public boolean getResults(@SuppressWarnings("rawtypes") List result) throws IOException, CommandNeedRetryException {
     int maxRows = 100;
     try {
       maxRows = (Integer) maxRowsField.get(this);
@@ -296,26 +303,72 @@ public class IdgsDriver extends Driver {
       return super.getResults(result);
     }
     
-    List<ResultData> results = resultSet.getResults(maxRows);
+    List<RowData> results = resultSet.getResults(maxRows);
     if (results == null) {
       return false;
     }
+    
     List<FieldSchema> fieldSchemas = getSchema().getFieldSchemas();
-
-    String seperator = IdgsConfVars.getVar(conf, IdgsConfVars.COLUMN_SEPERATOR);
-    for (ResultData rowData : results) {
-      StringBuffer row = new StringBuffer();
+    for (RowData rowData : results) {
+      Object[] row = new Object[fieldSchemas.size()];
       
       for (int i = 0; i < fieldSchemas.size(); ++ i) {
         FieldSchema schema = fieldSchemas.get(i);
-        if (i > 0) {
-          row.append(seperator);
-        }
         Object value = rowData.getFieldValue(schema.getName());
-        row.append(value);
+        row[i] = null;
+        
+        if (value != null) {
+          String type = schema.getType();
+          if (type.equalsIgnoreCase("smallint")) {
+            if (value instanceof Integer) {
+              row[i] = ((Integer) value).shortValue();
+            }
+            row[i] = Short.valueOf(value.toString());
+          } else if (type.equalsIgnoreCase("tinyint")) {
+            if (value instanceof Integer) {
+              row[i] = ((Integer) value).byteValue();
+            }
+          } else if (type.equalsIgnoreCase("binary")) {
+            if (value instanceof String) {
+              row[i] = ((String) value).getBytes();
+            }
+          } else if (type.equalsIgnoreCase("timestamp")) {
+            if (value instanceof String) {
+              try {
+                row[i] = Timestamp.valueOf((String) value);
+              } catch (Exception e) {
+                e.printStackTrace();
+              }
+            }
+          } else if (type.equalsIgnoreCase("date")) {
+            if (value instanceof String) {
+              try {
+                row[i] = Date.valueOf((String) value);
+              } catch (Exception e) {
+              }
+            }
+          } else {
+            row[i] = value;
+          }
+        }
       }
       
-      result.add(row.toString());
+      result.add(row);
+    }
+    
+    return true;
+  }
+  
+  @Override
+  public boolean isFetchingTable() {
+    ArrayList<Task<? extends Serializable>> rootTask = plan.getRootTasks();
+    if (rootTask.size() != 1) {
+      return false;
+    }
+    
+    Task<? extends Serializable> task = rootTask.get(0);
+    if (!(task instanceof IdgsTask)) {
+      return false;
     }
     
     return true;

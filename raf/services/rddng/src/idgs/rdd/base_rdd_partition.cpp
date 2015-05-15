@@ -35,11 +35,11 @@ uint32_t BaseRddPartition::getPartition() const {
   return partition;
 }
 
-void BaseRddPartition::setRddLocal(RddLocal* rddlocal) {
+void BaseRddPartition::setRddLocal(const std::shared_ptr<RddLocal>& rddlocal) {
   rddLocal = rddlocal;
 }
 
-RddLocal* BaseRddPartition::getRddLocal() {
+const std::shared_ptr<RddLocal>& BaseRddPartition::getRddLocal() const {
   return rddLocal;
 }
 
@@ -56,7 +56,7 @@ void BaseRddPartition::transform() {
   if (!downstreamPartition.empty()) {
     pb::RddResultCode code = pb::RRC_SUCCESS;
     for (int32_t i = 0; i < downstreamPartition.size(); ++ i) {
-      auto rddlocal = downstreamPartition[i]->getRddLocal();
+      auto& rddlocal = downstreamPartition[i]->getRddLocal();
       auto& ctx = transformerContexts.at(i);
 
       if (!rddlocal->isUpstreamSync()) {
@@ -97,7 +97,7 @@ void BaseRddPartition::transform(const idgs::actor::PbMessagePtr& key, const idg
   if (!downstreamPartition.empty()) {
     idgs::rdd::pb::RddResultCode code = idgs::rdd::pb::RRC_SUCCESS;
     for (int32_t i = 0; i < downstreamPartition.size(); ++ i) {
-      auto rddlocal = downstreamPartition[i]->getRddLocal();
+      auto& rddlocal = downstreamPartition[i]->getRddLocal();
       auto& ctx = transformerContexts.at(i);
 
       idgs::actor::PbMessagePtr outkey, outvalue;

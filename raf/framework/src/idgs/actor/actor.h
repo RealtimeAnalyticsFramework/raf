@@ -16,12 +16,28 @@ namespace actor {
 // System Operations
 //
 
-extern const std::string OP_DESTROY;
-extern const std::string OP_ACTOR_NOT_FOUND;
+extern const char OP_DESTROY[];
+extern const char OP_ACTOR_NOT_FOUND[];
 
 class Actor;
 typedef void (idgs::actor::Actor:: * ActorMessageHandler) (const idgs::actor::ActorMessagePtr& msg);
-typedef std::map<std::string, ActorMessageHandler> ActorMessageHandlerMap;
+
+struct OperationDescriptor {
+  const ActorMessageHandler handler;
+  const google::protobuf::Message* payload;
+
+  OperationDescriptor (const idgs::actor::ActorMessageHandler handler_) : handler(handler_), payload(NULL) {
+  }
+
+  OperationDescriptor(const idgs::actor::ActorMessageHandler handler_, const google::protobuf::Message* payload_) :
+      handler(handler_), payload(payload_) {
+  }
+
+  OperationDescriptor () : handler(NULL), payload(NULL) {
+  }
+};
+
+typedef std::map<std::string, idgs::actor::OperationDescriptor> ActorMessageHandlerMap;
 
 enum ProcessStatus {
   DEFAULT,
@@ -51,7 +67,13 @@ public:
 
 public:
   virtual const idgs::actor::ActorDescriptorPtr& getDescriptor() const = 0;
-  virtual const ActorMessageHandlerMap& getMessageHandlerMap() const = 0;
+
+  virtual const ActorMessageHandlerMap& getMessageHandlerMap() const {
+    static idgs::actor::ActorMessageHandlerMap handlerMap;
+    return handlerMap;
+  }
+
+  virtual bool stateful() = 0;
 
   /// create an ActorMessage whose source actor is this actor
   /// @return the ActorMessage

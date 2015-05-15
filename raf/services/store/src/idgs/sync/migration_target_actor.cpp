@@ -8,8 +8,12 @@
 
 #include "migration_target_actor.h"
 
-
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
+#include "idgs/sync/migration_target_actor.h"
+#include "idgs/sync/store_migration_target_actor.h"
+#include "idgs/sync/store_migration_source_actor.h"
 
 
 namespace idgs {
@@ -35,7 +39,7 @@ MigrationTargetActor::~MigrationTargetActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& MigrationTargetActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {STORE_MIGRATION_COMPLETE,          static_cast<idgs::actor::ActorMessageHandler>(&MigrationTargetActor::handleStoreMigrationComplete)}
   };
 
@@ -70,7 +74,7 @@ idgs::actor::ActorDescriptorPtr MigrationTargetActor::generateActorDescriptor() 
 
   // out operation of MIGRATION_COMPLETE
   idgs::actor::ActorOperationDescriporWrapper stateChanged;
-  stateChanged.setName(idgs::cluster::PARTITION_STATE_CHANGED);
+  stateChanged.setName(idgs::cluster::OID_PARTITION_STATE_CHANGED);
   stateChanged.setDescription("handle partition state changed.");
   stateChanged.setPayloadType("idgs.pb.PartitionStatusChangeEvent");
   descriptor->setOutOperation(stateChanged.getName(), stateChanged);
@@ -118,7 +122,7 @@ void MigrationTargetActor::clearPartitionData(const int32_t& partitionId) {
         idgs::actor::sendMessage(msg);
       } else {
         auto store = datastore->getStore(it->second->schemaName, it->second->storeName);
-        auto pstore = dynamic_cast<PartitionStore*>(store.get());
+        auto pstore = dynamic_cast<PartitionedStore*>(store.get());
         pstore->clearData(partitionId);
       }
     }
@@ -143,8 +147,8 @@ void MigrationTargetActor::clearPartitionData(const int32_t& partitionId) {
     auto it = stores.begin();
     for (; it != stores.end(); ++ it) {
       auto& store = * it;
-      if (store->getStoreConfigWrapper()->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
-        auto pstore = dynamic_cast<PartitionStore*>(store.get());
+      if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
+        auto pstore = dynamic_cast<PartitionedStore*>(store.get());
         pstore->clearData(partitionId);
       }
     }
@@ -200,7 +204,7 @@ void MigrationTargetActor::nextPartitionMigration() {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
     for (int32_t i = 0; i < stores.size(); ++ i) {
       auto& store = stores.at(i);
-      auto& configWrapper = store->getStoreConfigWrapper();
+      auto& configWrapper = store->getStoreConfig();
       auto& config = configWrapper->getStoreConfig();
       if (config.partition_type() == pb::PARTITION_TABLE) {
         auto& schemaName = configWrapper->getSchema();
@@ -267,7 +271,7 @@ void MigrationTargetActor::handleMemberLeave(const int32_t& memberId) {
         idgs::actor::sendMessage(msg);
       } else {
         auto store = datastore->getStore(it->second->schemaName, it->second->storeName);
-        auto pstore = dynamic_cast<PartitionStore*>(store.get());
+        auto pstore = dynamic_cast<PartitionedStore*>(store.get());
         pstore->clearData(partId);
       }
     }
@@ -287,7 +291,7 @@ void MigrationTargetActor::multicastPartitionStateChangeEvent(const int32_t& par
   payload->set_state(state);
 
   auto reqMsg = std::make_shared<idgs::actor::ActorMessage>();
-  reqMsg->setOperationName(idgs::cluster::PARTITION_STATE_CHANGED);
+  reqMsg->setOperationName(idgs::cluster::OID_PARTITION_STATE_CHANGED);
   reqMsg->setSourceActorId(MIGRATION_TARGET_ACTOR);
   reqMsg->setSourceMemberId(localMemberId);
   reqMsg->setDestMemberId(idgs::pb::ALL_MEMBERS);

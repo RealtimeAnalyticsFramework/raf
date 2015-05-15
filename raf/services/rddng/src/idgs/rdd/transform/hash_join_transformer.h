@@ -22,7 +22,8 @@ public:
   virtual ~HashJoinTransformer();
 
   virtual const std::string& getName() override {
-    return HASH_JOIN_TRANSFORMER;
+    static std::string name(HASH_JOIN_TRANSFORMER);
+    return name;
   }
 
 

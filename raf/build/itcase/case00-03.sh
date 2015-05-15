@@ -47,20 +47,20 @@ case1() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case1_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf 1>case1_2.log 2>&1  &
   SRV_PID2=$!
   sleep 3
   echo "start server 3"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
   dist/bin/idgs -c conf/cluster.conf 1>case1_3.log 2>&1  &
   SRV_PID3=$!
   
@@ -89,16 +89,16 @@ case2() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start all 3 servers."
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case2_1.log 2>&1 &
   SRV_PID1=$!
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf 1>case2_2.log 2>&1  &
   SRV_PID2=$!
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
   dist/bin/idgs -c conf/cluster.conf 1>case2_3.log 2>&1  &
   SRV_PID3=$!
   
@@ -119,9 +119,9 @@ case3() {
   cd $WORKSPACE/idgs/
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
-  run_test dist/utest/partitiontable_balance_verifier_test 
+  run_test $BUILD_DIR/target/utest/partitiontable_balance_verifier_test 
   
-  check_core_dump dist/utest/ut_manual
+  check_core_dump $BUILD_DIR/target/utest/ut_manual
   #echo "########################"
 }
 

@@ -10,17 +10,17 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "http_request.h"
 #include "http_response.h"
-#include "idgs/net/stateful_tcp_actor.h"
 
 namespace idgs{
 namespace httpserver {
 
-static const std::string GET = "GET";
-static const std::string DELETE = "DELETE";
-static const std::string HEAD = "HEAD";
-static const std::string OPTIONS = "OPTIONS";
-static const std::string POST = "POST";
-static const std::string PUT = "PUT";
+
+static const char GET[] = "GET";
+static const char DELETE[] = "DELETE";
+static const char HEAD[] = "HEAD";
+static const char OPTIONS[] = "OPTIONS";
+static const char POST[] = "POST";
+static const char PUT[] = "PUT";
 
 class HttpServlet {
 public:

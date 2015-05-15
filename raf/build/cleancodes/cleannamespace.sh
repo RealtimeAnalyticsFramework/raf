@@ -32,7 +32,7 @@ do
         touch $file # just to be sure it recompiles
         removenamespace $file $i
 
-	make -j8 -k >/dev/null 2>&1
+	make -j -k >/dev/null 2>&1
         if make >/dev/null  2>&1;
         then
             grep -v REMOVENAMESPACE $file > tmp && mv tmp $file

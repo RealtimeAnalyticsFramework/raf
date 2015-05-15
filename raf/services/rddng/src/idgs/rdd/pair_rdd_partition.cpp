@@ -42,12 +42,27 @@ PairRddPartition::~PairRddPartition() {
 }
 
 const ActorMessageHandlerMap& PairRddPartition::getMessageHandlerMap() const {
-  static std::map<std::string, ActorMessageHandler> handlerMap = {
-      {RDD_TRANSFORM,             static_cast<ActorMessageHandler>(&PairRddPartition::handleRddTransform)},
-      {PARTITION_STORE,           static_cast<ActorMessageHandler>(&PairRddPartition::handlePartitionStore)},
-      {RE_PARTITION,              static_cast<ActorMessageHandler>(&PairRddPartition::handleRePartition)},
-      {CHECK_PARTITION_READY,     static_cast<ActorMessageHandler>(&PairRddPartition::handleCheckPartitionReady)},
-      {RDD_ACTION_REQUEST,        static_cast<ActorMessageHandler>(&PairRddPartition::handleActionRequest)}
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      {RDD_TRANSFORM,   {
+          static_cast<ActorMessageHandler>(&PairRddPartition::handleRddTransform),
+          &idgs::rdd::pb::RddRequest::default_instance()
+      }},
+      {PARTITION_STORE, {
+          static_cast<ActorMessageHandler>(&PairRddPartition::handlePartitionStore),
+          &idgs::rdd::pb::PartitionStoreOption::default_instance()
+      }},
+      {RE_PARTITION,   {
+          static_cast<ActorMessageHandler>(&PairRddPartition::handleRePartition),
+          &idgs::rdd::pb::RddRequest::default_instance()
+      }},
+      {CHECK_PARTITION_READY, {
+          static_cast<ActorMessageHandler>(&PairRddPartition::handleCheckPartitionReady),
+          &idgs::rdd::pb::RddRequest::default_instance()
+      }},
+      {RDD_ACTION_REQUEST,  {
+          static_cast<ActorMessageHandler>(&PairRddPartition::handleActionRequest),
+          &idgs::rdd::pb::ActionRequest::default_instance()
+      }}
   };
   return handlerMap;
 }
@@ -182,7 +197,8 @@ void PairRddPartition::handleCheckPartitionReady(const ActorMessagePtr& msg) {
     return;
   }
 
-  DVLOG(2) << getPartitionName() << " check transform complete";
+  DVLOG(2) << getPartitionName() << " check done, transform complete. " << " total data size  "
+      << ((rddLocal->getPersistType() == PersistType::ORDERED) ? orderedDataMap.size() : unorderedDataMap.size());
   shared_ptr<RddResponse> payload = make_shared<RddResponse>();
   payload->set_partition(partition);
   payload->set_result_code(RRC_SUCCESS);
@@ -413,7 +429,7 @@ void PairRddPartition::repartition(const idgs::actor::PbMessagePtr& key, const i
     auto cluster = idgs_application()->getClusterFramework();
     static idgs::pb::ClusterConfig* clusterConfig = cluster->getClusterConfig();
 
-    if(localCache.size() > clusterConfig->repartition_batch()) {
+    if(localCache.size() > clusterConfig->batch_message()) {
       flushLocalCache();
     }
     return;

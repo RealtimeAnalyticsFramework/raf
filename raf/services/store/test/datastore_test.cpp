@@ -46,7 +46,7 @@ TEST(DataStore, init) {
 TEST(DataStore, loadCfgFile) {
   auto store = idgs::store_test::datastore.getStore("Customer");
   ASSERT_TRUE(store.get() != NULL);
-  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  auto& storeConfigWrapper = store->getStoreConfig();
   ASSERT_TRUE(storeConfigWrapper.get() != NULL);
 
   ASSERT_EQ("Customer", storeConfigWrapper->getStoreConfig().name());
@@ -64,7 +64,7 @@ TEST(DataStore, loadCfgFile) {
 
 TEST(DataStore, insertData) {
   ResultCode status;
-  PartitionInfo ps;
+  StoreOption ps;
   hashcode_t hash;
 
   shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
@@ -82,7 +82,7 @@ TEST(DataStore, insertData) {
   ps.partitionId = (hash % idgs::store_test::partSize);
   auto store = idgs::store_test::datastore.getStore("Customer");
 
-  status = store->setData(key1, value1, &ps);
+  status = store->put(key1, value1, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
@@ -97,7 +97,7 @@ TEST(DataStore, insertData) {
 
   hash = protobuf::HashCode::hashcode(key2.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->setData(key2, value2, &ps);
+  status = store->put(key2, value2, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   shared_ptr<CustomerKey> customerKey3 = make_shared<CustomerKey>();
@@ -112,13 +112,13 @@ TEST(DataStore, insertData) {
 
   hash = protobuf::HashCode::hashcode(key3.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->setData(key3, value3, &ps);
+  status = store->put(key3, value3, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 }
 
-TEST(DataStore, getData) {
+TEST(DataStore, get) {
   ResultCode status;
-  PartitionInfo ps;
+  StoreOption ps;
   hashcode_t hash;
 
   shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
@@ -133,7 +133,7 @@ TEST(DataStore, getData) {
 
   hash = protobuf::HashCode::hashcode(key1.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->getData(key1, value1, &ps);
+  status = store->get(key1, value1, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   Customer* result = (Customer *) value1.get().get();
@@ -151,7 +151,7 @@ TEST(DataStore, getData) {
 
   hash = protobuf::HashCode::hashcode(key2.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->getData(key2, value2, &ps);
+  status = store->get(key2, value2, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   shared_ptr<CustomerKey> customerKey3 = make_shared<CustomerKey>();
@@ -162,13 +162,13 @@ TEST(DataStore, getData) {
 
   hash = protobuf::HashCode::hashcode(key3.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->getData(key3, value3, &ps);
+  status = store->get(key3, value3, &ps);
   ASSERT_EQ(RC_DATA_NOT_FOUND, status);
 }
 
 TEST(DataStore, updateData) {
   ResultCode status;
-  PartitionInfo ps;
+  StoreOption ps;
   hashcode_t hash;
 
   shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
@@ -186,7 +186,7 @@ TEST(DataStore, updateData) {
 
   hash = protobuf::HashCode::hashcode(key1.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->setData(key1, value1, &ps);
+  status = store->put(key1, value1, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
@@ -199,7 +199,7 @@ TEST(DataStore, updateData) {
 
   hash = protobuf::HashCode::hashcode(key2.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->setData(key2, value2, &ps);
+  status = store->put(key2, value2, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   ASSERT_TRUE(value2.get() != NULL);
@@ -210,9 +210,9 @@ TEST(DataStore, updateData) {
   ASSERT_EQ("13800138000", result->c_phone());
 }
 
-TEST(DataStore, removeData) {
+TEST(DataStore, remove) {
   ResultCode status;
-  PartitionInfo ps;
+  StoreOption ps;
   hashcode_t hash;
 
   shared_ptr<CustomerKey> customerKey1 = make_shared<CustomerKey>();
@@ -227,7 +227,7 @@ TEST(DataStore, removeData) {
 
   hash = protobuf::HashCode::hashcode(key1.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->removeData(key1, value1, &ps);
+  status = store->remove(key1, value1, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   shared_ptr<CustomerKey> customerKey2 = make_shared<CustomerKey>();
@@ -240,17 +240,17 @@ TEST(DataStore, removeData) {
 
   hash = protobuf::HashCode::hashcode(key2.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->getData(key2, value2, &ps);
+  status = store->get(key2, value2, &ps);
   ASSERT_EQ(RC_DATA_NOT_FOUND, status);
 }
 
 TEST(DataStore, dynamicMessage) {
   ResultCode status;
-  PartitionInfo ps;
+  StoreOption ps;
   hashcode_t hash;
 
   auto store = idgs::store_test::datastore.getStore("Supplier");
-  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  auto& storeConfigWrapper = store->getStoreConfig();
 
   auto SupplierKey = storeConfigWrapper->newKey();
   const Reflection* keyReflection = SupplierKey->GetReflection();
@@ -273,12 +273,12 @@ TEST(DataStore, dynamicMessage) {
 
   hash = protobuf::HashCode::hashcode(key1.get());
   ps.partitionId = (hash % idgs::store_test::partSize);
-  status = store->setData(key1, value1, &ps);
+  status = store->put(key1, value1, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   Supplier = storeConfigWrapper->newValue();
   StoreValue<Message> value2(Supplier);
-  status = store->getData(key1, value2, &ps);
+  status = store->get(key1, value2, &ps);
   ASSERT_EQ(RC_SUCCESS, status);
 
   ASSERT_EQ("Jerry", valueReflection->GetString(* value2.get(), valueDescriptor->FindFieldByName("s_name")));
@@ -287,7 +287,7 @@ TEST(DataStore, dynamicMessage) {
 
   Supplier = storeConfigWrapper->newValue();
   StoreValue<Message> value3(Supplier);
-  status = store->removeData(key1, value3, &ps);
+  status = store->remove(key1, value3, &ps);
   ASSERT_TRUE(status == RC_SUCCESS);
 
   ASSERT_EQ("Jerry", valueReflection->GetString(* value3.get(), valueDescriptor->FindFieldByName("s_name")));

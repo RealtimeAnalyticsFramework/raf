@@ -98,7 +98,7 @@ TEST(store_listener, registered) {
 
 TEST(store_listener, build_listener) {
   idgs::store::StoreListener* listener = NULL;
-  auto code = idgs::store::StoreListenerFactory::build("TestListener", std::shared_ptr<idgs::store::StoreConfigWrapper>(), &listener, props);
+  auto code = idgs::store::StoreListenerFactory::build("TestListener", std::shared_ptr<idgs::store::StoreConfig>(), &listener, props);
   EXPECT_EQ(idgs::RC_SUCCESS, code);
 
   idgs::store::TestListener* testListener = dynamic_cast<idgs::store::TestListener*>(listener);

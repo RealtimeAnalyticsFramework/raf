@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration.expr;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -23,7 +23,7 @@ public class BranchExprIT extends TestCase {
        .append("         case c_name when 'Customer#000000001' then 1 when 'Customer#000000120' then 120 else -1 end case_expr, \n")
        .append("         nvl(c_name, 'null') nvl_expr, \n")
        .append("         coalesce(c_name, c_custkey) coalesce_expr \n")
-       .append("  from customer \n")
+       .append("  from tpch.customer \n")
        .append("  limit 10");
     try {
       System.out.println("test sql : ");
@@ -33,7 +33,7 @@ public class BranchExprIT extends TestCase {
       
       assertEquals(10, resultSet.getRowCount());
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         Long custkey = (Long) data.getFieldValue("c_custkey");
         String name = (String) data.getFieldValue("c_name");
         String if_expr = (String) data.getFieldValue("if_expr");

@@ -31,9 +31,6 @@ TEST(cluster_cfg_parser_env_test, parse_env) {
   EXPECT_EQ(10010, config.member().inner_address().port());
   EXPECT_EQ(32, config.member().weight());
   EXPECT_FALSE(config.member().service().local_store());
-  EXPECT_FALSE(config.member().service().client_agent());
-  EXPECT_FALSE(config.member().service().dist_computing());
-  EXPECT_FALSE(config.member().service().admin_console());
 
   for(auto it = config.modules().begin(); it != config.modules().end(); ++it) {
     LOG(INFO) << it->DebugString();

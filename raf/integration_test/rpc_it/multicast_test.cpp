@@ -13,9 +13,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 namespace idgs {
   namespace rpc {
     namespace multicast_test {
-      const std::string test_server_id = "test_server_id";
-      const std::string start_work_operation = "start_work_operation";
-      const std::string multicast_operation = "multicast_operation";
+      const char test_server_id[] = "test_server_id";
+      const char start_work_operation[] = "start_work_operation";
+      const char multicast_operation[] = "multicast_operation";
       int test_server_count = 0;
 
       class TestStatelessActor: public idgs::actor::StatelessActor {

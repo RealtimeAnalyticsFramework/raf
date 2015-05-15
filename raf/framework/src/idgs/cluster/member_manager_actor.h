@@ -55,7 +55,7 @@ public:
 
   /// @brief CPG config change event
   ///
-  void handleCpgConfigChange(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr);
+  void handleClusterChange(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr);
 
   /**
    * get member table
@@ -124,14 +124,19 @@ public:
   MemberWrapper* selectLeading(const std::vector<MemberWrapper*>& leaveMembers);
 
   /**
+   *  multicast member flags
+   */
+  idgs::ResultCode mcastMemberFlags(uint32_t member_id, uint64_t flags);
+
+  /**
    *  multicast member status
    */
-  idgs::ResultCode multicastMemberStatus(uint32_t member_id, idgs::pb::MemberState status);
+  idgs::ResultCode mcastMemberStatus(uint32_t member_id, idgs::pb::MemberState status);
 
   /**
    *  multicast local member status
    */
-  idgs::ResultCode multicastLocalMemberStatus(idgs::pb::MemberState status);
+  idgs::ResultCode mcastLocalMemberStatus(idgs::pb::MemberState status);
 
   /**
    * find member by node id and process id
@@ -181,6 +186,11 @@ private:
    *  handle member status event
    */
   void handleMemberStatusEvent(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr);
+
+  /**
+   *  handle member status event
+   */
+  void handleMemberFlagsEvent(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr);
 
   /**
    *  handle new member joined.

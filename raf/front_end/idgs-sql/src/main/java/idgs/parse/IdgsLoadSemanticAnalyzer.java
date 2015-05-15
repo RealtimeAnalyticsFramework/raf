@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.TaskFactory;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.apache.hadoop.hive.ql.parse.LoadSemanticAnalyzer;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
@@ -86,16 +87,29 @@ public class IdgsLoadSemanticAnalyzer extends LoadSemanticAnalyzer {
     }
 
     tableSpec ts = new tableSpec(db, conf, (ASTNode) tableTree);
-    
-    StoreMetadata metadata = StoreMetadata.getInstance();
-    String storeName = metadata.getStoreName(ts.tableName);
-    if (storeName == null) {
-      throw new SemanticException("table " + ts.tableName + " not found");
+
+    String dbName = null;
+    try {
+      dbName = db.getDatabaseCurrent().getName();
+    } catch (HiveException e) {
+      throw new SemanticException("database " + dbName + " is not found", e);
     }
     
-    StoreConfig storeConfig = metadata.getStoreConfig(storeName);
+    String tableName = ts.tableName;
+    StoreMetadata metadata = StoreMetadata.getInstance();
+    String schemaName = metadata.getSchemaName(dbName);
+    if (schemaName == null) {
+      throw new SemanticException("database " + dbName + " is not found");
+    }
+    
+    String storeName = metadata.getStoreName(dbName, tableName);
+    if (storeName == null) {
+      throw new SemanticException("table " + dbName + "." + tableName + " is not found");
+    }
+    
+    StoreConfig storeConfig = metadata.getStoreConfig(schemaName, storeName);
     if (storeConfig == null) {
-      throw new SemanticException("store " + storeName + " not found");
+      throw new SemanticException("store " + schemaName + "." + storeName + " is not found");
     }
     
     genLoadTask(storeConfig, fs, uri.toString());

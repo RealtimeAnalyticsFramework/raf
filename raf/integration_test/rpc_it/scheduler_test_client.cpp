@@ -22,11 +22,11 @@ namespace idgs {
     namespace scheduler_test {
       int count(0);
       int test_server_count(0);
-      const std::string test_server_id = "test_server_id";
-      const std::string start_work_operation = "start_work_operation";
-      const std::string new_client_message_comes = "new_client_message_comes";
-      const std::string sending_reponse_succ = "sending_reponse_successfully";
-      const std::string sending_total = "sending_total";
+      const char test_server_id[] = "test_server_id";
+      const char start_work_operation[] = "start_work_operation";
+      const char new_client_message_comes[] = "new_client_message_comes";
+      const char sending_reponse_succ[] = "sending_reponse_successfully";
+      const char sending_total[] = "sending_total";
 
       ///////////////////////////// Call Flow //////////////////////
       //   Client                                          server

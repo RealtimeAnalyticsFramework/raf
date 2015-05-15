@@ -16,7 +16,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/rdd/rdd_module.h"
 #include "idgs/rdd/pb/rdd_internal.pb.h"
 
-#include "idgs/store/store_module.h"
+#include "idgs/store/storage/data_store_actor.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/store_sync_source_actor.h"
 
 using namespace idgs::pb;
 using namespace idgs::actor;
@@ -39,7 +42,7 @@ PairStoreDelegateRddPartition::~PairStoreDelegateRddPartition() {
 }
 
 const ActorMessageHandlerMap& PairStoreDelegateRddPartition::getMessageHandlerMap() const {
-  static map<string, ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {RDD_TRANSFORM,         static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddTransform)},
       {RDD_ACTION_REQUEST,    static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleActionRequest)},
       {RDD_STORE_LISTENER,    static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddStoreListener)}
@@ -104,13 +107,13 @@ const ActorDescriptorPtr& PairStoreDelegateRddPartition::getDescriptor() const {
 }
 
 void PairStoreDelegateRddPartition::initPartitionStore(const idgs::store::StorePtr& store) {
-  schemaName = store->getStoreConfigWrapper()->getSchema();
-  storeName = store->getStoreConfigWrapper()->getStoreConfig().name();
+  schemaName = store->getStoreConfig()->getSchema();
+  storeName = store->getStoreConfig()->getStoreConfig().name();
 
-  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  auto& storeConfigWrapper = store->getStoreConfig();
   switch (storeConfigWrapper->getStoreConfig().partition_type()) {
     case idgs::store::pb::PARTITION_TABLE: {
-      PartitionStore* pstore = dynamic_cast<PartitionStore*>(store.get());
+      PartitionedStore* pstore = dynamic_cast<PartitionedStore*>(store.get());
       pstore->scanPartitionData(partition, dataMap);
       break;
     }
@@ -123,6 +126,8 @@ void PairStoreDelegateRddPartition::initPartitionStore(const idgs::store::StoreP
       break;
     }
   }
+
+  DVLOG(2) << getPartitionName() << " catch store " << schemaName << "." << storeName << " " << dataMap->size() << " data";
 }
 
 void PairStoreDelegateRddPartition::handleRddTransform(const idgs::actor::ActorMessagePtr& msg) {

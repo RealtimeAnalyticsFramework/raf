@@ -17,7 +17,7 @@
       <outputDirectory>/bin</outputDirectory>
     </fileSet>
     <fileSet>
-      <directory>../sql_engine/src/main/resources</directory>
+      <directory>../idgs-sql/src/main/resources</directory>
       <outputDirectory>/</outputDirectory>
     </fileSet>
     <fileSet>

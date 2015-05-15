@@ -33,7 +33,7 @@ public class SqlCliDriver {
         sql = (sql == null) ? s : sql + " " + s;
       }
     } else {
-      System.out.println("no sql found");
+      System.out.println("please input sql.");
       System.exit(1);
     }
     

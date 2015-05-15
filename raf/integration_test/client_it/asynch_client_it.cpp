@@ -13,7 +13,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "client_test.h"
 
 
-const std::string test_server_id = "TimeOutStatelessActor";
+const char test_server_id[] = "TimeOutStatelessActor";
+
 class TimeOutStatelessActor: public StatelessActor {
   public:
     TimeOutStatelessActor() {
@@ -22,7 +23,7 @@ class TimeOutStatelessActor: public StatelessActor {
     void process(const ActorMessagePtr& msg) override {
     }
     const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-      static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap ;
+      static idgs::actor::ActorMessageHandlerMap handlerMap ;
       return handlerMap;
     }
 

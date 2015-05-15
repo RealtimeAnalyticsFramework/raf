@@ -10,11 +10,14 @@ package idgs.metadata;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hive.conf.HiveConf;
 
+import idgs.IdgsConfVars;
 import idgs.client.util.JsonUtil;
 import idgs.exception.IdgsException;
 import idgs.store.pb.PbStoreConfig.DataStoreConfig;
@@ -23,15 +26,28 @@ public class LocalStoreLoader implements StoreLoader {
 
   private static Log log = LogFactory.getLog(LocalStoreLoader.class);
   
+  private static Map<String, DataStoreConfig> storeConfigMap = new HashMap<String, DataStoreConfig>();
+  
   private String cfgFilePath;
   
-  public LocalStoreLoader(String cfgFilePath) {
+  public LocalStoreLoader() {
+  }
+  
+  public void setCfgFilePath(String cfgFilePath) {
     this.cfgFilePath = cfgFilePath;
+  }
+  
+  @Override
+  public void init(HiveConf conf) {
+    cfgFilePath = IdgsConfVars.getVar(conf, IdgsConfVars.STORE_CONFIG_FILE);    
   }
   
   @Override
   public DataStoreConfig loadDataStoreConf() throws IdgsException {
     log.info("load store config: " + cfgFilePath);
+    if (storeConfigMap.containsKey(cfgFilePath)) {
+      return storeConfigMap.get(cfgFilePath);
+    }
     
     File file = new File(cfgFilePath);
     do {
@@ -55,7 +71,6 @@ public class LocalStoreLoader implements StoreLoader {
         break;
       }
       
-      
       log.error("Data store config file " + cfgFilePath + " is not found.");
       throw new IdgsException("Data store config file " + cfgFilePath + " is not found.");
     } while (false);    
@@ -69,6 +84,7 @@ public class LocalStoreLoader implements StoreLoader {
     }
 
     DataStoreConfig conf = builder.build();
+    storeConfigMap.put(cfgFilePath, conf);
     return conf;
   }
 

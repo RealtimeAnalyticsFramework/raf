@@ -8,21 +8,21 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
 public class SelectTableIT extends TestCase {
 
   public void testSelectStartTable() {
-    String sql = "select * from orders where o_orderstatus = 'F'";
+    String sql = "select * from tpch.orders where o_orderstatus = 'F'";
     
     try {
       ResultSet resultSet = IdgsCliDriver.run(sql);
       assertNotNull(resultSet);
       
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         Object status = data.getFieldValue("o_orderstatus");
         
         assertNotNull(status);

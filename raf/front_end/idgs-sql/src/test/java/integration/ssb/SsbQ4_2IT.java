@@ -17,7 +17,7 @@ import java.util.TreeMap;
 import printer.DefaultResultPrinter;
 import printer.ResultPrinter;
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -29,14 +29,14 @@ public class SsbQ4_2IT extends TestCase {
        .append("         s.s_nation,\n")
        .append("         p.p_category,\n")
        .append("         sum(lo.lo_revenue - lo.lo_supplycost) AS profit\n")
-       .append("  FROM   ssb_lineorder lo\n")
-       .append("         JOIN ssb_date d\n")
+       .append("  FROM   ssb.ssb_lineorder lo\n")
+       .append("         JOIN ssb.ssb_date d\n")
        .append("           ON lo.lo_orderdate = d.d_datekey\n")
-       .append("         JOIN ssb_customer c\n")
+       .append("         JOIN ssb.ssb_customer c\n")
        .append("           ON lo.lo_custkey = c.c_custkey\n")
-       .append("         JOIN ssb_supplier s\n")
+       .append("         JOIN ssb.ssb_supplier s\n")
        .append("           ON lo.lo_suppkey = s.s_suppkey\n")
-       .append("         JOIN ssb_part p\n")
+       .append("         JOIN ssb.ssb_part p\n")
        .append("           ON lo.lo_partkey = p.p_partkey\n")
        .append("  WHERE  c.c_region = 'AMERICA'\n")
        .append("         AND s.s_region = 'AMERICA'\n")
@@ -138,7 +138,7 @@ public class SsbQ4_2IT extends TestCase {
         
         assertEquals(resultSet.getRowCount(), resultMap.size());
         for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-          ResultData data = resultSet.getResultData(i);
+          RowData data = resultSet.getResultData(i);
           String d_year = data.getFieldValue("d_year").toString();
           String s_nation = data.getFieldValue("s_nation").toString();
           String p_category = data.getFieldValue("p_category").toString();

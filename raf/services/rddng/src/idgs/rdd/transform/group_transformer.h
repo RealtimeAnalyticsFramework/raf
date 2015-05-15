@@ -23,7 +23,8 @@ public:
   virtual ~GroupTransformer();
 
   virtual const std::string& getName() override {
-    return GROUP_TRANSFORMER;
+    static std::string name(GROUP_TRANSFORMER);
+    return name;
   }
 
   GroupTransformer(const GroupTransformer& other) = delete;

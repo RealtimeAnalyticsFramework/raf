@@ -13,6 +13,9 @@
 #include "idgs/signal_handler.h"
 #include "idgs/store/store_module.h"
 
+#include "idgs/sync/store_sync_source_actor.h"
+
+
 using namespace idgs::store;
 using namespace idgs::store::pb;
 using namespace idgs::actor;
@@ -21,7 +24,7 @@ using namespace idgs::pb;
 namespace idgs {
 namespace client {
 
-const std::string InClusterLoader::ACOTR_ID = "tpch.loader";
+const char InClusterLoader::ACOTR_ID[] = "tpch.loader";
 
 InClusterLoader::InClusterLoader() :
     cancelTimer(NULL) {
@@ -34,8 +37,10 @@ InClusterLoader::~InClusterLoader() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& InClusterLoader::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = { { OP_INSERT_RESPONSE,
-      static_cast<idgs::actor::ActorMessageHandler>(&InClusterLoader::handleInsertResponse) }, };
+  static idgs::actor::ActorMessageHandlerMap handlerMap = { { OP_INSERT_RESPONSE, {
+      static_cast<idgs::actor::ActorMessageHandler>(&InClusterLoader::handleInsertResponse),
+      &idgs::store::pb::InsertResponse::default_instance()
+  }}, };
   return handlerMap;
 }
 

@@ -22,9 +22,12 @@ public class DelegateOperator extends IdgsOperator {
 
   private static Log LOG = LogFactory.getLog(DelegateOperator.class);
   
+  private String schemaName;
+  
   private String storeName;
   
-  public DelegateOperator(StoreConfig cfg) {
+  public DelegateOperator(String schemaName, StoreConfig cfg) {
+    this.schemaName = schemaName;
     this.storeName = cfg.getName();
     keyType = cfg.getKeyType();
     valueType = cfg.getValueType();
@@ -37,6 +40,7 @@ public class DelegateOperator extends IdgsOperator {
   @Override
   protected ClientActorMessage buildRequest() throws IdgsException {
     CreateDelegateRddRequest.Builder builder = CreateDelegateRddRequest.newBuilder();
+    builder.setSchemaName(schemaName);
     builder.setStoreName(storeName);
     builder.setRddName(getRddName());
     

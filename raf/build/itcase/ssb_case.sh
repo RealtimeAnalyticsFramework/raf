@@ -2,6 +2,9 @@
 #
 # Script to run unit test, invoked by jenkins
 #
+
+LOAD_THREAD=150
+
 ssb_case() {
   IT_CASE_NAME=$1
   IT_TEST_NAME=$2
@@ -16,17 +19,17 @@ ssb_case() {
   export CLIENT_TIMEOUT=900000
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_vmodule=*rdd*=1 dist/bin/idgs -c conf/cluster.conf  1>case_ssbQ${IT_CASE_NAME}_1.log 2>&1 &
   SRV_PID1=$!
   export SRV_PID1
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=*rdd*=1 dist/bin/idgs -c conf/cluster.conf  1>case_ssbQ${IT_CASE_NAME}_2.log 2>&1 &
   SRV_PID2=$!
   export SRV_PID2
@@ -41,10 +44,10 @@ ssb_case() {
   build/ssb-gen-it.sh
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 1>load_ssb_caseQ${IT_CASE_NAME}.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t $LOAD_THREAD 1>load_ssb_caseQ${IT_CASE_NAME}.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -90,17 +93,17 @@ ssb_case1() {
   export CLIENT_TIMEOUT=900000
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_vmodule=*rdd*=1 dist/bin/idgs -c conf/cluster.conf  1>case_ssbQ${IT_CASE_NAME}_1.log 2>&1 &
   SRV_PID1=$!
   export SRV_PID1
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=*rdd*=1 dist/bin/idgs -c conf/cluster.conf  1>case_ssbQ${IT_CASE_NAME}_2.log 2>&1 &
   SRV_PID2=$!
   export SRV_PID2
@@ -117,10 +120,10 @@ ssb_case1() {
   build/ssb-gen.sh
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 1>load_case_ssbQ${IT_CASE_NAME}.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t $LOAD_THREAD 1>load_case_ssbQ${IT_CASE_NAME}.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -183,17 +186,17 @@ ssbcase2() {
   export CLIENT_TIMEOUT=900000
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_vmodule=*rdd*=2 dist/bin/idgs -c conf/cluster.conf  1>case_ssb_1.log 2>&1 &
   SRV_PID1=$!
   export SRV_PID1
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=*rdd*=2 dist/bin/idgs -c conf/cluster.conf  1>case_ssb_2.log 2>&1 &
   SRV_PID2=$!
   export SRV_PID2
@@ -209,11 +212,11 @@ ssbcase2() {
   build/ssb-gen.sh
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 1>load_case_ssb.log 2>&1
-  #dist/itest/it_load_data_test
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t $LOAD_THREAD 1>load_case_ssb.log 2>&1
+  #$BUILD_DIR/target/itest/it_load_data_test
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";

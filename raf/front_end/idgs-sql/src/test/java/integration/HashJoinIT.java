@@ -8,21 +8,33 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
 public class HashJoinIT extends TestCase {
 
   public void testHashJoin() {
-    String sql = "select o.o_orderkey, l.l_orderkey, o.o_orderstatus, l.l_discount from orders o left outer join lineitem l on o.o_orderkey = l.l_orderkey where o.o_orderstatus = 'F' and l.l_discount between 0.05 and 0.07";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select o.o_orderkey, \n")
+       .append("         l.l_orderkey, \n")
+       .append("         o.o_orderstatus, \n")
+       .append("         l.l_discount \n")
+       .append("  from   tpch.orders o \n")
+       .append("         left outer join tpch.lineitem l \n")
+       .append("                      on o.o_orderkey = l.l_orderkey \n")
+       .append("  where  o.o_orderstatus = 'F' \n")
+       .append("         and l.l_discount between 0.05 and 0.07\n");
+
+    System.out.println("run test sql : ");
+    System.out.println(sql.toString());
     
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         assertEquals(data.getFieldValue("o_orderkey"), data.getFieldValue("l_orderkey"));
         assertEquals("F", data.getFieldValue("o_orderstatus"));
         Object discountObj = data.getFieldValue("l_discount");

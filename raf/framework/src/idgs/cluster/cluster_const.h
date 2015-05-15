@@ -11,48 +11,57 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 namespace idgs {
 namespace cluster {
+//
+// module name and descriptor
+//
+extern const char CLUSTER_MODULE_DESCRIPTOR_NAME[];         /// = "cluster";
+extern const char CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION[];  /// = "Cluster's Actor Descriptors";
 
-// actor id and operation name
-extern const std::string AID_MEMBER; //= "cluster.member";
-extern const std::string MEMBER; //= "MEMBER";
-extern const std::string MEMBER_STATUS; //= "MEMBER_STATUS";
-extern const std::string WHOLE_MEMBERSHIP_TABLE; //= "WHOLE_MEMBERSHIP_TABLE";
-extern const std::string DELTA_MEMBER_AND_JOIN_POSITION; //= "DELTA_MEMBER_AND_JOIN_POSITION";
-extern const std::string OID_CPG_CONFIG_CHANGE; //= "CPG_CONFIG_CHANGE";
-extern const std::string OID_LIST_MEMBERS; // = "list_members";
-extern const std::string OID_GET_CLUSTER_CFG; // = "get_cluster_cfg";
+//
+// Actor id and operation names
+//
+extern const char AID_MEMBER[];                           /// = "cluster.member";
+extern const size_t AID_MEMBER_LENGTH;
 
-extern const std::string AID_PARTITION; //= "cluster.partition";
-extern const std::string WHOLE_PARTITION_TABLE; //= "WHOLE_PARTITION_TABLE";
-extern const std::string DELTA_PARTITIONS; //= "DELTA_PARTITIONS";
-extern const std::string PARTITION_STATE_CHANGED; // = "PARTITION_STATE_CHANGED";
-extern const std::string CLUSTER_MODULE_DESCRIPTOR_NAME; //= "cluster";
-extern const std::string CLUSTER_MODULE_DESCRIPTOR_DESCRIPTION; //= "Cluster's Actor Descriptors";
-extern const std::string OID_LIST_PARTITIONS; // = "list_partitions";
+extern const char OID_MEMBER[];                           /// = "MEMBER";
+extern const char OID_WHOLE_MEMBERSHIP_TABLE[];           /// = "WHOLE_MEMBERSHIP_TABLE";
+extern const char OID_DELTA_MEMBER_AND_JOIN_POSITION[];   /// = "DELTA_MEMBER_AND_JOIN_POSITION";
+extern const char OID_CPG_CONFIG_CHANGE[];                /// = "CPG_CONFIG_CHANGE";
 
-// environment variables
-extern const char* ENV_VAR_GROUP; //= "idgs_group";
-extern const char* ENV_VAR_THREAD_COUNT; //= "idgs_thread_count";
-extern const char* ENV_VAR_IO_THREAD_COUNT; //= "idgs_io_thread_count";
-extern const char* ENV_VAR_MAX_IDLE_THREAD; //= "idgs_max_idle_thread";
-extern const char* ENV_VAR_REPARTITION_BATCH; //= "idgs_repartition_batch";
-extern const char* ENV_VAR_GROUP_NAME; //= "idgs_group_name";
+extern const char OID_MEMBER_FLAGS[];                     /// = "FLAGS"
+extern const char OID_MEMBER_STATUS[];                    /// = "MEMBER_STATUS";
+extern const char OID_LIST_MEMBERS[];                     /// = "list_members";
+extern const char OID_GET_CLUSTER_CFG[];                  /// = "get_cluster_cfg";
 
-extern const char* ENV_VAR_MTU; //= "idgs_mtu";
-extern const char* ENV_VAR_TCP_BATCH; //= "idgs_tcp_batch";
-extern const char* ENV_VAR_PARTITION_COUNT; //= "idgs_partition_count";
+extern const char AID_PARTITION[];                        /// = "cluster.partition";
+extern const size_t AID_PARTITION_LENGTH;
+extern const char OID_WHOLE_PARTITION_TABLE[];            /// = "WHOLE_PARTITION_TABLE";
+extern const char OID_DELTA_PARTITIONS[];                 /// = "DELTA_PARTITIONS";
+extern const char OID_PARTITION_STATE_CHANGED[];          /// = "PARTITION_STATE_CHANGED";
+extern const char OID_LIST_PARTITIONS[];                  /// = "list_partitions";
 
-extern const char* ENV_VAR_IP; //= "idgs_member_ip";
-extern const char* ENV_VAR_PORT; //= "idgs_member_port";
-extern const char* ENV_VAR_INNERIP; //= "idgs_member_innerIp";
-extern const char* ENV_VAR_INNERPORT; //= "idgs_member_innerPort";
+//
+// Environment variables to override configuration file.
+//
+extern const char ENV_VAR_GROUP[];              /// = "idgs_group";
+extern const char ENV_VAR_PARTITION_COUNT[];    /// = "idgs_partition_count";
 
-extern const char* ENV_VAR_LOAD_FACTOR; //= "idgs_member_load_factor";
-extern const char* ENV_VAR_IS_LOCAL_STORE; //= "idgs_member_service_local_store";
-extern const char* ENV_VAR_IS_DIST_COMPUTING; //= "idgs_member_service_dist_computing";
-extern const char* ENV_VAR_IS_CLIENT_AGENT; //= "idgs_member_service_client_agent";
-extern const char* ENV_VAR_IS_ADMIN_CONSOLE; //= "idgs_member_service_admin_console";
-extern const char* ENV_VAR_MODULE_PREFIX; //= "idgs_modules_";
+extern const char ENV_VAR_WEIGHT[];             /// = "idgs_weight";
+extern const char ENV_VAR_THREAD_COUNT[];       /// = "idgs_thread_count";
+extern const char ENV_VAR_IO_THREAD_COUNT[];    /// = "idgs_io_thread_count";
+extern const char ENV_VAR_MAX_IDLE_THREAD[];    /// = "idgs_max_idle_thread";l
+
+extern const char ENV_VAR_MTU[];                /// = "idgs_mtu";
+extern const char ENV_VAR_BATCH_MESSAGE[];      /// = "idgs_tcp_batch";
+extern const char ENV_VAR_BATCH_BUFFER[];       /// = "idgs_batch_buffer";
+
+extern const char ENV_VAR_PUBLIC_HOST[];        /// = "idgs_public_host";
+extern const char ENV_VAR_PUBLIC_PORT[];        /// = "idgs_public_port";
+extern const char ENV_VAR_INNER_HOST[];         /// = "idgs_inner_host";
+extern const char ENV_VAR_INNER_PORT[];         /// = "idgs_inner_port";
+
+extern const char ENV_VAR_LOCAL_STORE[];        /// = "idgs_local_store";
+extern const char ENV_VAR_MODULE_PREFIX[];      /// = "idgs_modules_";
 
 } // end namespace cluster
 } // end namespace idgs

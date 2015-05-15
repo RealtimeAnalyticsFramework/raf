@@ -25,7 +25,7 @@ StoreMigrationTargetActor::~StoreMigrationTargetActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreMigrationTargetActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {MIGRATION_DATA,               static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleMigrationData)},
       {STORE_MIGRATION_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleStoreMigrationComplete)},
       {CANCEL_MIGRATION,             static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleCancelMigration)},
@@ -96,15 +96,15 @@ idgs::actor::ActorDescriptorPtr StoreMigrationTargetActor::generateActorDescript
   return descriptor;
 }
 
-void StoreMigrationTargetActor::setStore(const idgs::store::StorePtr& store) {
-  pstore = dynamic_cast<PartitionStore*>(store.get());
+void StoreMigrationTargetActor::setStore(idgs::store::StorePtr store) {
+  pstore = store;
 }
 
 void StoreMigrationTargetActor::handleMigrationData(const idgs::actor::ActorMessagePtr& msg) {
   auto data = dynamic_cast<pb::MigrationData*>(msg->getPayload().get());
   auto mode = static_cast<protobuf::SerdesMode>(msg->getSerdesType());
 
-  auto configWrapper = pstore->getStoreConfigWrapper();
+  auto configWrapper = pstore->getStoreConfig();
   for (int32_t i = 0; i < data->data_size(); ++ i) {
     idgs::actor::PbMessagePtr key = configWrapper->newKey();
     if (!protobuf::ProtoSerdesHelper::deserialize(mode, data->data(i).key(), key.get())) {
@@ -121,17 +121,17 @@ void StoreMigrationTargetActor::handleMigrationData(const idgs::actor::ActorMess
     ResultCode code = RC_SUCCESS;
     auto& opName = data->data(i).operation_name();
 
-    PartitionInfo pi;
+    StoreOption pi;
     pi.partitionId = partId;
 
     if (opName == OP_INTERNAL_INSERT || opName == OP_INTERNAL_UPDATE) {
       StoreKey<google::protobuf::Message> storeKey(key);
       StoreValue<google::protobuf::Message> storeValue(value);
-      code = pstore->setData(storeKey, storeValue, &pi);
+      code = pstore->put(storeKey, storeValue, &pi);
     } else if (opName == OP_INTERNAL_DELETE) {
       StoreKey<google::protobuf::Message> storeKey(key);
       StoreValue<google::protobuf::Message> storeValue(value);
-      code = pstore->removeData(storeKey, storeValue, &pi);
+      code = pstore->remove(storeKey, storeValue, &pi);
     } else {
       code = RC_NOT_SUPPORT;
     }
@@ -162,7 +162,7 @@ void StoreMigrationTargetActor::handleMigrationData(const idgs::actor::ActorMess
 void StoreMigrationTargetActor::handleStoreMigrationComplete(const idgs::actor::ActorMessagePtr& msg) {
   auto request = dynamic_cast<pb::StoreMigrationComplete*>(msg->getPayload().get());
   DVLOG(2) << "store " << request->schema_name() << "." << request->store_name() << " partition " << partId
-           << " migration complete, migration data " << dataSize << "(" << pstore->dataSize(partId) << ")/" << request->data_size();
+           << " migration complete, migration data " << dataSize << "(" << dynamic_cast<idgs::store::PartitionedStore*>(pstore.get())->dataSize(partId) << ")/" << request->data_size();
 
   auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   auto routeMsg = msg->createRouteMessage(localMemberId, MIGRATION_TARGET_ACTOR, true);
@@ -172,14 +172,14 @@ void StoreMigrationTargetActor::handleStoreMigrationComplete(const idgs::actor::
 }
 
 void StoreMigrationTargetActor::handleCancelMigration(const idgs::actor::ActorMessagePtr& msg) {
-  pstore->clearData(partId);
+  dynamic_cast<idgs::store::PartitionedStore*>(pstore.get())->clearData(partId);
   auto routeMsg = msg->createRouteMessage(sourceMId, MIGRATION_SOURCE_ACTOR);
   idgs::actor::sendMessage(routeMsg);
   terminate();
 }
 
 void StoreMigrationTargetActor::handleSourceMemberLeave(const idgs::actor::ActorMessagePtr& msg) {
-  pstore->clearData(partId);
+  dynamic_cast<idgs::store::PartitionedStore*>(pstore.get())->clearData(partId);
   terminate();
 }
 

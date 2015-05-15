@@ -19,8 +19,7 @@ namespace httpserver {
 HttpConnection::HttpConnection(asio::ip::tcp::socket* _socket)
   : socket_(_socket),
     bufferSize(8192),
-    preLoadedSize(0),
-    actorReq(NULL) {
+    preLoadedSize(0) {
   buffer = new char[bufferSize];
 }
 

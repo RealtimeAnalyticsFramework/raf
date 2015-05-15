@@ -217,7 +217,8 @@ int RddModule::stop(void) {
   actionMgr.remove(EXPORT_ACTION);
   actionMgr.remove(TOP_N_ACTION);
 
-  string cmd = "rm -rf " + RDD_DYNAMIC_PROTO_PATH + "*.*";
+//  string cmd = "rm -rf " + RDD_DYNAMIC_PROTO_PATH + "*.*";
+  string cmd = "rm -rf" + std::string(RDD_DYNAMIC_PROTO_PATH) + "*.*";
   int ret = system(cmd.c_str());
   DVLOG(5) << "RDD module stopped " << ret;
 

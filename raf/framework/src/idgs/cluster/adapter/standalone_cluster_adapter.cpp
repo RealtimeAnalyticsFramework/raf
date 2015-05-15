@@ -40,7 +40,7 @@ ResultCode StandaloneClusterAdapter::start() {
   actor::ActorMessagePtr msg = std::make_shared<actor::ActorMessage>();
   msg->getRpcMessage();
 
-  std::shared_ptr<google::protobuf::Message> ev = std::make_shared<idgs::pb::CpgConfigChangeEvent>();
+  std::shared_ptr<google::protobuf::Message> ev = std::make_shared<idgs::pb::ClusterChangeEvent>();
   msg->setPayload(ev);
   msg->setOperationName(OID_CPG_CONFIG_CHANGE);
   msg->setSourceActorId(AID_MEMBER);
@@ -49,9 +49,9 @@ ResultCode StandaloneClusterAdapter::start() {
   msg->setDestMemberId(idgs::pb::ANY_MEMBER);
 
 
-  idgs::pb::CpgConfigChangeEvent* event = dynamic_cast<idgs::pb::CpgConfigChangeEvent*>(ev.get());
+  idgs::pb::ClusterChangeEvent* event = dynamic_cast<idgs::pb::ClusterChangeEvent*>(ev.get());
 
-  idgs::pb::CpgAddress selfMember;
+  idgs::pb::MemberAddress selfMember;
   selfMember.set_nodeid(LOCAL_NODE_ID);
   selfMember.set_pid(getpid());
   selfMember.set_reason(0);
@@ -62,9 +62,7 @@ ResultCode StandaloneClusterAdapter::start() {
   // joining member
   *event->add_joined_list() = selfMember;
 
-  auto memberManager = idgs_application()->getMemberManager();
-  memberManager->handleCpgConfigChange(msg);
-
+  idgs::actor::sendMessage(msg);
   return RC_OK;
 }
 

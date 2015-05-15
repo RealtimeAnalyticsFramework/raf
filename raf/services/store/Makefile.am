@@ -7,7 +7,6 @@ SUBDIRS = . src
 PROTO_INPUTS = \
 	src/idgs/store/pb/store_config.proto \
 	src/idgs/store/pb/store_service.proto \
-	src/idgs/store/pb/store_internal.proto \
 	src/idgs/store/pb/store_file_mapper.proto \
 	src/idgs/sync/pb/data_sync.proto 
 
@@ -16,8 +15,6 @@ PROTO_OUTPUTS = \
 	src/idgs/store/pb/store_config.pb.h \
 	src/idgs/store/pb/store_service.pb.cc \
 	src/idgs/store/pb/store_service.pb.h \
-	src/idgs/store/pb/store_internal.pb.cc \
-	src/idgs/store/pb/store_internal.pb.h \
 	src/idgs/store/pb/store_file_mapper.pb.cc \
 	src/idgs/store/pb/store_file_mapper.pb.h \
 	src/idgs/sync/pb/data_sync.pb.cc \
@@ -45,11 +42,13 @@ libidgsdatastore_la_SOURCES = \
 	src/idgs/store/data_store.cpp \
 	src/idgs/store/datastore_const.cpp \
 	src/idgs/store/store.cpp \
-	src/idgs/store/store_config_wrapper.cpp \
+	src/idgs/store/base_store.cpp \
+	src/idgs/store/partitioned_store.cpp \
+	src/idgs/store/replicated_store.cpp \
+	src/idgs/store/store_config.cpp \
 	src/idgs/store/store_module.cpp \
-	src/idgs/store/store_ptr.cpp \
 	src/idgs/store/schema/metadata_helper.cpp \
-	src/idgs/store/schema/store_schema_wrapper.cpp \
+	src/idgs/store/schema/store_schema.cpp \
 	src/idgs/store/schema/store_schema_actor.cpp \
 	src/idgs/store/storage/aggregator_actor.cpp \
 	src/idgs/store/storage/data_store_actor.cpp \

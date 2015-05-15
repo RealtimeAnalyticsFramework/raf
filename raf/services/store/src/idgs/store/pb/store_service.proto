@@ -99,7 +99,7 @@ message SizeResponse {
   // SRC_SUCCESS; 
   required StoreResultCode result_code = 1 [default = SRC_UNKNOWN_ERROR];
   optional uint32 partition            = 2;
-  optional uint32 size                 = 3;
+  optional uint64 size                 = 3;
 }
 
 message TruncateRequest {

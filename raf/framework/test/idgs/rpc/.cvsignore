@@ -1,6 +1,0 @@
-.libs
-scheduler_test
-.dirstamp
-actor_framework_test
-thread_model_test
-actor_handler_test

@@ -13,7 +13,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 namespace idgs {
 namespace rdd {
 
-class RddLocal {
+class RddLocal : public std::enable_shared_from_this<RddLocal> {
 public:
   RddLocal();
   virtual ~RddLocal();
@@ -80,11 +80,13 @@ public:
   void setRddStoreListener(idgs::store::StoreListener* listener);
   idgs::store::StoreListener* getRddStoreListener();
 
-  void addUpstreamRddLocal(RddLocal* rddLocal);
-  const std::vector<RddLocal*>& getUpstreamRddLocal() const;
+  void addUpstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal);
+  const std::vector<std::shared_ptr<RddLocal>>& getUpstreamRddLocal() const;
 
-  void addDownstreamRddLocal(RddLocal* rddLocal);
-  const std::vector<RddLocal*>& getDownstreamRddLocal() const;
+  void addDownstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal);
+  const std::vector<std::shared_ptr<RddLocal>>& getDownstreamRddLocal() const;
+
+  void removeDownstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal);
 
   // destroy all local partition actors
   // remove refcount in upstream rdd
@@ -142,19 +144,21 @@ private:
   std::vector<idgs::pb::ActorId> partitionActors;
   std::vector<idgs::rdd::pb::RddState> partitionStates;
 
-  std::vector<RddLocal*> upstreamRddLocal;
-  std::vector<RddLocal*> downstreamRddLocal;
+  std::vector<std::shared_ptr<RddLocal>> upstreamRddLocal;
+  std::vector<std::shared_ptr<RddLocal>> downstreamRddLocal;
 
   /// local member shared
 
   /// local partitions
   std::map<size_t, BaseRddPartition*> localPartitionMap;
 
+  /// @todo remove this set
   /// partition IDs of local member
   std::vector<size_t> localPartitions;
 
   idgs::store::StoreListener* rddStoreListener;
 
+  tbb::spin_rw_mutex mutex;
 };
 
 } // namespace rdd 

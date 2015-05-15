@@ -9,6 +9,8 @@
 #include "sync_verify_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
 
 namespace idgs {
 namespace tpc {
@@ -25,10 +27,19 @@ SyncVerifyActor::~SyncVerifyActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& SyncVerifyActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
-      {"VERIFY_REQUEST",           static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleVerifyRequest)},
-      {"LOCAL_VERIFY_REQUEST",     static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleLocalVerifyRequest)},
-      {"VERIFY_RESPONSE",          static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleVerifyResponse)}
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      {"VERIFY_REQUEST", {
+          static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleVerifyRequest),
+          &idgs::tpc::pb::SyncVerifyRequest::default_instance()
+      }},
+      {"LOCAL_VERIFY_REQUEST",  {
+          static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleLocalVerifyRequest),
+          &idgs::tpc::pb::SyncVerifyRequest::default_instance()
+      }},
+      {"VERIFY_RESPONSE",  {
+          static_cast<idgs::actor::ActorMessageHandler>(&SyncVerifyActor::handleVerifyResponse),
+          &idgs::tpc::pb::SyncVerifyResponse::default_instance()
+      }}
   };
 
   return handlerMap;
@@ -103,7 +114,7 @@ void SyncVerifyActor::handleVerifyRequest(const idgs::actor::ActorMessagePtr& ms
       return;
     }
 
-    if (store->getStoreConfigWrapper()->getStoreConfig().partition_type() != idgs::store::pb::REPLICATED) {
+    if (store->getStoreConfig()->getStoreConfig().partition_type() != idgs::store::pb::REPLICATED) {
       LOG(ERROR) << "store " << request->schema_name() << "." << request->store_name() << " is not a replicated store.";
       auto payload = std::make_shared<pb::SyncVerifyResponse>();
       payload->set_result_code(static_cast<int32_t>(RC_STORE_NOT_FOUND));
@@ -156,14 +167,14 @@ void SyncVerifyActor::handleLocalVerifyRequest(const idgs::actor::ActorMessagePt
 
   for (int32_t i = 0; i < stores.size(); ++ i) {
     auto& store = stores.at(i);
-    auto& storeConfigWrapper = store->getStoreConfigWrapper();
+    auto& storeConfigWrapper = store->getStoreConfig();
     if (storeConfigWrapper->getStoreConfig().partition_type() == idgs::store::pb::REPLICATED) {
-      auto& schemaName = store->getStoreConfigWrapper()->getSchema();
-      auto& storeName = store->getStoreConfigWrapper()->getStoreConfig().name();
+      auto& schemaName = store->getStoreConfig()->getSchema();
+      auto& storeName = store->getStoreConfig()->getStoreConfig().name();
       auto storeData = memberData->add_store_data();
       storeData->set_schema_name(schemaName);
       storeData->set_store_name(storeName);
-      storeData->set_data_size(store->dataSize());
+      storeData->set_data_size(store->size());
     }
   }
 

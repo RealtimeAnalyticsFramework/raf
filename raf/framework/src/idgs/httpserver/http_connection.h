@@ -57,8 +57,6 @@ private:
   HttpRequestParser request_parser_;
   HttpResponse reply_;
 
-  idgs::actor::ActorMessagePtr actorReq;
-
   std::shared_ptr<AsyncContext> asyncContext;
 };
 typedef std::shared_ptr<HttpConnection> HttpConnectionPtr;

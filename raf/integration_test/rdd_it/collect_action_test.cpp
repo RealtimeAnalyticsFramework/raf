@@ -60,7 +60,7 @@ TEST(collect_action_test, collect_action) {
 //  5952|3|29|71|1|19970414|3-MEDIUM|0|43|4175601|12862499|1|4133844|58264|1|19970606|MAIL|
 //  5952|4|29|158|2|19970414|3-MEDIUM|0|23|2433745|12862499|0|2433745|63489|7|19970627|TRUCK|
 
-  auto& storeConfigWrapper = client.getStoreConfigWrapper(store_name);
+  auto& storeConfigWrapper = client.getStoreConfig(store_name);
   ASSERT_EQ(4, result->pair_size());
   auto key = storeConfigWrapper->newKey();
   auto value = storeConfigWrapper->newValue();

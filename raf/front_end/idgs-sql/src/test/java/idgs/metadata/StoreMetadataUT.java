@@ -24,8 +24,16 @@ public class StoreMetadataUT extends TestCase {
     try {
       LOGUtils.initLog4j();
       
-      String cfgFilePath = this.getClass().getResource("/data_store.conf").getPath();
-      LocalStoreLoader loader = new LocalStoreLoader(cfgFilePath);
+      String cfgFilePath = null;
+      String home = System.getenv("IDGS_HOME");
+      if (home == null) {
+        cfgFilePath = this.getClass().getResource("/data_store.conf").getPath();
+      } else {
+        cfgFilePath = home + "/conf/data_store.conf";
+      }
+      
+      LocalStoreLoader loader = new LocalStoreLoader();
+      loader.setCfgFilePath(cfgFilePath);
       
       DataStoreConfig conf = loader.loadDataStoreConf();
       HiveConf hiveConf = new HiveConf(SessionState.class);
@@ -34,16 +42,15 @@ public class StoreMetadataUT extends TestCase {
       
       StoreMetadata.getInstance().initMetadata(hiveConf, conf);
       
-      StoreConfig storeCfg = StoreMetadata.getInstance().getStoreConfig("Customer");
+      StoreConfig storeCfg = StoreMetadata.getInstance().getStoreConfig("tpch", "Customer");
       
       assertEquals(storeCfg.getName(), "Customer");
       assertEquals(storeCfg.getStoreType(), StoreType.ORDERED);
       assertEquals(storeCfg.getPartitionType(), PartitionType.PARTITION_TABLE);
       assertEquals(storeCfg.getKeyType(), "idgs.sample.tpch.pb.CustomerKey");
       assertEquals(storeCfg.getValueType(), "idgs.sample.tpch.pb.Customer");
-      // assertEquals(storeCfg.getBackupCount(), 0);
       
-      storeCfg = StoreMetadata.getInstance().getStoreConfig("Order");
+      storeCfg = StoreMetadata.getInstance().getStoreConfig("tpch", "Order");
       assertTrue(storeCfg == null);
     } catch (Exception e) {
       e.printStackTrace();

@@ -10,17 +10,26 @@ package integration;
 import printer.DefaultResultPrinter;
 import printer.ResultPrinter;
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
 public class GroupByIT extends TestCase {
 
   public void testGroupBy() {
-    String sql = "select l_suppkey, count(l_suppkey) cnt, sum(l_suppkey) sum, avg(l_suppkey) avg from LINEITEM group by l_suppkey";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select l_suppkey, \n")
+       .append("         count(l_suppkey) cnt, \n")
+       .append("         sum(l_suppkey) sum, \n")
+       .append("         avg(l_suppkey) avg \n")
+       .append("  from   tpch.LINEITEM \n")
+       .append("  group  by l_suppkey\n");
+    
+    System.out.println("run test sql : ");
     System.out.println(sql);
+    
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -31,11 +40,19 @@ public class GroupByIT extends TestCase {
     }
   }
   
-  public void testGroupByConst() {
-    String sql = "select l_suppkey, count(1) cnt from LINEITEM group by l_suppkey";
+  public void testGroupByAggrConst() {
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select l_suppkey, \n")
+       .append("         count(1) cnt, \n")
+       .append("         sum(1) sum \n")
+       .append("  from   tpch.LINEITEM \n")
+       .append("  group  by l_suppkey\n");
+    
+    System.out.println("run test sql : ");
     System.out.println(sql);
+    
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -46,11 +63,17 @@ public class GroupByIT extends TestCase {
     }
   }
   
-  public void testGroupByWithNoAggr() {
-    String sql = "select l_suppkey from LINEITEM group by l_suppkey";
+  public void testGroupByWithoutAggr() {
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select l_suppkey \n")
+       .append("  from   tpch.LINEITEM \n")
+       .append("  group  by l_suppkey\n");
+    
+    System.out.println("run test sql : ");
     System.out.println(sql);
+    
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -62,10 +85,19 @@ public class GroupByIT extends TestCase {
   }
   
   public void testGroupBySubQuery() {
-    String sql = "select l_suppkey, count(1) cnt from (select l_suppkey from lineitem where l_discount = 0.05) t group by l_suppkey";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select l_suppkey, \n")
+       .append("         count(1) cnt \n")
+       .append("  from   (select l_suppkey \n")
+       .append("          from   tpch.lineitem \n")
+       .append("          where  l_discount = 0.05) t \n")
+       .append("  group  by l_suppkey\n");
+    
+    System.out.println("run test sql : ");
     System.out.println(sql);
+    
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -77,10 +109,18 @@ public class GroupByIT extends TestCase {
   }
 
   public void testGroupByKey() {
-    String sql = "select c_custkey, count(distinct c_acctbal), sum(distinct c_acctbal) from customer group by c_custkey";
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select c_custkey, \n")
+       .append("         count(distinct c_acctbal) cnt, \n")
+       .append("         sum(distinct c_acctbal) sum \n")
+       .append("  from   tpch.customer \n")
+       .append("  group  by c_custkey\n");
+    
+    System.out.println("run test sql : ");
     System.out.println(sql);
+    
     try {
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -92,17 +132,23 @@ public class GroupByIT extends TestCase {
   }
 
   public void testWholeTable() {
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select sum(c_acctbal) sum, \n")
+       .append("         count(c_custkey) cnt, \n")
+       .append("         avg(c_acctbal) avg \n")
+       .append("  from   tpch.customer\n");
+    
+    System.out.println("run test sql : ");
+    System.out.println(sql);
+    
     try {
-      String sql = "select sum(c_acctbal) sum, count(c_custkey) cnt, avg(c_acctbal) avg from customer";
-      
-      System.out.println(sql);
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
       System.out.println(printer.printResults());
       
-      ResultData data = resultSet.getResultData(0);
+      RowData data = resultSet.getResultData(0);
       double sum = (Double) data.getFieldValue("sum");
       long cnt = (Long) data.getFieldValue("cnt");
       double avg = (Double) data.getFieldValue("avg");
@@ -115,20 +161,25 @@ public class GroupByIT extends TestCase {
   }
   
   public void testGroupByWithDistinct() {
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select l_suppkey, \n")
+       .append("         sum(distinct l_discount) s1, \n")
+       .append("         sum(l_discount) s2, \n")
+       .append("         avg(distinct l_quantity) s3, \n")
+       .append("         avg(l_quantity) s4, \n")
+       .append("         count(distinct l_tax) s5, \n")
+       .append("         count(l_tax) s6, \n")
+       .append("         sum(l_extendedprice) s7, \n")
+       .append("         count(distinct l_suppkey) s8 \n")
+       .append("  from   tpch.lineitem \n")
+       .append("  where  l_orderkey <= 30 \n")
+       .append("  group  by l_suppkey, l_orderkey\n");
+    
+    System.out.println("run test sql : ");
+    System.out.println(sql);
+    
     try {
-      String sql = "select l_suppkey, "
-          + "sum(distinct l_discount) s1, "
-          + "sum(l_discount) s2, "
-          + "avg(distinct l_quantity) s3, "
-          + "avg(l_quantity) s5, "
-          + "count(distinct l_tax) s6, "
-          + "count(l_tax) s7, "
-          + "sum(l_extendedprice) s8, "
-          + "count(distinct l_suppkey) s9 "
-          + "from lineitem where l_orderkey <= 30 group by l_suppkey, l_orderkey";
-      
-      System.out.println(sql);
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
 
       ResultPrinter printer = new DefaultResultPrinter(resultSet);
@@ -140,17 +191,20 @@ public class GroupByIT extends TestCase {
   }
 
   public void testWholeTableWithDistinct() {
+    StringBuffer sql = new StringBuffer();
+    sql.append("  select sum(distinct l_discount) c1, \n")
+       .append("         avg(distinct l_discount) c2, \n")
+       .append("         avg(l_discount) c3, \n")
+       .append("         sum(distinct l_suppkey) c4, \n")
+       .append("         sum(l_discount) c5, \n")
+       .append("         sum(l_quantity) c6 \n")
+       .append("  from   tpch.lineitem\n");
+
+    System.out.println("run test sql : ");
+    System.out.println(sql);
+
     try {
-      String sql = "select sum(distinct l_discount) c1, "
-                        + "avg(distinct l_discount) c2, "
-                        + "avg(l_discount) c3, "
-                        + "sum(distinct l_suppkey) c4, "
-                        + "sum(l_discount) c5, "
-                        + "sum(l_quantity) c6 "
-                        + "from lineitem";
-      
-      System.out.println(sql);
-      ResultSet resultSet = IdgsCliDriver.run(sql);
+      ResultSet resultSet = IdgsCliDriver.run(sql.toString());
       assertNotNull(resultSet);
       
       ResultPrinter printer = new DefaultResultPrinter(resultSet);

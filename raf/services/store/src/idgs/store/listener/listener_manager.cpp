@@ -82,7 +82,7 @@ ActorDescriptorPtr ListenerManager::generateActorDescriptor() {
 }
 
 const ActorMessageHandlerMap& ListenerManager::getMessageHandlerMap() const {
-  static map<string, ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {OP_INTERNAL_INSERT,       static_cast<ActorMessageHandler>(&ListenerManager::handleListenerInsert)},
       {OP_INTERNAL_UPDATE,       static_cast<ActorMessageHandler>(&ListenerManager::handleListenerUpdate)},
       {OP_INTERNAL_GET,          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerGet)},

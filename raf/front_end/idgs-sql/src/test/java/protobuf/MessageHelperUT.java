@@ -15,7 +15,16 @@ import junit.framework.TestCase;
 
 public class MessageHelperUT extends TestCase {
 
-  private final String testProtoFile = "../../services/store/test/proto/tpch.proto";
+  private String testProtoFile = null;
+
+  public MessageHelperUT() {
+    String home = System.getenv("IDGS_HOME");
+    if (home == null) {
+      testProtoFile = this.getClass().getResource("conf/tpch.proto").getPath();
+    } else {
+      testProtoFile = home + "/conf/tpch.proto";
+    }
+  }
 
   public void testRegisterMessage() {
     try {

@@ -137,7 +137,8 @@ void InnerTcpConnection::handleRecvHeader(const asio::error_code& error, std::sh
     terminate();
   } else {
     DVLOG_FIRST_N(3, 20) << "recv header, size: " << sizeof(idgs::net::TcpHeader) << ", content: " << dumpBinaryBuffer(std::string((char*)readBuffer->getHeader(), sizeof(idgs::net::TcpHeader)));
-    readBuffer->decodeHeader();
+    auto b = ByteBuffer::allocate(readBuffer->getBodyLength());
+    readBuffer->byteBuffer().swap(b);
 
     // begin to receive body
     try {
@@ -146,10 +147,11 @@ void InnerTcpConnection::handleRecvHeader(const asio::error_code& error, std::sh
         terminate();
         return;
       }
-      asio::async_read(socket, asio::buffer(readBuffer->getBody(), readBuffer->getBodyLength()),
+      auto& byteBuffer = readBuffer->byteBuffer();
+      asio::async_read(socket, asio::buffer(byteBuffer->data(), byteBuffer->capacity()),
           asio::transfer_all(),
           [conn, readBuffer] (const asio::error_code& error, const std::size_t& length) {
-        assert(error || length == readBuffer->getBodyLength());
+        assert(error || length == readBuffer->byteBuffer()->capacity());
         conn->handleRecvBody(error, readBuffer);
       }
       );
@@ -169,21 +171,24 @@ void InnerTcpConnection::handleRecvBody(const asio::error_code& error, std::shar
     // receive next header
     startRecvHeader();
 
-    DVLOG_FIRST_N(3, 20) << "recv body size: " << readBuffer->getBodyLength() <<  ", content: " << dumpBinaryBuffer(std::string(readBuffer->getBody(), readBuffer->getBodyLength()));
+    DVLOG_FIRST_N(3, 20) << "recv body size: " << readBuffer->getBodyLength() <<  ", content: " << dumpBinaryBuffer(std::string(readBuffer->byteBuffer()->data(), readBuffer->getBodyLength()));
 
-    uint32_t pos = 0;
-    uint32_t totalLength = readBuffer->getBodyLength();
-    char* buff = readBuffer->getBody();
+    int pos = 0;
+    auto& byteBuffer = readBuffer->byteBuffer();
+    int totalLength = byteBuffer->capacity();
+    char* buff = byteBuffer->data();
     while(pos < totalLength) {
       std::shared_ptr<RpcBuffer> msgBuffer = std::make_shared<RpcBuffer>();
       msgBuffer->setBodyLength(*((uint32_t*)(buff + pos)));
       pos += sizeof(idgs::net::TcpHeader);
-      msgBuffer->decodeHeader();
-      if (msgBuffer->getBody() && msgBuffer->getBodyLength() > 0 && (pos + msgBuffer->getBodyLength()) <= totalLength) {
-        memcpy(msgBuffer->getBody(), (buff + pos), msgBuffer->getBodyLength());
+
+      if ((pos + msgBuffer->getBodyLength()) <= totalLength) {
+        auto b = byteBuffer->slice(pos, msgBuffer->getBodyLength());
+        msgBuffer->byteBuffer().swap(b);
       } else {
         LOG(FATAL) << "Invalid buffer, pos = " << pos << ", message length = " << msgBuffer->getBodyLength() << ", total length: " << totalLength;
       }
+
       pos += msgBuffer->getBodyLength();
 
       std::shared_ptr<idgs::actor::ActorMessage> actorMsg = std::make_shared<idgs::actor::ActorMessage>();
@@ -255,8 +260,15 @@ void InnerTcpConnection::realSendMessage() {
 
     holder->message_list.push_back(msg);
 
+    auto& byteBuffer = msg->getRpcBuffer()->byteBuffer();
+    if (msg->getRpcBuffer()->getBodyLength() != byteBuffer->capacity()) {
+      LOG(ERROR) << "Message length doesn't match";
+    }
+    if (!byteBuffer->data() || !byteBuffer->capacity()) {
+      LOG(ERROR) << "empty bytebuffer";
+    }
     outBuffers.push_back(asio::buffer(reinterpret_cast<void*>(msg->getRpcBuffer()->getHeader()), sizeof(idgs::net::TcpHeader)));
-    outBuffers.push_back(asio::buffer(reinterpret_cast<void*>(msg->getRpcBuffer()->getBody()), msg->getRpcBuffer()->getBodyLength()));
+    outBuffers.push_back(asio::buffer(reinterpret_cast<void*>(byteBuffer->data()), byteBuffer->capacity()));
     holder->total_length += sizeof(idgs::net::TcpHeader) + msg->getRpcBuffer()->getBodyLength();
 
     //    if(msgs->size() >= BATCH_TCP_MESSAGES || sendLength > (1024 * 50)) {

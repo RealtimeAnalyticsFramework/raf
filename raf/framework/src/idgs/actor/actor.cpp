@@ -21,8 +21,8 @@ namespace actor {
 //
 // System operations.
 //
-const std::string OP_DESTROY = "DESTROY";
-const std::string OP_ACTOR_NOT_FOUND = "ACTOR_NOT_FOUND";
+const char OP_DESTROY[] = "DESTROY";
+const char OP_ACTOR_NOT_FOUND[] = "ACTOR_NOT_FOUND";
 
 std::shared_ptr<idgs::actor::ActorMessage> Actor::createActorMessage() const {
   std::shared_ptr<idgs::actor::ActorMessage> msg = std::make_shared<idgs::actor::ActorMessage>();
@@ -48,6 +48,27 @@ bool Actor::parse(ActorMessagePtr& msg) {
         DVLOG(7) << "payload: " << msg->getPayload()->DebugString();
       } else {
         if (msg->getRpcMessage()->has_payload() && !msg->getRpcMessage()->payload().empty()) {
+          const auto& handlerMap = getMessageHandlerMap();
+          auto it = handlerMap.find(msg->getRpcMessage()->operation_name());
+          if(likely(it != handlerMap.end())) {
+            const google::protobuf::Message* payload_template = it->second.payload;
+            if ( payload_template) {
+              std::shared_ptr<google::protobuf::Message> payload(payload_template->New());
+              protobuf::ProtoSerdesHelper::deserialize(
+                  static_cast<protobuf::SerdesMode>(msg->getRpcMessage()->serdes_type()), msg->getRpcMessage()->payload(),
+                  payload.get());
+              msg->setPayload(payload);
+              return true;
+            } else {
+              DVLOG(2) << "No operation prototype for actor: " << getActorName() << ", operation: " << msg->getRpcMessage()->operation_name();
+            }
+          } else {
+            LOG(WARNING) << "No operation descriptor for actor: " << getActorName() << ", operation: " << msg->getRpcMessage()->operation_name();
+          }
+
+          ///
+          /// @todo remove following block
+          ///
           // const idgs::actor::ActorDescriptorPtr& ad = getDescriptor();
           static auto adm = idgs_application()->getActorDescriptorMgr();
           const ActorOperationDescriporWrapper* aod;
@@ -58,7 +79,8 @@ bool Actor::parse(ActorMessagePtr& msg) {
             aod = getDescriptor()->getResolvedInOperation(msg->getRpcMessage()->operation_name());
           }
           if (aod) {
-            auto payload = protobuf::MessageHelper().createMessage(aod->getPayloadType());
+            static protobuf::MessageHelper helper;
+            auto payload = helper.createMessage(aod->getPayloadType());
             if (!payload.get()) {
               LOG(ERROR)<< "create paylaod type: " << aod->getPayloadType() << " error, pls. check actor descriptor's in operation: " << aod << "'s payload type is right?";
             }
@@ -112,14 +134,14 @@ ProcessStatus Actor::innerProcess(const ActorMessagePtr& msg) {
     const auto& handlerMap = getMessageHandlerMap();
     auto it = handlerMap.find(opName);
     if(likely(it != handlerMap.end())) {
-      auto handler = it->second;
+      auto handler = it->second.handler;
       // LOG(INFO) << "handler: " << reinterpret_cast<void*>(handler);
       (this->*handler)(msg);
       return ProcessStatus::DEFAULT;
     } else {
       it = handlerMap.find("*");
       if(likely(it != handlerMap.end())) {
-        auto handler = it->second;
+        auto handler = it->second.handler;
         // LOG(INFO) << "handler: " << reinterpret_cast<void*>(handler);
         (this->*handler)(msg);
         return ProcessStatus::DEFAULT;

@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration.tpch;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -17,7 +17,7 @@ public class TpchQ6IT extends TestCase {
   public void testTpchQ6() {
     StringBuffer sql = new StringBuffer();
     sql.append("  SELECT sum(l_extendedprice * l_discount) price\n")
-       .append("  FROM   lineitem\n")
+       .append("  FROM   tpch.lineitem\n")
        .append("  WHERE  l_shipdate >= '1994-01-01'\n")
        .append("         AND l_shipdate < '1995-01-01'\n")
        .append("         AND l_discount between 0.05 AND 0.07\n")
@@ -31,7 +31,7 @@ public class TpchQ6IT extends TestCase {
       assertNotNull(resultSet);
       
       assertEquals(1, resultSet.getRowCount());
-      ResultData data = resultSet.getResultData(0);
+      RowData data = resultSet.getResultData(0);
       
       Object value = data.getFieldValue("price");
       assertTrue(value instanceof Double);

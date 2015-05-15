@@ -15,6 +15,10 @@ if [ "$BUILD_DIR" == "" ]; then
   export BUILD_DIR=$WORKSPACE/idgs
 fi
 echo "WORKSPACE: $WORKSPACE"
+if [ "$IDGS_HOME" = "" ]; then
+  IDGS_HOME=$WORKSPACE/idgs/dist
+  export IDGS_HOME
+fi
 
 killall -9 idgs 2>/dev/null 1>&2
 
@@ -239,7 +243,7 @@ case18
 case23
 case25
 case26
-#case43
+case43
 
 # tpc
 case19
@@ -285,8 +289,8 @@ case44
 case46
 
 # migration
-case48
-case49
+#case48
+#case49
 
 # buckup
 #case50

@@ -11,8 +11,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
 #include <fstream>
+
+#include "idgs/idgslogging.h"
+
 
 namespace idgs {
 namespace httpserver {

@@ -43,9 +43,13 @@ void ActorWorker::join() {
 
 void ActorWorker::processTcpOrietatedMessage(std::shared_ptr<ActorMessage>& msgPtr) {
   DVLOG(7) << "buffer size: " << msgPtr->getRpcBuffer()->getBodyLength() << ", content: "
-              << dumpBinaryBuffer(std::string(msgPtr->getRpcBuffer()->getBody(), msgPtr->getRpcBuffer()->getBodyLength()));
+              << dumpBinaryBuffer(std::string(msgPtr->getRpcBuffer()->byteBuffer()->data(), msgPtr->getRpcBuffer()->getBodyLength()));
 
-  msgPtr->parseRpcBuffer();
+  auto ret = msgPtr->parseRpcBuffer();
+  if (ret != idgs::RC_OK) {
+    LOG(ERROR) << "Failed to parse message";
+    return;
+  }
   RpcMessage* newmsg = msgPtr->getRpcMessage().get();
   DLOG_IF(ERROR, newmsg->dest_actor().actor_id().empty()) << "Destination actor ID is empty: " << newmsg->DebugString();
   DLOG_IF(ERROR, newmsg->source_actor().actor_id().empty()) << "Source actor ID is empty: " << newmsg->DebugString();
@@ -74,7 +78,10 @@ void ActorWorker::processMessage(idgs::actor::ActorMessagePtr& msgPtr) {
   switch (msgPtr->getMessageOrietation()) {
   case ActorMessage::UDP_ORIENTED:
   case ActorMessage::INNER_TCP:
-    msgPtr->parseRpcBuffer();
+    if (msgPtr->parseRpcBuffer() != idgs::RC_OK) {
+      LOG(ERROR) << "Failed to parse message";
+      return;
+    }
     localProcess(msgPtr);
     break;
   case ActorMessage::APP_ORIENTED:
