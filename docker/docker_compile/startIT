@@ -1,0 +1,9 @@
+#!/bin/bash
+cd /home/project
+curl --proxy hd-cloud.intel.com:911 -L -o 'jdo2-api-2.3-ec.jar' http://www.datanucleus.org/downloads/maven2/javax/jdo/jdo2-api/2.3-ec/jdo2-api-2.3-ec.jar
+mkdir -p /root/.m2/repository/javax/jdo/jdo2-api/2.3-ec/
+mv jdo2-api-2.3-ec.jar /root/.m2/repository/javax/jdo/jdo2-api/2.3-ec/
+chmod 777 /home/project/idgs
+cd /home/project/idgs
+./build/it.sh
+
