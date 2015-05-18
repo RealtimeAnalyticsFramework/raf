@@ -15,6 +15,7 @@ your host machine:
     `PermitRootLogin yes`
     And restart SSH:
     `sudo service ssh restart`
+* shutdown the firewall
 
 To build the RAF base images, please run `./build_raf_base_images`
 
