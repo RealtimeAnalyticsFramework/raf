@@ -1,0 +1,67 @@
+//
+// user defined expression. 
+//
+package idgs.pb;
+
+option java_outer_classname = "PbExpr";
+
+/// copied from google/protobuf/descriptor
+enum DataType {
+  // 0 is reserved for errors.
+  // Order is weird for historical reasons.
+  DOUBLE         = 1;
+  FLOAT          = 2;
+  INT64          = 3;     // Not ZigZag encoded.  Negative numbers
+                          // take 10 bytes.  Use SINT64 if negative
+                          // values are likely.
+  UINT64         = 4;
+  INT32          = 5;     // Not ZigZag encoded.  Negative numbers
+                          // take 10 bytes.  Use SINT32 if negative
+                          // values are likely.
+  // FIXED64        = 6;
+  // FIXED32        = 7;
+  BOOL           = 8;
+  STRING         = 9;
+  GROUP          = 10;    // Tag-delimited aggregate.
+  MESSAGE        = 11;    // Length-delimited aggregate.
+
+  // New in version 2.
+  BYTES          = 12;
+  UINT32         = 13;
+  ENUM           = 14;
+  // SFIXED32       = 15;
+  // SFIXED64       = 16;
+  // SINT32         = 17;  // Uses ZigZag encoding.
+  // SINT64         = 18;  // Uses ZigZag encoding.
+}
+
+message Expr {
+  // constant 
+  //   CONST
+  // logical
+  //   AND OR NOT
+  // comparison
+  //   EQ NE LT LE GT GE BETWEEN(between and / not between and) IN(in (value1, value2 ...)) ISNULL ISNOTNULL 
+  // branch
+  //   IF([cond1, value1, cond2, value2, ... , condN, valueN, default]) VSET(variable set) VGET(variable get)
+  // string only: regular express match
+  //   LIKE SUBSTR(value, start, length)
+  // arithmetic
+  //   ADD SUBTRACT MULTIPLY DIVIDE MODULUS HASH
+  // bitwise operations
+  //   BIT_AND BIT_OR BIT_NOT BIT_XOR
+  // field stractor
+  //   FIELD 
+  required string name 			= 1;
+  
+  // the following is only available for branch/inner node (logical, comparison or Arithmetic)
+  repeated Expr expression 	= 2;
+  
+  // the following is only available for constant 
+  optional DataType const_type 			= 3;
+  // the following is only available for leaf/outer node (constant value or path of field like "name"; "name.first")
+  optional string value 				= 4;
+
+  // the following is only available for user defined functions
+  optional string param             	= 5;
+}

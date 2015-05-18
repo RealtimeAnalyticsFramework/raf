@@ -26,10 +26,22 @@ StoreMigrationTargetActor::~StoreMigrationTargetActor() {
 
 const idgs::actor::ActorMessageHandlerMap& StoreMigrationTargetActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {MIGRATION_DATA,               static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleMigrationData)},
-      {STORE_MIGRATION_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleStoreMigrationComplete)},
-      {CANCEL_MIGRATION,             static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleCancelMigration)},
-      {SOURCE_MEMBER_LEAVE,          static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleSourceMemberLeave)}
+      {MIGRATION_DATA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleMigrationData),
+          &idgs::store::pb::MigrationData::default_instance()
+      }},
+      {STORE_MIGRATION_COMPLETE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleStoreMigrationComplete),
+          &idgs::store::pb::StoreMigrationComplete::default_instance()
+      }},
+      {CANCEL_MIGRATION,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleCancelMigration),
+          &idgs::store::pb::CancelMigration::default_instance()
+      }},
+      {SOURCE_MEMBER_LEAVE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationTargetActor::handleSourceMemberLeave),
+          &idgs::store::pb::SourceMemberLeaveEvent::default_instance()
+      }}
   };
 
   return handlerMap;

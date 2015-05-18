@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>idgs</groupId>
+  <artifactId>idgs-core</artifactId>
+  <version>0.1.0</version>
+  <packaging>pom</packaging>
+
+  <name>IDGS frontend ROOT</name>
+  <description>IDGS frontend ROOT</description>
+
+
+  <modules>
+      <module>idgs-java</module>
+      <module>idgs-sql</module>
+      <module>idgs-jdbc</module>
+      <module>install</module>
+  </modules>
+
+
+  <properties>
+      <ehcacheVersion>2.5.1</ehcacheVersion>
+  </properties>
+
+  <dependencyManagement>
+      <dependencies>
+      </dependencies>
+  </dependencyManagement>
+  <build>
+    <defaultGoal>install</defaultGoal>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <showWarnings>true</showWarnings>
+          <source>1.6</source>
+          <target>1.6</target>
+          <encoding>UTF-8</encoding>
+          <!-- needed because of compiler bug: http://bugs.sun.com/view_bug.do?bug_id=6512707 -->
+          <proc>none</proc>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

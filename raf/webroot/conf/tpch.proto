@@ -1,0 +1,106 @@
+// $Header$
+package idgs.sample.tpch.pb;
+
+message CustomerKey {
+  required int64 c_custkey = 1;			//primary key
+}
+
+message Customer {
+  optional string c_name = 1;
+  optional string c_address = 2;
+  required int64 c_nationkey = 3;
+  optional string c_phone = 4;
+  optional double c_acctbal = 5;
+  optional string c_mktsegment = 6;
+  optional string c_comment = 7;
+}
+
+message LineItemKey {
+  required int64 l_orderkey = 1;
+  required int64 l_linenumber = 2;
+}
+
+message LineItem {
+  required int64 l_partkey = 1;
+  required int64 l_suppkey = 2;  
+  optional double l_quantity = 3;
+  optional double l_extendedprice = 4;
+  optional double l_discount = 5;
+  optional double l_tax = 6;
+  optional string l_returnflag = 7;
+  optional string l_linestatus = 8;
+  optional string l_shipdate = 9;
+  optional string l_commitdate = 10;
+  optional string l_receiptdate = 11;
+  optional string l_shipinstruct = 12;
+  optional string l_shipmode = 13;
+  optional string l_comment = 14;
+}
+
+message NationKey {
+  required int64 n_nationkey = 1;   //primary key
+}
+message Nation {
+  optional string n_name = 1;
+  required int64 n_regionkey = 2;
+  optional string n_comment = 3;
+}
+
+message OrdersKey {
+  required int64 o_orderkey = 1;    //primary key
+}
+message Orders {
+  required int64 o_custkey = 1;
+  optional string o_orderstatus = 2;
+  optional double o_totalprice = 3;
+  optional string o_orderdate = 4;
+  optional string o_orderpriority = 5;
+  optional string o_clerk = 6;
+  optional int32 o_shippriority = 7;
+  optional string o_comment = 8;
+}
+
+message PartKey {
+  required int64 p_partkey = 1;     //primary key
+}
+message Part {
+  optional string p_name = 1;
+  optional string p_mfgr = 2;
+  optional string p_brand = 3;
+  optional string p_type = 4;
+  optional int32 p_size = 5;
+  optional string p_container = 6;
+  optional double p_retailprice = 7;
+  optional string p_comment = 8;
+}
+
+message PartSuppKey {
+  required int64 ps_partkey = 1;
+  required int64 ps_suppkey = 2;
+}
+
+message PartSupp {
+  optional int32 ps_availqty = 1;
+  optional double ps_supplycost = 2;
+  optional string ps_comment = 3;
+}
+
+message RegionKey {
+  required int64 r_regionkey = 1;   //primary key
+}
+message Region {
+  optional string r_name = 1;
+  optional string r_comment = 2;
+}
+
+message SupplierKey {
+  required int64 s_suppkey = 1;     //primary key
+}
+message Supplier {
+  optional string s_name = 1;
+  optional string s_address = 2;
+  required int64 s_nationkey = 3;
+  optional string s_phone = 4;
+  optional double s_acctbal = 5;
+  optional string s_comment = 6;
+}

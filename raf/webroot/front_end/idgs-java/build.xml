@@ -1,0 +1,78 @@
+<project name="idgs_protoc" default="protoc">
+  <target name="check-proto-uptodate">
+    <echo message="${project.basedir}" />
+    <echo message="${project.build.directory}" />
+    <echo message="${generated.sources}" />
+    <echo message="${generated.test.sources}" />
+    
+    <mkdir dir="${generated.sources}" />
+    <mkdir dir="${generated.test.sources}" />
+    <path id="proto.path">
+      <fileset dir="${client.proto.dir}">
+        <include name="idgs/client/pb/*.proto" />
+      </fileset>
+      <fileset dir="${framework.proto.dir}">
+        <include name="idgs/pb/rpc_message.proto" />
+        <include name="idgs/pb/expr.proto" />
+      </fileset>
+      <fileset dir="${store.proto.dir}">
+        <include name="idgs/store/pb/*.proto" />
+      </fileset>
+      <fileset dir="${rdd.proto.dir}">
+        <include name="idgs/rdd/pb/*.proto" />
+      </fileset>
+    </path>
+    <path id="proto.test.path">
+      <fileset dir="${store.test.proto.dir}">
+        <include name="*.proto" />
+      </fileset>
+    </path>
+    <!-- abs path -->
+    <pathconvert pathsep=" " property="proto.files" refid="proto.path" />
+    <pathconvert pathsep=" " property="proto.test.files" refid="proto.test.path" />
+   
+    <echo message="${proto.files}" />
+    <echo message="${proto.test.files}" />
+    
+    <!-- rel path -->
+    <pathconvert pathsep=" " property="proto.files.rel" refid="proto.path">
+      <map from="/" to=""/> 
+    </pathconvert>
+    <pathconvert pathsep=" " property="proto.test.files.rel" refid="proto.test.path">
+      <map from="/" to=""/> 
+    </pathconvert>
+    
+    
+    <uptodate property="protoc.notRequired" targetfile="${project.build.directory}/protoc.timestamp" >
+      <srcfiles dir= "/" includes="${proto.files.rel} ${proto.test.files.rel}"/>
+    </uptodate>
+    <echo message="${protoc.notRequired}" />
+    
+  </target>
+  
+  <target name="protoc" depends="check-proto-uptodate"  unless="protoc.notRequired">
+    <echo message="Compiling proto files." />
+    <exec executable="protoc" failonerror="true">
+      <arg value="--java_out=${generated.sources}" />
+      <arg value="-I${framework.proto.dir}" />
+      <arg value="-I${store.proto.dir}" />
+      <arg value="-I${client.proto.dir}" />
+      <arg value="-I${rdd.proto.dir}" />
+      <arg line="${proto.files}" />
+    </exec>
+    <exec executable="protoc" failonerror="true">
+      <arg value="--java_out=${generated.test.sources}" />
+      <arg value="-I${framework.proto.dir}" />
+      <arg value="-I${store.proto.dir}" />
+      <arg value="-I${client.proto.dir}" />
+      <arg value="-I${store.test.proto.dir}" />
+      <arg value="-I${rdd.proto.dir}" />
+      <arg line="${proto.test.files}" />
+    </exec>
+    
+    <touch file="${project.build.directory}/protoc.timestamp" />
+    
+  </target>
+  
+
+</project>

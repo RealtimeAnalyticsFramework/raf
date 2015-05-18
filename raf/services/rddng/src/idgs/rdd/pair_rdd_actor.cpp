@@ -29,18 +29,54 @@ PairRddActor::~PairRddActor() {
 
 const ActorMessageHandlerMap& PairRddActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {CREATE_RDD,                     static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddCreate)},
-      {CREATE_RDD_PARTITION_RESPONSE,  static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleCreateRddPartitionResponse)},
-      {RDD_PARTITION_PREPARED,         static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddPartitionPrepared)},
-      {RDD_TRANSFORM,                  static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddTransform)},
-      {PARTITION_TRANSFORM_COMPLETE,   static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handlePartitionTransformComplete)},
-      {PARTITION_READY,                static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handlePartitionReady)},
-      {UPSTREAM_RDD_READY,             static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleUpstreamReady)},
-      {UPSTREAM_RDD_ERROR,             static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleUpstreamError)},
-      {RDD_ACTION_REQUEST,             static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddActionRequest)},
-      {RDD_TRANSFORM_PREPARED,         static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddTransformPrepared)},
-      {ACTION_MESSAGE_PROCESS,         static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleActionProcess)},
-      {RDD_ACTION_RESPONSE,            static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddActionResponse)}
+      {CREATE_RDD,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddCreate),
+          &idgs::rdd::pb::CreateRddRequest::default_instance()
+      }},
+      {CREATE_RDD_PARTITION_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleCreateRddPartitionResponse),
+          NULL
+      }},
+      {RDD_PARTITION_PREPARED,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddPartitionPrepared),
+          NULL
+      }},
+      {RDD_TRANSFORM,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddTransform),
+          NULL
+      }},
+      {PARTITION_TRANSFORM_COMPLETE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handlePartitionTransformComplete),
+          NULL
+      }},
+      {PARTITION_READY,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handlePartitionReady),
+          NULL
+      }},
+      {UPSTREAM_RDD_READY,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleUpstreamReady),
+          NULL
+      }},
+      {UPSTREAM_RDD_ERROR,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleUpstreamError),
+          NULL
+      }},
+      {RDD_ACTION_REQUEST,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddActionRequest),
+          NULL
+      }},
+      {RDD_TRANSFORM_PREPARED,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddTransformPrepared),
+          NULL
+      }},
+      {ACTION_MESSAGE_PROCESS,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleActionProcess),
+          NULL
+      }},
+      {RDD_ACTION_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&PairRddActor::handleRddActionResponse),
+          NULL
+      }}
   };
   return handlerMap;
 }

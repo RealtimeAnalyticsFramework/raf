@@ -1,0 +1,124 @@
+package idgs.pb;
+import "idgs/pb/cluster_config.proto";
+
+option java_outer_classname = "PbClusterEvent";
+
+//======================================================================================
+//
+//  Partition Definition
+//
+//======================================================================================
+enum PartitionState {
+  PS_INIT        = 0;      // initialize state
+  PS_MIGRATING   = 1;      // target member, transfor data to other member, and remove raw data
+  PS_READY       = 2;      // migration and syncronization done
+  PS_SOURCE      = 3;      // source member, transfor data to other member, and remove raw data
+}
+
+// Partition cell
+message PartitionCell {
+  required int32 member_id        = 1 [default = -1] ; 
+  required PartitionState state   = 2 [default = PS_INIT] ;
+}
+
+// Partition 
+message Partition {  
+  repeated PartitionCell cells  = 1;
+}
+
+// Partition Table
+message PartitionTable{
+  repeated Partition partition = 1;
+}
+
+//======================================================================================
+//
+//  Event Definition for cluster
+//
+//======================================================================================
+
+
+message MemberAddress {
+  required uint32 nodeid = 1;
+  required uint32 pid    = 2;
+  required uint32 reason = 3;
+}
+
+// CPG config change event.
+// CPG ==> all member.
+message ClusterChangeEvent {
+  repeated MemberAddress member_list = 1;
+  repeated MemberAddress left_list   = 2;
+  repeated MemberAddress joined_list = 3;
+}
+
+// member status event
+message MemberStatusEvent {
+  required uint32 member_id    = 1;
+  required MemberState state   = 2;
+}
+
+// member status event
+message MemberFlagsEvent {
+  required uint32 member_id    = 1;
+  required uint64 flags        = 2;
+}
+
+
+// leader ==> members
+message DeltaMemberEvent{
+  
+  //position where member should be joined, member's position in membership table when leave 
+  required uint32 position = 1;
+  
+  //member
+  optional Member member   = 2;
+}
+
+// membership table
+message MembershipTable{
+  repeated Member member = 1; 
+}
+
+// leader ==> new member
+message WholeMembershipTableEvent {
+  required Member joinedMember   = 1;
+  required MembershipTable table = 2;
+}
+
+// leader ==> new member
+message WholePartitionEvent {
+  required uint32 joinedMemberId = 1;
+  required PartitionTable table  = 2;
+}
+
+// leader ==> members
+message DeltaPartitionEvent {
+  repeated DeltaPartitionItemEvent items = 1;
+}
+
+// part of DeltaPartitionEvent; leader ==> member
+message DeltaPartitionItemEvent{
+
+  // partition ID
+  required uint32 part_id                = 1;
+
+  // memeber position, 0 -- primary, 1~n -- backups
+  required uint32 position               = 2;
+  
+  // current member id, index of membership table, -1 means invalid
+  required int32 old_mid                 = 3;
+
+  // new member id, index of membership table, -1 means invalid
+  required int32 new_mid                 = 4;
+  
+  // new state
+  optional PartitionState state          = 5;
+}
+
+// member => members
+message PartitionStatusChangeEvent {
+  required int32 partition_id   = 1;
+  required int32 member_id      = 2;
+  required PartitionState state = 3;
+}

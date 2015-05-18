@@ -25,9 +25,18 @@ StoreSyncTargetActor::~StoreSyncTargetActor() {
 
 const idgs::actor::ActorMessageHandlerMap& StoreSyncTargetActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {SYNC_DATA,               static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncData)},
-      {SYNC_COMPLETE,           static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncComplete)},
-      {SOURCE_MEMBER_LEAVE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSourceMemberLeave)}
+      {SYNC_DATA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncData),
+          &idgs::store::pb::SyncData::default_instance()
+      }},
+      {SYNC_COMPLETE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncComplete),
+          &idgs::store::pb::SyncComplete::default_instance()
+      }},
+      {SOURCE_MEMBER_LEAVE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSourceMemberLeave),
+          NULL
+      }}
   };
 
   return handlerMap;

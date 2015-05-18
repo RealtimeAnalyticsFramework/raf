@@ -1,0 +1,21 @@
+package idgs.framework.test.pb;
+
+message Department {
+  required int64 id = 1;
+  required string name = 2;
+}
+
+message Education {
+  required string when = 1;
+  required string school = 2;
+}
+
+message Employee {
+	required int64 id = 1;
+	required string name = 2;
+	optional int32 age = 3;
+	optional string gender = 4;
+	repeated string role = 5;
+	optional Department dept = 6;
+	repeated Education edu = 7;
+}

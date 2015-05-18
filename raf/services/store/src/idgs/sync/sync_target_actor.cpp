@@ -39,7 +39,10 @@ SyncTargetActor::~SyncTargetActor() {
 
 const idgs::actor::ActorMessageHandlerMap& SyncTargetActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {SYNC_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&SyncTargetActor::handleSyncComplete)}
+      {SYNC_COMPLETE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&SyncTargetActor::handleSyncComplete),
+          &idgs::store::pb::SyncComplete::default_instance()
+      }}
   };
 
   return handlerMap;

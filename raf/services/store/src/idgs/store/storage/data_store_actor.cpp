@@ -36,18 +36,54 @@ StoreServiceActor::~StoreServiceActor() {
 
 const idgs::actor::ActorMessageHandlerMap& StoreServiceActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {OP_INSERT,              static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleInsertStore)},
-      {OP_INTERNAL_INSERT,     static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalInsert)},
-      {OP_GET,                 static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleGetStore)},
-      {OP_INTERNAL_GET,        static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalGet)},
-      {OP_UPDATE,              static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleUpdateStore)},
-      {OP_INTERNAL_UPDATE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalUpdate)},
-      {OP_DELETE,              static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleDeleteStore)},
-      {OP_INTERNAL_DELETE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalDelete)},
-      {OP_COUNT,               static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleCountStore)},
-      {OP_INTERNAL_COUNT,      static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalCount)},
-      {OP_TRUNCATE,            static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleTruncateStore)},
-      {OP_INTERNAL_TRUNCATE,   static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalTruncate)}
+      {OP_INSERT, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleInsertStore),
+          &idgs::store::pb::InsertRequest::default_instance()
+      }},
+      {OP_INTERNAL_INSERT, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalInsert),
+          &idgs::store::pb::InsertRequest::default_instance()
+      }},
+      {OP_GET,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleGetStore),
+          &idgs::store::pb::GetRequest::default_instance()
+      }},
+      {OP_INTERNAL_GET, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalGet),
+          &idgs::store::pb::GetRequest::default_instance()
+      }},
+      {OP_UPDATE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleUpdateStore),
+          &idgs::store::pb::UpdateRequest::default_instance()
+      }},
+      {OP_INTERNAL_UPDATE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalUpdate),
+          &idgs::store::pb::UpdateRequest::default_instance()
+      }},
+      {OP_DELETE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleDeleteStore),
+          &idgs::store::pb::DeleteRequest::default_instance()
+      }},
+      {OP_INTERNAL_DELETE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalDelete),
+          &idgs::store::pb::DeleteRequest::default_instance()
+      }},
+      {OP_COUNT,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleCountStore),
+          &idgs::store::pb::SizeRequest::default_instance()
+      }},
+      {OP_INTERNAL_COUNT, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalCount),
+          &idgs::store::pb::SizeRequest::default_instance()
+      }},
+      {OP_TRUNCATE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleTruncateStore),
+          &idgs::store::pb::TruncateRequest::default_instance()
+      }},
+      {OP_INTERNAL_TRUNCATE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalTruncate),
+          &idgs::store::pb::TruncateRequest::default_instance()
+      }}
   };
 
   return handlerMap;

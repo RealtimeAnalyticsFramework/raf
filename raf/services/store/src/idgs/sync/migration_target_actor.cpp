@@ -40,7 +40,10 @@ MigrationTargetActor::~MigrationTargetActor() {
 
 const idgs::actor::ActorMessageHandlerMap& MigrationTargetActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {STORE_MIGRATION_COMPLETE,          static_cast<idgs::actor::ActorMessageHandler>(&MigrationTargetActor::handleStoreMigrationComplete)}
+      {STORE_MIGRATION_COMPLETE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationTargetActor::handleStoreMigrationComplete),
+          &idgs::store::pb::StoreMigrationComplete::default_instance()
+      }}
   };
 
   return handlerMap;

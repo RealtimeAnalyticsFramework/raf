@@ -29,9 +29,18 @@ MigrationSourceActor::~MigrationSourceActor() {
 
 const idgs::actor::ActorMessageHandlerMap& MigrationSourceActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {MIGRATION_REQUEST,                static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleMigrationRequest)},
-      {PARTITION_MIGRATION_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handlePartitionMigrationComplete)},
-      {CANCEL_MIGRATION,                 static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleCancelMigration)}
+      {MIGRATION_REQUEST,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleMigrationRequest),
+          &idgs::store::pb::MigrationRequest::default_instance()
+      }},
+      {PARTITION_MIGRATION_COMPLETE,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handlePartitionMigrationComplete),
+          &idgs::store::pb::PartitionMigrationComplete::default_instance()
+      }},
+      {CANCEL_MIGRATION,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleCancelMigration),
+          &idgs::store::pb::CancelMigration::default_instance()
+      }}
   };
 
   return handlerMap;

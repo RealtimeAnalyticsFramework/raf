@@ -83,11 +83,26 @@ ActorDescriptorPtr ListenerManager::generateActorDescriptor() {
 
 const ActorMessageHandlerMap& ListenerManager::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {OP_INTERNAL_INSERT,       static_cast<ActorMessageHandler>(&ListenerManager::handleListenerInsert)},
-      {OP_INTERNAL_UPDATE,       static_cast<ActorMessageHandler>(&ListenerManager::handleListenerUpdate)},
-      {OP_INTERNAL_GET,          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerGet)},
-      {OP_INTERNAL_DELETE,       static_cast<ActorMessageHandler>(&ListenerManager::handleListenerDelete)},
-      {OP_INTERNAL_TRUNCATE,     static_cast<ActorMessageHandler>(&ListenerManager::handleListenerTruncate)}
+      {OP_INTERNAL_INSERT,    {
+          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerInsert),
+          &idgs::store::pb::InsertRequest::default_instance()
+      }},
+      {OP_INTERNAL_UPDATE,    {
+          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerUpdate),
+          &idgs::store::pb::UpdateRequest::default_instance()
+      }},
+      {OP_INTERNAL_GET,  {
+          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerGet),
+          &idgs::store::pb::GetRequest::default_instance()
+      }},
+      {OP_INTERNAL_DELETE,  {
+          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerDelete),
+          &idgs::store::pb::DeleteRequest::default_instance()
+      }},
+      {OP_INTERNAL_TRUNCATE,  {
+          static_cast<ActorMessageHandler>(&ListenerManager::handleListenerTruncate),
+          &idgs::store::pb::TruncateRequest::default_instance()
+      }}
   };
 
   return handlerMap;

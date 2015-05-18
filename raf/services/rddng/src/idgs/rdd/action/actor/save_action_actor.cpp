@@ -46,7 +46,10 @@ std::shared_ptr<idgs::actor::ActorDescriptorWrapper> SaveActionActor::generateAc
 
 const idgs::actor::ActorMessageHandlerMap& SaveActionActor::getMessageHandlerMap() const {
   static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
-      {"RDD_OP_SAVE_MESSAGE", static_cast<idgs::actor::ActorMessageHandler>(&SaveActionActor::handleSave)}
+      {"RDD_OP_SAVE_MESSAGE", {
+          static_cast<idgs::actor::ActorMessageHandler>(&SaveActionActor::handleSave),
+          &idgs::rdd::pb::SaveActionInterResult::default_instance()
+      }}
   };
   return handlerMap;
 }

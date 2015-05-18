@@ -43,9 +43,18 @@ PairStoreDelegateRddPartition::~PairStoreDelegateRddPartition() {
 
 const ActorMessageHandlerMap& PairStoreDelegateRddPartition::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {RDD_TRANSFORM,         static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddTransform)},
-      {RDD_ACTION_REQUEST,    static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleActionRequest)},
-      {RDD_STORE_LISTENER,    static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddStoreListener)}
+      {RDD_TRANSFORM,  {
+          static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddTransform),
+          &idgs::rdd::pb::RddRequest::default_instance()
+      }},
+      {RDD_ACTION_REQUEST,  {
+          static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleActionRequest),
+          &idgs::rdd::pb::ActionRequest::default_instance()
+      }},
+      {RDD_STORE_LISTENER,   {
+          static_cast<ActorMessageHandler>(&PairStoreDelegateRddPartition::handleRddStoreListener),
+          &idgs::rdd::pb::RddRequest::default_instance()
+      }}
   };
   return handlerMap;
 }

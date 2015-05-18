@@ -30,7 +30,10 @@ SyncSourceActor::~SyncSourceActor() {
 
 const idgs::actor::ActorMessageHandlerMap& SyncSourceActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {SYNC_REQUEST,     static_cast<idgs::actor::ActorMessageHandler>(&SyncSourceActor::handleSyncRequest)}
+      {SYNC_REQUEST,    {
+          static_cast<idgs::actor::ActorMessageHandler>(&SyncSourceActor::handleSyncRequest),
+          &idgs::store::pb::SyncRequest::default_instance()
+      }}
   };
 
   return handlerMap;

@@ -25,15 +25,42 @@ StoreSchemaActor::~StoreSchemaActor() {
 
 const idgs::actor::ActorMessageHandlerMap& StoreSchemaActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {OP_SHOWSTORES,              static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleShowStores)},
-      {OP_CREATE_SCHEMA,           static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest)},
-      {OP_LOCAL_CREATE_SCHEMA,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalCreateSchema)},
-      {OP_DROP_SCHEMA,             static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest)},
-      {OP_LOCAL_DROP_SCHEMA,       static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalDropSchema)},
-      {OP_CREATE_STORE,            static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest)},
-      {OP_LOCAL_CREATE_STORE,      static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalCreateStore)},
-      {OP_DROP_STORE,              static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest)},
-      {OP_LOCAL_DROP_STORE,        static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalDropStore)}
+      {OP_SHOWSTORES,    {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleShowStores),
+          &idgs::store::pb::ShowStoresRequest::default_instance()
+      }},
+      {OP_CREATE_SCHEMA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest),
+          &idgs::store::pb::CreateSchemaRequest::default_instance()
+      }},
+      {OP_LOCAL_CREATE_SCHEMA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalCreateSchema),
+          &idgs::store::pb::CreateSchemaRequest::default_instance()
+      }},
+      {OP_DROP_SCHEMA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest),
+          &idgs::store::pb::DropSchemaRequest::default_instance()
+      }},
+      {OP_LOCAL_DROP_SCHEMA,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalDropSchema),
+          &idgs::store::pb::DropSchemaRequest::default_instance()
+      }},
+      {OP_CREATE_STORE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest),
+          &idgs::store::pb::CreateStoreRequest::default_instance()
+      }},
+      {OP_LOCAL_CREATE_STORE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalCreateStore),
+          &idgs::store::pb::CreateStoreRequest::default_instance()
+      }},
+      {OP_DROP_STORE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest),
+          &idgs::store::pb::DropStoreRequest::default_instance()
+      }},
+      {OP_LOCAL_DROP_STORE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalDropStore),
+          &idgs::store::pb::DropStoreRequest::default_instance()
+      }}
   };
 
   return handlerMap;
@@ -330,14 +357,38 @@ StoreSchemaAggrActor::~StoreSchemaAggrActor() {
 
 const idgs::actor::ActorMessageHandlerMap& StoreSchemaAggrActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {OP_CREATE_SCHEMA,              static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchema)},
-      {OP_CREATE_SCHEMA_RESPONSE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchemaResponse)},
-      {OP_DROP_SCHEMA,                static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropSchema)},
-      {OP_DROP_SCHEMA_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropSchemaResponse)},
-      {OP_CREATE_STORE,               static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateStore)},
-      {OP_CREATE_STORE_RESPONSE,      static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateStoreResponse)},
-      {OP_DROP_STORE,                 static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropStore)},
-      {OP_DROP_STORE_RESPONSE,        static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropStoreResponse)}
+      {OP_CREATE_SCHEMA, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchema),
+          &idgs::store::pb::CreateSchemaRequest::default_instance()
+      }},
+      {OP_CREATE_SCHEMA_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchemaResponse),
+          &idgs::store::pb::CreateSchemaResponse::default_instance()
+      }},
+      {OP_DROP_SCHEMA, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropSchema),
+          &idgs::store::pb::DropSchemaRequest::default_instance()
+      }},
+      {OP_DROP_SCHEMA_RESPONSE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropSchemaResponse),
+          &idgs::store::pb::DropSchemaResponse::default_instance()
+      }},
+      {OP_CREATE_STORE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateStore),
+          &idgs::store::pb::CreateStoreRequest::default_instance()
+      }},
+      {OP_CREATE_STORE_RESPONSE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateStoreResponse),
+          &idgs::store::pb::CreateStoreResponse::default_instance()
+      }},
+      {OP_DROP_STORE,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropStore),
+          &idgs::store::pb::DropStoreRequest::default_instance()
+      }},
+      {OP_DROP_STORE_RESPONSE,   {
+          static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropStoreResponse),
+          &idgs::store::pb::DropStoreResponse::default_instance()
+      }}
   };
 
   return handlerMap;

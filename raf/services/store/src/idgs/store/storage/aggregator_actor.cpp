@@ -52,16 +52,46 @@ ActorDescriptorPtr DataAggregatorActor::descriptor;
 
 const idgs::actor::ActorMessageHandlerMap& DataAggregatorActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {OP_INSERT_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleInsertResponse)},
-      {OP_INTERNAL_INSERT,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalInsert)},
-      {OP_UPDATE_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleUpdateResponse)},
-      {OP_INTERNAL_UPDATE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalUpdate)},
-      {OP_DELETE_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleDeleteResponse)},
-      {OP_INTERNAL_DELETE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalDelete)},
-      {OP_TRUNCATE_RESPONSE,     static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleTruncateResponse)},
-      {OP_INTERNAL_TRUNCATE,     static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalTruncate)},
-      {OP_INTERNAL_COUNT,        static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalCount)},
-      {OP_COUNT_RESPONSE,        static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleCountResponse)}
+      {OP_INSERT_RESPONSE,    {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleInsertResponse),
+          &idgs::store::pb::InsertResponse::default_instance()
+      }},
+      {OP_INTERNAL_INSERT, {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalInsert),
+          &idgs::store::pb::InsertRequest::default_instance()
+      }},
+      {OP_UPDATE_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleUpdateResponse),
+          &idgs::store::pb::UpdateResponse::default_instance()
+      }},
+      {OP_INTERNAL_UPDATE,    {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalUpdate),
+          &idgs::store::pb::UpdateRequest::default_instance()
+      }},
+      {OP_DELETE_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleDeleteResponse),
+          &idgs::store::pb::DeleteResponse::default_instance()
+      }},
+      {OP_INTERNAL_DELETE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalDelete),
+          &idgs::store::pb::DeleteRequest::default_instance()
+      }},
+      {OP_TRUNCATE_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleTruncateResponse),
+          &idgs::store::pb::TruncateResponse::default_instance()
+      }},
+      {OP_INTERNAL_TRUNCATE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalTruncate),
+          &idgs::store::pb::TruncateRequest::default_instance()
+      }},
+      {OP_INTERNAL_COUNT, {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalCount),
+          &idgs::store::pb::SizeRequest::default_instance()
+      }},
+      {OP_COUNT_RESPONSE,  {
+          static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleCountResponse),
+          &idgs::store::pb::SizeResponse::default_instance()
+      }}
   };
 
   return handlerMap;

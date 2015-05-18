@@ -1,0 +1,39 @@
+package idgs.pb;
+option optimize_for = SPEED;
+
+
+message Boolean {
+  required bool value = 1 [default = false];
+}
+
+message Integer {
+  required int32 value = 1 [default = 0];
+}
+
+message UInteger {
+  required uint32 value = 1 [default = 0];
+}
+
+message Long {
+  required int64 value = 1 [default = 0];
+}
+
+message ULong {
+  required uint64 value = 1 [default = 0];
+}
+
+message Float {
+  required float value = 1 [default = 0];
+}
+
+message Double {
+  required double value = 1 [default = 0];
+}
+
+message String {
+  required string value = 1 [default = ""];
+}
+
+message Bytes {
+  required bytes value = 1 [default = ""];
+}

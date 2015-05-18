@@ -1,0 +1,6 @@
+package idgs.rdd.test.pb;
+
+message BranchLineItem {
+  optional double l_quantity = 1;
+  optional string quantity_desc = 2;
+} 

@@ -13,9 +13,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "rdd_service_actor.h"
 
 #include "idgs/actor/rpc_framework.h"
+#include "idgs/rdd/pb/rdd_internal.pb.h"
+#include "idgs/rdd/pb/rdd_svc.pb.h"
 
 using namespace idgs::pb;
 using namespace idgs::actor;
+using namespace idgs::rdd::pb;
 
 namespace idgs {
 namespace rdd {
@@ -31,12 +34,27 @@ RddServiceActor::~RddServiceActor() {
 
 const ActorMessageHandlerMap& RddServiceActor::getMessageHandlerMap() const {
   static idgs::actor::ActorMessageHandlerMap handlerMap = {
-      {CREATE_STORE_DELEGATE_RDD, static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
-      {CREATE_RDD,                static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
-      {RDD_ACTION_REQUEST,        static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
-      {RDD_DESTROY,               static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
+      {CREATE_STORE_DELEGATE_RDD, {
+          static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService),
+          &idgs::rdd::pb::CreateDelegateRddRequest::default_instance()
+      }},
+      {CREATE_RDD, {
+          static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService),
+          &idgs::rdd::pb::CreateRddRequest::default_instance()
+      }},
+      {RDD_ACTION_REQUEST,  {
+          static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService),
+          &idgs::rdd::pb::ActionRequest::default_instance()
+      }},
+      {RDD_DESTROY, {
+          static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService),
+          &idgs::rdd::pb::DestroyRddRequest::default_instance()
+      }},
 
-      {OID_LIST_RDD,              static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
+      {OID_LIST_RDD,  {
+          static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService),
+          NULL
+      }},
 
   };
   return handlerMap;

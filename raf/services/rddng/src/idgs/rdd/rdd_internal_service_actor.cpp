@@ -45,19 +45,54 @@ RddInternalServiceActor::~RddInternalServiceActor() {
 
 const ActorMessageHandlerMap& RddInternalServiceActor::getMessageHandlerMap() const {
   static ActorMessageHandlerMap handlerMap = {
-      {CREATE_STORE_DELEGATE_RDD,      static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateStoreDelegate)},
-      {CREATE_DELEGATE_PARTITION,      static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateDelegatePartition)},
-      {CREATE_RDD,                     static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateRdd)},
-      {CREATE_RDD_PARTITION,           static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateRddPartition)},
-      {PARTITION_CREATED,              static_cast<ActorMessageHandler>(&RddInternalServiceActor::handlePartitionCreated)},
-      {RDD_ACTION_REQUEST,             static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddActionRequest)},
-      {RDD_DESTROY,                    static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddDestroy)},
-      {REMOVE_RDD_LOCAL,               static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRemoveRddLocal)},
-      {RDD_STATE_SYNC,                 static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddStateSync)},
-      {PERSIST_TYPE_SYNC,              static_cast<ActorMessageHandler>(&RddInternalServiceActor::handlePersistTypeSync)},
-      {MEMBER_CHANGE_EVENT,            static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleMemberEvent)},
-
-      {OID_LIST_RDD,                   static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleListRdd)},
+      {CREATE_STORE_DELEGATE_RDD, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateStoreDelegate),
+          &idgs::rdd::pb::CreateDelegateRddRequest::default_instance()
+      }},
+      {CREATE_DELEGATE_PARTITION, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateDelegatePartition),
+          &idgs::rdd::pb::CreateDelegateRddRequest::default_instance()
+      }},
+      {CREATE_RDD,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateRdd),
+          &idgs::rdd::pb::CreateRddRequest::default_instance()
+      }},
+      {CREATE_RDD_PARTITION,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleCreateRddPartition),
+          &idgs::rdd::pb::CreateRddRequest::default_instance()
+      }},
+      {PARTITION_CREATED, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handlePartitionCreated),
+          &idgs::rdd::pb::RddActorInfo::default_instance()
+      }},
+      {RDD_ACTION_REQUEST,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddActionRequest),
+          &idgs::rdd::pb::ActionRequest::default_instance()
+      }},
+      {RDD_DESTROY, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddDestroy),
+          &idgs::rdd::pb::DestroyRddRequest::default_instance()
+      }},
+      {REMOVE_RDD_LOCAL,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRemoveRddLocal),
+          &idgs::rdd::pb::DestroyRddRequest::default_instance()
+      }},
+      {RDD_STATE_SYNC,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleRddStateSync),
+          &idgs::rdd::pb::RddStateTracing::default_instance()
+      }},
+      {PERSIST_TYPE_SYNC, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handlePersistTypeSync),
+          &idgs::rdd::pb::PersistInfo::default_instance()
+      }},
+      {MEMBER_CHANGE_EVENT, {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleMemberEvent),
+          NULL
+      }},
+      {OID_LIST_RDD,  {
+          static_cast<ActorMessageHandler>(&RddInternalServiceActor::handleListRdd),
+          NULL
+      }},
   };
   return handlerMap;
 }
