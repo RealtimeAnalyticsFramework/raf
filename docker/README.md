@@ -5,10 +5,22 @@ This is the guide for the user to build docker images of RAF. For the user who i
 RAF base image is the enviroment that has all the dependcy libraries been built in. It is basic for the compile and development
 enviroment.
 
+First, you must check if your host machine has installed openssh server, if not you must do the next step in
+your host machine:
+
+* install openssh-server, if the host machine is Ubuntu, please run `apt-get install openssh-server`
+* By default, the SSH server denies password-based login for root. In /etc/ssh/sshd_config, change:
+    `PermitRootLogin without-password` 
+    to
+    `PermitRootLogin yes`
+    And restart SSH:
+    `sudo service ssh restart`
+* shutdown the firewall
+
 To build the RAF base images, please run `./build_raf_base_images`
 
  * Note: Before you run this script, you need change the content in the  docker_base/Dockerfile as below:
-  *  The password and ip adress in the line `RUN sshpass  -p "intel@123"  scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa.pub root@10.10.10.201:~/.ssh/authorized_keys`
+  * The password and ip adress in the line `RUN sshpass  -p "intel@123"  scp -o StrictHostKeyChecking=no ~/.ssh/id_rsa.pub root@10.10.10.201:~/.ssh/authorized_keys`
      must be change to your host root password and ip address
   * You must remove the proxy in the `docker_base/Dockerfile` if you don't use the proxy server or you must change the
    proxy server name in the docker_base/Dockerfile if you use another proxy.
@@ -28,5 +40,7 @@ has been built, you can use `docker images` command to see the `raf_compiled` im
  * Note: the `docker_compile/settings.xml` is the configuration for the maven, which will be copied into the image, you must
    change the proxy name in the settings.xml file or you must remove the proxy if you don't use proxy server. Also
    `docker_compile/Dockerfile` contains proxy setting, you must do the same action for this file.
+
+
 
 

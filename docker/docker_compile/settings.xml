@@ -106,7 +106,7 @@ under the License.
       <id>intel-us</id>
       <active>true</active>
       <protocol>http</protocol>
-      <host>proxy.com</host>
+      <host>hd-cloud.intel.com</host>
       <port>911</port>
       <nonProxyHosts>local.com|local.com</nonProxyHosts>
     </proxy>
