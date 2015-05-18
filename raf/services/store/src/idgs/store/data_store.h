@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
-#include "idgs/store/schema/store_schema_wrapper.h"
+#include "idgs/store/schema/store_schema.h"
 
 namespace idgs {
 namespace store {
@@ -101,7 +101,7 @@ public:
 private:
   bool isInited;
 
-  std::map<std::string, StoreSchemaWrapperPtr> schemaMap;
+  std::map<std::string, StoreSchemaPtr> schemaMap;
   tbb::spin_rw_mutex mutex;
 
 };

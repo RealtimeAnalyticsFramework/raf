@@ -29,7 +29,7 @@ StoreMigrationSourceActor::~StoreMigrationSourceActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreMigrationSourceActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {MIGRATION_REQUEST, static_cast<idgs::actor::ActorMessageHandler>(&StoreMigrationSourceActor::handleMigrationRequest)}
   };
 
@@ -68,7 +68,7 @@ idgs::actor::ActorDescriptorPtr StoreMigrationSourceActor::generateActorDescript
 
   // out operation of MIGRATION_REQUEST
   idgs::actor::ActorOperationDescriporWrapper stateChanged;
-  stateChanged.setName(idgs::cluster::PARTITION_STATE_CHANGED);
+  stateChanged.setName(idgs::cluster::OID_PARTITION_STATE_CHANGED);
   stateChanged.setDescription("handle partition state changed.");
   stateChanged.setPayloadType("idgs.pb.PartitionStatusChangeEvent");
   descriptor->setOutOperation(stateChanged.getName(), stateChanged);
@@ -79,8 +79,8 @@ idgs::actor::ActorDescriptorPtr StoreMigrationSourceActor::generateActorDescript
 }
 
 void StoreMigrationSourceActor::setStore(const idgs::store::StorePtr& store) {
-  pstore = dynamic_cast<PartitionStore*>(store.get());
-  batchSize = pstore->getStoreConfigWrapper()->getStoreConfig().migration_batch_size();
+  pstore = dynamic_cast<PartitionedStore*>(store.get());
+  batchSize = pstore->getStoreConfig()->getStoreConfig().migration_batch_size();
 
   pstore->snapshotStore(partId, map);
   it = map->iterator();
@@ -159,7 +159,7 @@ void StoreMigrationSourceActor::handleMigrationRequest(const idgs::actor::ActorM
     return;
   }
 
-  auto& wrapper = pstore->getStoreConfigWrapper();
+  auto& wrapper = pstore->getStoreConfig();
   auto& schemaName = wrapper->getSchema();
   auto& storeName = wrapper->getStoreConfig().name();
 

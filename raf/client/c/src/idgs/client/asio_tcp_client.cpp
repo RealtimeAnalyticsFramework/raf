@@ -188,12 +188,14 @@ idgs::ResultCode AsioTcpClient::nonblockingRead(ClientActorMessagePtr& response,
       return RC_ERROR;
     }
 
-    readBuffer.decodeHeader();
     const size_t bodyLength = readBuffer.getBodyLength();
+    auto& byteBuffer = readBuffer.byteBuffer();
+    auto b = idgs::net::ByteBuffer::allocate(bodyLength);
+    byteBuffer.swap(b);
 
     // reset error code.
     ec = asio::error::would_block;
-    asio::async_read(*m_socket.get(), asio::buffer(readBuffer.getBody(), bodyLength), asio::transfer_all(),
+    asio::async_read(*m_socket.get(), asio::buffer(byteBuffer->data(), bodyLength), asio::transfer_all(),
         [&ec, &len, this] (const asio::error_code& error, std::size_t bytes_transferred ) {
           ec = error;
           LOG_IF(ERROR, error) << toString() << " failed to  read body from server, error " << ec << "(" << ec.message() << ")";
@@ -212,7 +214,7 @@ idgs::ResultCode AsioTcpClient::nonblockingRead(ClientActorMessagePtr& response,
     }
 
     std::shared_ptr<RpcMessage> rpcMessage = std::make_shared<RpcMessage>();
-    protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::deserializeFromArray(readBuffer.getBody(), len, rpcMessage.get());
+    protobuf::ProtoSerdes<DEFAULT_PB_SERDES>::deserializeFromArray(byteBuffer->data(), len, rpcMessage.get());
     response = std::make_shared<ClientActorMessage>(rpcMessage);
     //DVLOG(2) << "response.get " << response.get();
     DVLOG(2) << "Get message from peer " << response->toString();
@@ -241,7 +243,6 @@ idgs::ResultCode AsioTcpClient::nonblockingWrite(ClientActorMessagePtr& actorMsg
   idgs::net::RpcBuffer writeBuffer;
 
   writeBuffer.setBodyLength(msgContent.length());
-  writeBuffer.encodeHeader();
 
   std::size_t len = 0;
 
@@ -249,8 +250,10 @@ idgs::ResultCode AsioTcpClient::nonblockingWrite(ClientActorMessagePtr& actorMsg
     deadline->expires_from_now(std::chrono::seconds(timeout_sec));
 
     DVLOG_FIRST_N(2, 20) << "try to nonblockingWrite " << actorMsg->toString();
-    std::vector<asio::const_buffer> outBuffers = { asio::buffer(reinterpret_cast<void*>(writeBuffer.getHeader()),
-        sizeof(idgs::net::TcpHeader)), asio::buffer(msgContent.c_str(), msgContent.length()) };
+    std::vector<asio::const_buffer> outBuffers = {
+        asio::buffer(reinterpret_cast<void*>(writeBuffer.getHeader()), sizeof(idgs::net::TcpHeader)),
+        asio::buffer(msgContent.c_str(), msgContent.length())
+    };
 
     asio::error_code ec = asio::error::would_block;
 
@@ -268,7 +271,8 @@ idgs::ResultCode AsioTcpClient::nonblockingWrite(ClientActorMessagePtr& actorMsg
       io_service.run_one();
     }
 
-    DVLOG_FIRST_N(2, 20) << "after blocking, get TCP nonblockingWrite error code " << ec << " => " << ec.message();
+    DVLOG_FIRST_N(2, 20) << "after blocking, get TCP nonblockingWrite error code " << ec << " => " << ec.message()
+        << ", bytes transferred: " << len;
 
     if (ec || !m_socket->is_open()) {
       LOG_FIRST_N(ERROR, 20)<< "TCP Read body error: " << ec << "(" << ec.message() << ")";

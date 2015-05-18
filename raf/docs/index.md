@@ -1,5 +1,6 @@
 IDGS Documentation
 ===================================================== 
 
+* [Startup](startup.md)
 * [Cluster](cluster.md)
-* [Docker](Docker.md)
+* [Docker](docker.md)

@@ -30,7 +30,7 @@ StoreSyncSourceActor::~StoreSyncSourceActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreSyncSourceActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {SYNC_REQUEST,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncSourceActor::handleSyncRequest)}
   };
 
@@ -81,7 +81,7 @@ idgs::actor::ActorDescriptorPtr StoreSyncSourceActor::generateActorDescriptor() 
 
 void StoreSyncSourceActor::setStore(const StorePtr& store) {
   rstore = dynamic_cast<ReplicatedStore*>(store.get());
-  batchSize = rstore->getStoreConfigWrapper()->getStoreConfig().migration_batch_size();
+  batchSize = rstore->getStoreConfig()->getStoreConfig().migration_batch_size();
 
   rstore->snapshotStore(map);
   it = map->iterator();
@@ -156,7 +156,7 @@ void StoreSyncSourceActor::handleSyncRequest(const idgs::actor::ActorMessagePtr&
     return;
   }
 
-  auto& wrapper = rstore->getStoreConfigWrapper();
+  auto& wrapper = rstore->getStoreConfig();
   auto& schemaName = wrapper->getSchema();
   auto& storeName = wrapper->getStoreConfig().name();
 

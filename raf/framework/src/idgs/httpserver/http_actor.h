@@ -21,12 +21,6 @@ public:
   virtual ~HttpActor();
 
 public:
-  virtual const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-    static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap;
-    return handlerMap;
-  }
-
-
   virtual const idgs::actor::ActorDescriptorPtr& getDescriptor() const {
     static idgs::actor::ActorDescriptorPtr nullDesc(NULL);
     return nullDesc;

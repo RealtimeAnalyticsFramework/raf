@@ -139,7 +139,7 @@ var showMembers = function (tab) {
           public_address: m.public_address.host + ":" + m.public_address.port, 
           inner_address: m.inner_address.host + ":" + m.inner_address.port, 
           local_store: m.service.local_store,
-          leading: m.service.leading,
+          leading: m.flags & 1,
           state: m.state,
           weight: m.weight          
         };

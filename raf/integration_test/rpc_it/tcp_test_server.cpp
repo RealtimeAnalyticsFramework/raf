@@ -24,7 +24,7 @@ struct ApplicationSetting {
 
 
 std::atomic<int> tcp_test_count;
-const std::string test_server_id = "test_server_id";
+const char test_server_id[] = "test_server_id";
 class TestStatelessActor: public StatelessActor {
 public:
   TestStatelessActor() {

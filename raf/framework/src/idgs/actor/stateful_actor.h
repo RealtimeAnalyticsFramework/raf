@@ -34,6 +34,11 @@ public:
   State getState() const {
     return state;
   }
+
+  virtual bool stateful() override {
+    return true;
+  }
+
 protected:
   virtual void onDestroy() override;
 

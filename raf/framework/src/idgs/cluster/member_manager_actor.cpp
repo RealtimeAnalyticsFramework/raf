@@ -13,7 +13,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/application.h"
 
-using namespace std;
 using namespace idgs::pb;
 using namespace idgs::actor;
 
@@ -32,7 +31,7 @@ MemberManagerActor::~MemberManagerActor() {
 void MemberManagerActor::onDestroy() {
   // actor::StatefulActor::onDestroy(); // the parent will delete this
   idgs_application()->getRpcFramework()->getActorManager()->unregisterServiceActor(this->getActorId());
-  list<MemberEventListener*>().swap(this->listeners);
+  std::list<MemberEventListener*>().swap(this->listeners);
 
   (const_cast<idgs::actor::ActorMessageHandlerMap&>(getMessageHandlerMap())).clear();
   (const_cast<idgs::actor::ActorDescriptorPtr&>(getDescriptor())).reset();
@@ -48,13 +47,40 @@ void MemberManagerActor::init(idgs::pb::ClusterConfig* cfg) {
 }
 
 const idgs::actor::ActorMessageHandlerMap& MemberManagerActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
-      {MEMBER,                         static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleJoinEvent)},
-      {DELTA_MEMBER_AND_JOIN_POSITION, static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleDeltaMemberEvent)},
-      {WHOLE_MEMBERSHIP_TABLE,         static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleWholeMemberTableEvent)},
-      {MEMBER_STATUS,                  static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleMemberStatusEvent)},
-      {OID_LIST_MEMBERS,               static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleListMembers)},
-      {OID_GET_CLUSTER_CFG,            static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleGetClusterConfig)},
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      { OID_MEMBER, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleJoinEvent),
+          &idgs::pb::Member::default_instance()
+      }},
+      { OID_DELTA_MEMBER_AND_JOIN_POSITION, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleDeltaMemberEvent),
+          &idgs::pb::DeltaMemberEvent::default_instance()
+      }},
+      { OID_WHOLE_MEMBERSHIP_TABLE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleWholeMemberTableEvent),
+          &idgs::pb::WholeMembershipTableEvent::default_instance()
+      }},
+      { OID_CPG_CONFIG_CHANGE, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleClusterChange),
+          &idgs::pb::ClusterChangeEvent::default_instance()
+      }},
+
+      { OID_MEMBER_FLAGS, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleMemberFlagsEvent),
+          &idgs::pb::MemberFlagsEvent::default_instance()
+      }},
+      { OID_MEMBER_STATUS, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleMemberStatusEvent),
+          &idgs::pb::MemberStatusEvent::default_instance()
+      }},
+      { OID_LIST_MEMBERS, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleListMembers),
+          NULL
+      }},
+      { OID_GET_CLUSTER_CFG, {
+          static_cast<idgs::actor::ActorMessageHandler>(&MemberManagerActor::handleGetClusterConfig),
+          NULL
+      }}
   };
   return handlerMap;
 }
@@ -71,28 +97,28 @@ const ::idgs::actor::ActorDescriptorPtr& MemberManagerActor::generateActorDescri
   descriptor->setType(::AT_STATELESS);
 
   ::ActorOperationDescriporWrapper member_status_evt;
-  member_status_evt.setName(MEMBER_STATUS);
+  member_status_evt.setName(OID_MEMBER_STATUS);
   member_status_evt.setDescription("The member's status , sent by member to all members");
   member_status_evt.setPayloadType("idgs.pb.MemberStatusEvent");
   descriptor->setInOperation(member_status_evt.getName(), member_status_evt);
   descriptor->setOutOperation(member_status_evt.getName(), member_status_evt);
 
   ::ActorOperationDescriporWrapper joined_member_evt;
-  joined_member_evt.setName(MEMBER);
+  joined_member_evt.setName(OID_MEMBER);
   joined_member_evt.setDescription("The new joined member itself without id , sent by new joined member to leading");
   joined_member_evt.setPayloadType("idgs.pb.Member");
   descriptor->setInOperation(joined_member_evt.getName(), joined_member_evt);
   descriptor->setOutOperation(joined_member_evt.getName(), joined_member_evt);
 
   ::ActorOperationDescriporWrapper delta_joined_member_evt;
-  delta_joined_member_evt.setName(DELTA_MEMBER_AND_JOIN_POSITION);
+  delta_joined_member_evt.setName(OID_DELTA_MEMBER_AND_JOIN_POSITION);
   delta_joined_member_evt.setDescription("The new joined member with id , sent by leading to all members");
   delta_joined_member_evt.setPayloadType("idgs.pb.DeltaMemberEvent");
   descriptor->setInOperation(delta_joined_member_evt.getName(), delta_joined_member_evt);
   descriptor->setOutOperation(delta_joined_member_evt.getName(), delta_joined_member_evt);
 
   ::ActorOperationDescriporWrapper whole_table_evt;
-  whole_table_evt.setName(WHOLE_MEMBERSHIP_TABLE);
+  whole_table_evt.setName(OID_WHOLE_MEMBERSHIP_TABLE);
   whole_table_evt.setDescription("The membership table sent by leading to new joined member");
   whole_table_evt.setPayloadType("idgs.pb.WholeMembershipTableEvent");
   descriptor->setInOperation(whole_table_evt.getName(), whole_table_evt);
@@ -114,21 +140,28 @@ idgs::actor::ActorMessagePtr MemberManagerActor::createActorMessage() const {
   return actorMsg;
 }
 
-
-idgs::ResultCode MemberManagerActor::multicastLocalMemberStatus(idgs::pb::MemberState status) {
-  return multicastMemberStatus(getLocalMemberId(), status);
+idgs::ResultCode MemberManagerActor::mcastMemberFlags(uint32_t member_id, uint64_t flags) {
+  std::shared_ptr<MemberFlagsEvent> evt_ptr = std::make_shared<MemberFlagsEvent>();
+  evt_ptr->set_member_id(member_id);
+  evt_ptr->set_flags(flags);
+  return multicastMemberMessage(OID_MEMBER_STATUS, evt_ptr);
 }
 
-idgs::ResultCode MemberManagerActor::multicastMemberStatus(uint32_t member_id, idgs::pb::MemberState status) {
-  shared_ptr<MemberStatusEvent> evt_ptr = std::make_shared<MemberStatusEvent>();
+
+idgs::ResultCode MemberManagerActor::mcastLocalMemberStatus(idgs::pb::MemberState status) {
+  return mcastMemberStatus(getLocalMemberId(), status);
+}
+
+idgs::ResultCode MemberManagerActor::mcastMemberStatus(uint32_t member_id, idgs::pb::MemberState status) {
+  std::shared_ptr<MemberStatusEvent> evt_ptr = std::make_shared<MemberStatusEvent>();
   evt_ptr->set_member_id(member_id);
   evt_ptr->set_state(status);
-  return multicastMemberMessage(MEMBER_STATUS, evt_ptr);
+  return multicastMemberMessage(OID_MEMBER_STATUS, evt_ptr);
 }
 
 idgs::ResultCode MemberManagerActor::multicastItself(idgs::cluster::MemberWrapper& preJoinedMember) {
-  shared_ptr<Member> msg = std::make_shared<Member>(preJoinedMember.getMember());
-  return multicastMemberMessage(MEMBER, msg);
+  std::shared_ptr<Member> msg = std::make_shared<Member>(preJoinedMember.getMember());
+  return multicastMemberMessage(OID_MEMBER, msg);
 }
 
 MemberWrapper* MemberManagerActor::checkLeadingLeave(const std::vector<MemberWrapper*>& leaveMembers) {
@@ -212,11 +245,11 @@ idgs::ResultCode MemberManagerActor::multicastWholeMemberTable(const MemberWrapp
   auto evt = std::make_shared<WholeMembershipTableEvent>();
   evt->mutable_joinedmember()->CopyFrom(joinedMember.getMember());
   genMembershipTable(*evt->mutable_table());
-  return multicastMemberMessage(WHOLE_MEMBERSHIP_TABLE, evt);
+  return multicastMemberMessage(OID_WHOLE_MEMBERSHIP_TABLE, evt);
 }
 
 idgs::ResultCode MemberManagerActor::multicastDeltaMember(const std::shared_ptr<DeltaMemberEvent>& deltaMember) {
-  return multicastMemberMessage(DELTA_MEMBER_AND_JOIN_POSITION, deltaMember);
+  return multicastMemberMessage(OID_DELTA_MEMBER_AND_JOIN_POSITION, deltaMember);
 }
 
 void MemberManagerActor::handleJoinEvent(const std::shared_ptr<ActorMessage>& actorMsg) {
@@ -311,10 +344,28 @@ void MemberManagerActor::handleMemberStatusEvent(const std::shared_ptr<ActorMess
   setMemberStatus(member, status);
 }
 
+/**
+ *  handle member flags event
+ */
+void MemberManagerActor::handleMemberFlagsEvent(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr) {
+  function_footprint();
+  if (members.empty() || !getLocalMember()) {
+    return;
+  }
+  auto payload = dynamic_cast<MemberFlagsEvent*>(actor_msg_ptr->getPayload().get());
+  uint32_t pos = payload->member_id();
+  auto flags = payload->flags();
+  auto member = getMember(pos);
+  if (!member) {
+    return;
+  }
+  member->setFlags(flags);
+}
+
 /// @brief CPG config change event
 ///
-void MemberManagerActor::handleCpgConfigChange(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr) {
-  idgs::pb::CpgConfigChangeEvent* event = dynamic_cast<idgs::pb::CpgConfigChangeEvent*>(actor_msg_ptr->getPayload().get());
+void MemberManagerActor::handleClusterChange(const std::shared_ptr<idgs::actor::ActorMessage>& actor_msg_ptr) {
+  idgs::pb::ClusterChangeEvent* event = dynamic_cast<idgs::pb::ClusterChangeEvent*>(actor_msg_ptr->getPayload().get());
 
   if(event->left_list_size() > 0) { // handle member left
     auto local_member = getLocalMember();
@@ -335,7 +386,7 @@ void MemberManagerActor::handleCpgConfigChange(const std::shared_ptr<idgs::actor
     DVLOG(2) << "config member: " << cfg_member->DebugString();
     for (int j = 0; j < event->joined_list_size(); ++j) {
       if(event->joined_list_size() >= event->member_list_size() && j == 0) {
-        cfg_member->mutable_service()->set_leading(true);
+        cfg_member->set_flags(cfg_member->flags() | idgs::pb::MF_LEADING);
       }
       if(cfg_member->node_id() == event->joined_list(j).nodeid() && cfg_member->pid() == event->joined_list(j).pid()) {
         // send itself to leading
@@ -392,7 +443,7 @@ void MemberManagerActor::setMemberStatus(MemberWrapper* member, pb::MemberState 
 }
 
 std::string MemberManagerActor::toSimpleString() {
-  stringstream s;
+  std::stringstream s;
   const size_t size = getMemberSize();
   s << "\n=============== membership table ===============\n";
   for (size_t i = 0; i < size; ++i) {
@@ -406,7 +457,7 @@ std::string MemberManagerActor::toSimpleString() {
 }
 
 std::string MemberManagerActor::toString() {
-  stringstream s;
+  std::stringstream s;
   const size_t size = getMemberSize();
   s << "\n=============== membership table ===============\n";
   for (int i = 0; i < size; ++i) {
@@ -416,8 +467,7 @@ std::string MemberManagerActor::toString() {
 }
 
 void MemberManagerActor::removeListener(MemberEventListener* listener) {
-  list<MemberEventListener*>::iterator it;
-  for (it = listeners.begin(); it != listeners.end();) {
+  for (auto it = listeners.begin(); it != listeners.end();) {
     if (*it == listener) {
       listeners.erase(it);
       break;
@@ -469,7 +519,7 @@ MemberWrapper* MemberManagerActor::getMember(size_t memberId) {
 }
 
 MemberWrapper* MemberManagerActor::findMember(size_t memberId) {
-  for (vector<MemberWrapper>::iterator it = members.begin(); it != members.end(); ++it) {
+  for (auto it = members.begin(); it != members.end(); ++it) {
     if (it->getId() == memberId) {
       return &(*it);
     }
@@ -478,7 +528,7 @@ MemberWrapper* MemberManagerActor::findMember(size_t memberId) {
 }
 
 MemberWrapper* MemberManagerActor::findMember(uint32_t node_id, uint32_t pid) {
-  for (vector<MemberWrapper>::iterator it = members.begin(); it != members.end(); ++it) {
+  for (auto it = members.begin(); it != members.end(); ++it) {
     if (it->getNodeId() == node_id && it->getPid() == pid) {
       return &(*it);
     }
@@ -487,8 +537,7 @@ MemberWrapper* MemberManagerActor::findMember(uint32_t node_id, uint32_t pid) {
 }
 
 void MemberManagerActor::genMembershipTable(MembershipTable& mt) {
-  vector<MemberWrapper>::iterator it;
-  for (it = members.begin(); it != members.end(); ++it) {
+  for (auto it = members.begin(); it != members.end(); ++it) {
     mt.add_member()->CopyFrom(it->getMember());
   }
 }

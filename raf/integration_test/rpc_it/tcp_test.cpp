@@ -18,7 +18,7 @@ using namespace idgs::pb;
 using namespace idgs;
 
 int count(0);
-const std::string test_server_id = "test_server_id";
+const char test_server_id[] = "test_server_id";
 
 int client_run() {
   try {

@@ -31,7 +31,8 @@ public:
   UnionTransformer& operator()(UnionTransformer&& other) = delete;
 
   virtual const std::string& getName() override {
-    return UNION_TRANSFORMER;
+    static std::string name(UNION_TRANSFORMER);
+    return name;
   }
 
 };

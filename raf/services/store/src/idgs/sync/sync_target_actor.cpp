@@ -9,6 +9,11 @@
 #include "sync_target_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/sync_target_actor.h"
+#include "idgs/sync/store_sync_target_actor.h"
 
 
 
@@ -33,7 +38,7 @@ SyncTargetActor::~SyncTargetActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& SyncTargetActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {SYNC_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&SyncTargetActor::handleSyncComplete)}
   };
 
@@ -96,7 +101,7 @@ void SyncTargetActor::startSyncData() {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
     for (int32_t i = 0; i < stores.size(); ++ i) {
       auto& store = stores.at(i);
-      auto& wrapper = store->getStoreConfigWrapper();
+      auto& wrapper = store->getStoreConfig();
       auto& config = wrapper->getStoreConfig();
       if (config.partition_type() == pb::REPLICATED) {
         auto& schemaName = wrapper->getSchema();
@@ -170,7 +175,7 @@ void SyncTargetActor::handleMemberLeaveEvent(const int32_t memberId) {
           idgs::actor::sendMessage(msg);
         } else {
           auto store = datastore->getStore(it->second->schemaName, it->second->storeName);
-          store->clearData();
+          store->removeAll();
         }
       }
 

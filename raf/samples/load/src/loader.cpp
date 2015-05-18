@@ -66,7 +66,7 @@ void Loader::config() {
       return;
     }
 
-    auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+    auto& store_config_wrapper_ptr = store->getStoreConfig();
     ParsedStoreDescriptor descriptor;
     descriptor.mapper->CopyFrom(*it);
     const std::string& key_type = store_config_wrapper_ptr->getStoreConfig().key_type();
@@ -133,7 +133,7 @@ KeyValueMessagePair Loader::parseLine(const std::string& store_name, const std::
     return KeyValueMessagePair(NULL, NULL);
   }
 
-  auto& store_config_wrapper_ptr = store->getStoreConfigWrapper();
+  auto& store_config_wrapper_ptr = store->getStoreConfig();
   PbMessagePtr key = store_config_wrapper_ptr->newKey();
   PbMessagePtr value = store_config_wrapper_ptr->newValue();
   if (!key.get()) {

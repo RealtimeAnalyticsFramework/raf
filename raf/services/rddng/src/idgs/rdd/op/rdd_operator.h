@@ -30,7 +30,7 @@ public:
   virtual bool evaluate(idgs::expr::ExpressionContext* ctx) = 0;
 
   virtual bool parse(const idgs::rdd::pb::InRddInfo& inRddInfo, const idgs::rdd::pb::OutRddInfo& outRddInfo,
-      RddLocal* inRddLocal, RddLocal* outRddLocal) = 0;
+      std::shared_ptr<RddLocal>& inRddLocal, std::shared_ptr<RddLocal>& outRddLocal) = 0;
 
   /// @see #evaluate
   bool operator ()(idgs::expr::ExpressionContext* ctx) {

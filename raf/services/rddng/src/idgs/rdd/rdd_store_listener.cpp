@@ -67,11 +67,11 @@ idgs::store::ListenerResultCode RddStoreListener::insert(idgs::store::ListenerCo
   return idgs::store::LRC_CONTINUE;
 }
 
-void RddStoreListener::setRddLocal(const RddLocal* rddlocal) {
-  rddLocal = const_cast<RddLocal*>(rddlocal);
+void RddStoreListener::setRddLocal(const std::shared_ptr<RddLocal>& rddlocal) {
+  rddLocal = rddlocal;
 }
 
-const RddLocal* RddStoreListener::getRddLocal() const {
+const std::shared_ptr<RddLocal>& RddStoreListener::getRddLocal() const {
   return rddLocal;
 }
 

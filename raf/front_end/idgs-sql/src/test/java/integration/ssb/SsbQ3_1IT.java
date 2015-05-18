@@ -17,7 +17,7 @@ import java.util.TreeMap;
 import printer.DefaultResultPrinter;
 import printer.ResultPrinter;
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -29,12 +29,12 @@ public class SsbQ3_1IT extends TestCase {
        .append("         s.s_nation,\n")
        .append("         d.d_year,\n")
        .append("         sum(lo.lo_revenue) AS revenue\n")
-       .append("  FROM   ssb_lineorder lo\n")
-       .append("         JOIN ssb_customer c\n")
+       .append("  FROM   ssb.ssb_lineorder lo\n")
+       .append("         JOIN ssb.ssb_customer c\n")
        .append("           ON lo.lo_custkey = c.c_custkey\n")
-       .append("         JOIN ssb_supplier s\n")
+       .append("         JOIN ssb.ssb_supplier s\n")
        .append("           ON lo.lo_suppkey = s.s_suppkey\n")
-       .append("         JOIN ssb_date d\n")
+       .append("         JOIN ssb.ssb_date d\n")
        .append("           ON lo.lo_orderdate = d.d_datekey\n")
        .append("  WHERE  c.c_region = 'ASIA'\n")
        .append("         AND s.s_region = 'ASIA'\n")
@@ -121,7 +121,7 @@ public class SsbQ3_1IT extends TestCase {
         
         assertEquals(resultSet.getRowCount(), resultMap.size());
         for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-          ResultData data = resultSet.getResultData(i);
+          RowData data = resultSet.getResultData(i);
           String c_nation = data.getFieldValue("c_nation").toString();
           String s_nation = data.getFieldValue("s_nation").toString();
           String d_year = data.getFieldValue("d_year").toString();

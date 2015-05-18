@@ -15,7 +15,7 @@ public class UnionIT extends TestCase {
 
   public void testUnion() {
     int supCount = 0, ordCount = 0;
-    String sql = "select s_comment comment from supplier";
+    String sql = "select s_comment comment from tpch.supplier";
     
     try {
       ResultSet resultSet = IdgsCliDriver.run(sql);
@@ -26,7 +26,7 @@ public class UnionIT extends TestCase {
       e.printStackTrace();
     }
     
-    sql = "select o_comment comment from ORDERS";
+    sql = "select o_comment comment from tpch.ORDERS";
     
     try {
       ResultSet resultSet = IdgsCliDriver.run(sql);
@@ -37,7 +37,17 @@ public class UnionIT extends TestCase {
       e.printStackTrace();
     }
     
-    sql = "select * from (select s_comment comment from SUPPLIER union all select o_comment comment from orders) t";
+    StringBuffer sqlBuf = new StringBuffer();
+    sqlBuf.append("  select * \n")
+          .append("  from (select s_comment comment \n")
+          .append("        from   tpch.SUPPLIER \n")
+          .append("        union all \n")
+          .append("        select o_comment comment \n")
+          .append("        from   tpch.orders) t\n");
+    sql = sqlBuf.toString();
+
+    System.out.println("run test sql : ");
+    System.out.println(sql);
     
     try {
       ResultSet resultSet = IdgsCliDriver.run(sql);

@@ -12,6 +12,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "data_store_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+#include "idgs/store/storage/data_store_actor.h"
+#include "idgs/store/schema/store_schema_actor.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/store_sync_source_actor.h"
 
 using namespace idgs::actor;
 using namespace idgs::store::pb;
@@ -29,7 +35,7 @@ StoreServiceActor::~StoreServiceActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreServiceActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {OP_INSERT,              static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleInsertStore)},
       {OP_INTERNAL_INSERT,     static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleLocalInsert)},
       {OP_GET,                 static_cast<idgs::actor::ActorMessageHandler>(&StoreServiceActor::handleGetStore)},
@@ -194,16 +200,20 @@ ActorDescriptorPtr StoreServiceActor::generateActorDescriptor() {
   return descriptor;
 }
 
-void StoreServiceActor::handleInsertStore(const ActorMessagePtr& msg) {
-  // globe insert operation
-  pb::InsertRequest* request = dynamic_cast<pb::InsertRequest*>(msg->getPayload().get());
+template<typename REQUEST, typename RESPONSE>
+ResultCode parseRequest(
+    const idgs::actor::ActorMessagePtr& msg,
+    bool hasValue,
+    StorePtr& store,
+    std::shared_ptr<google::protobuf::Message>& key,
+    std::shared_ptr<google::protobuf::Message>& value,
+    std::shared_ptr<RESPONSE>& response) {
+
+  REQUEST* request = dynamic_cast<REQUEST*>(msg->getPayload().get());
 
   auto& schemaName = request->schema_name();
   auto& storeName = request->store_name();
 
-  DVLOG_FIRST_N(2, 10) << "handle globe insert store " << schemaName << "." << storeName;
-
-  StorePtr store;
   auto datastore = idgs_store_module()->getDataStore();
   if (request->has_schema_name()) {
     store = datastore->getStore(schemaName, storeName);
@@ -212,40 +222,60 @@ void StoreServiceActor::handleInsertStore(const ActorMessagePtr& msg) {
   }
 
   if (!store) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName  << " failed, caused by store not found.";
-    shared_ptr<pb::InsertResponse> response = make_shared<pb::InsertResponse>();
+    LOG(ERROR)<< "Store not found: " << schemaName << "." << storeName;
+    response = std::make_shared<RESPONSE>();
     response->set_result_code(SRC_STORE_NOT_FOUND);
-    sendResponse(msg, OP_INSERT_RESPONSE, response);
-    return;
+    return idgs::RC_STORE_NOT_FOUND;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
-  shared_ptr<Message> key = storeConfig->newKey();
+  key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName  << " failed, caused by invalid key";
-    shared_ptr<pb::InsertResponse> response = make_shared<pb::InsertResponse>();
+    LOG(ERROR)<< "Invalid key, store: " << schemaName << "." << storeName;
+    response = make_shared<pb::InsertResponse>();
     response->set_result_code(SRC_INVALID_KEY);
-    sendResponse(msg, OP_INSERT_RESPONSE, response);
-    return;
+    return idgs::RC_INVALID_KEY;
   }
 
-  shared_ptr<Message> value = storeConfig->newValue();
-  if (!msg->parseAttachment(STORE_ATTACH_VALUE, value.get())) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName  << " failed, caused by invalid value";
-    shared_ptr<pb::InsertResponse> response = make_shared<pb::InsertResponse>();
-    response->set_result_code(SRC_INVALID_VALUE);
+  if ( hasValue) {
+    value = storeConfig->newValue();
+    if (!msg->parseAttachment(STORE_ATTACH_VALUE, value.get())) {
+      LOG(ERROR)<< "Invalid value, store: " << schemaName << "." << storeName;
+      response = make_shared<pb::InsertResponse>();
+      response->set_result_code(SRC_INVALID_VALUE);
+      return idgs::RC_INVALID_VALUE;
+    }
+  }
+
+  return idgs::RC_OK;
+}
+
+
+
+
+
+void StoreServiceActor::handleInsertStore(const ActorMessagePtr& msg) {
+  pb::InsertRequest* request = dynamic_cast<pb::InsertRequest*>(msg->getPayload().get());
+
+  StorePtr store;
+  std::shared_ptr<google::protobuf::Message> key;
+  std::shared_ptr<google::protobuf::Message> value;
+  std::shared_ptr<pb::InsertResponse> response;
+
+  auto rc = parseRequest<pb::InsertRequest, pb::InsertResponse> (msg, true, store, key, value, response);
+  if ( rc != idgs::RC_OK) {
     sendResponse(msg, OP_INSERT_RESPONSE, response);
     return;
   }
 
   // calculate partition id and whether need to route message to right member
-  calcStorePartition<pb::InsertRequest>(request, key, storeConfig.get());
+  calcStorePartition<pb::InsertRequest>(request, key, store->getStoreConfig().get());
   auto cluster = idgs_application()->getClusterFramework();
   auto partition = cluster->getPartitionManager()->getPartition(request->partition_id());
   int32_t destMemberId = partition->getPrimaryMemberId();
   if (destMemberId < 0) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName  << " failed, caused by partition not ready";
+    LOG(ERROR)<< "Insert data to store " << request->schema_name() << "." << request->store_name()  << " failed, caused by partition not ready";
     shared_ptr<pb::InsertResponse> response = make_shared<pb::InsertResponse>();
     response->set_result_code(SRC_PARTITION_NOT_READY);
     sendResponse(msg, OP_INSERT_RESPONSE, response);
@@ -263,17 +293,18 @@ void StoreServiceActor::handleInsertStore(const ActorMessagePtr& msg) {
   }
 
   // store is partition table
-  if (storeConfig->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
+  if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
     // insert data from local member
     ActorMessagePtr message = const_cast<const ActorMessagePtr&>(msg);
     message->setOperationName(OP_INTERNAL_INSERT);
-    handleLocalInsert(message);
+    realInsert(msg, store, key, value);
+
     auto state = partition->getMemberState(localMemberId);
     if (state == idgs::pb::PS_SOURCE) {
       addToRedoLog(store, request->partition_id(), OP_INTERNAL_INSERT, key, value);
     }
   // store is replicated
-  } else if (storeConfig->getStoreConfig().partition_type() == pb::REPLICATED) {
+  } else if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::REPLICATED) {
     // create DataAggregatorActor to multicast all members.
     ActorMessagePtr message = const_cast<const ActorMessagePtr&>(msg);
     message->setOperationName(OP_INTERNAL_INSERT);
@@ -282,74 +313,53 @@ void StoreServiceActor::handleInsertStore(const ActorMessagePtr& msg) {
 }
 
 void StoreServiceActor::handleLocalInsert(const ActorMessagePtr& msg) {
-  // handle insert operation on local member
-  InsertRequest* request = dynamic_cast<InsertRequest*>(msg->getPayload().get());
-
-  auto& schemaName = request->schema_name();
-  auto& storeName = request->store_name();
-
-  DVLOG_FIRST_N(2, 20) << "starting handle insert data to store " << schemaName << "." << storeName << " to local member.";
-
   auto cluster = idgs_application()->getClusterFramework();
   if (!cluster->getLocalMember()->isLocalStore()) {
-    shared_ptr<InsertResponse> response = make_shared<InsertResponse>();
+    std::shared_ptr<InsertResponse> response = std::make_shared<InsertResponse>();
     response->set_result_code(pb::SRC_NOT_LOCAL_STORE);
     sendResponse(msg, OP_INSERT_RESPONSE, response);
     return;
   }
 
+  // handle insert operation on local member
+  InsertRequest* request = dynamic_cast<InsertRequest*>(msg->getPayload().get());
+
   StorePtr store;
-  auto datastore = idgs_store_module()->getDataStore();
-  if (request->has_schema_name()) {
-    store = datastore->getStore(schemaName, storeName);
-  } else {
-    store = datastore->getStore(storeName);
-  }
+  std::shared_ptr<google::protobuf::Message> key;
+  std::shared_ptr<google::protobuf::Message> value;
+  std::shared_ptr<pb::InsertResponse> response;
 
-  if (!store) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName << " failed, caused by store not found.";
-    shared_ptr<InsertResponse> response = make_shared<InsertResponse>();
-    response->set_result_code(SRC_STORE_NOT_FOUND);
+  auto rc = parseRequest<pb::InsertRequest, pb::InsertResponse> (msg, true, store, key, value, response);
+  if ( rc != idgs::RC_OK) {
     sendResponse(msg, OP_INSERT_RESPONSE, response);
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
-  shared_ptr<Message> key = storeConfig->newKey();
-  shared_ptr<Message> value = storeConfig->newValue();
 
-  if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName << " failed, caused by invalid key";
-    shared_ptr<InsertResponse> response = make_shared<InsertResponse>();
-    response->set_result_code(SRC_INVALID_KEY);
-    sendResponse(msg, OP_INSERT_RESPONSE, response);
-    return;
-  }
+  calcStorePartition<pb::InsertRequest>(request, key, store->getStoreConfig().get());
 
-  if (!msg->parseAttachment(STORE_ATTACH_VALUE, value.get())) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName << " failed, caused by invalid value";
-    shared_ptr<InsertResponse> response = make_shared<InsertResponse>();
-    response->set_result_code(SRC_INVALID_VALUE);
-    sendResponse(msg, OP_INSERT_RESPONSE, response);
-    return;
-  }
+  realInsert(msg, store, key, value);
+}
 
-  calcStorePartition<pb::InsertRequest>(request, key, storeConfig.get());
+void StoreServiceActor::realInsert(const idgs::actor::ActorMessagePtr& msg, StorePtr& store,
+    std::shared_ptr<google::protobuf::Message>& key, std::shared_ptr<google::protobuf::Message>& value) {
+  InsertRequest* request = dynamic_cast<InsertRequest*>(msg->getPayload().get());
 
   // handle insert
-  idgs::store::PartitionInfo ps;
+  idgs::store::StoreOption ps;
   ps.partitionId = request->partition_id();
   StoreValue<Message> storeValue(value);
-  ResultCode status = store->setData(key, storeValue, &ps);
+  ResultCode status = store->put(key, storeValue, &ps);
   if (status != RC_SUCCESS) {
-    LOG(ERROR)<< "Insert data to store " << schemaName << "." << storeName << " failed, " << getErrorDescription(status);
+    LOG(ERROR)<< "Insert data to store " << request->schema_name() << "." << request->store_name() << " failed, " << getErrorDescription(status);
     shared_ptr<InsertResponse> response = make_shared<InsertResponse>();
     response->set_result_code(getResultCode(status));
     sendResponse(msg, OP_INSERT_RESPONSE, response);
     return;
   }
 
-  if (storeConfig->getStoreConfig().partition_type() == pb::REPLICATED) {
+  if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::REPLICATED) {
+    auto cluster = idgs_application()->getClusterFramework();
     int32_t primaryMemberId = cluster->getPartitionManager()->getPartition(request->partition_id())->getPrimaryMemberId();
     int32_t localMemberId = cluster->getMemberManager()->getLocalMemberId();
     if (primaryMemberId != localMemberId) {
@@ -362,6 +372,7 @@ void StoreServiceActor::handleLocalInsert(const ActorMessagePtr& msg) {
 
   sendStoreListener(msg);
 }
+
 
 void StoreServiceActor::handleGetStore(const ActorMessagePtr& msg) {
   // globe get operation
@@ -388,7 +399,7 @@ void StoreServiceActor::handleGetStore(const ActorMessagePtr& msg) {
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -459,7 +470,7 @@ void StoreServiceActor::handleLocalGet(const idgs::actor::ActorMessagePtr& msg) 
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -472,11 +483,11 @@ void StoreServiceActor::handleLocalGet(const idgs::actor::ActorMessagePtr& msg) 
 
   calcStorePartition<pb::GetRequest>(request, key, storeConfig.get());
 
-  idgs::store::PartitionInfo ps;
+  idgs::store::StoreOption ps;
   ps.partitionId = request->partition_id();
   shared_ptr<Message> value;
   StoreValue<Message> storeValue(value);
-  ResultCode status = store->getData(key, storeValue, &ps);
+  ResultCode status = store->get(key, storeValue, &ps);
   if (status != RC_SUCCESS && status != RC_DATA_NOT_FOUND) {
     LOG(ERROR)<< "Get data from store " << schemaName << "." << storeName << " failed, " << getErrorDescription(status);
     shared_ptr<GetResponse> response = make_shared<GetResponse>();
@@ -518,7 +529,7 @@ void StoreServiceActor::handleUpdateStore(const ActorMessagePtr& msg) {
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -612,7 +623,7 @@ void StoreServiceActor::handleLocalUpdate(const ActorMessagePtr& msg) {
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -637,10 +648,10 @@ void StoreServiceActor::handleLocalUpdate(const ActorMessagePtr& msg) {
   // calculate partition id and whether need to route message to right member
   calcStorePartition<pb::UpdateRequest>(request, key, storeConfig.get());
 
-  idgs::store::PartitionInfo ps;
+  idgs::store::StoreOption ps;
   ps.partitionId = request->partition_id();
   StoreValue<Message> storeValue(value);
-  ResultCode status = store->setData(key, storeValue, &ps);
+  ResultCode status = store->put(key, storeValue, &ps);
   if (status != RC_SUCCESS) {
     LOG(ERROR)<< "Update data to store " << schemaName << "." << storeName << " failed, " << getErrorDescription(status);
     shared_ptr<UpdateResponse> response = make_shared<UpdateResponse>();
@@ -695,7 +706,7 @@ void StoreServiceActor::handleDeleteStore(const ActorMessagePtr& msg) {
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -781,7 +792,7 @@ void StoreServiceActor::handleLocalDelete(const ActorMessagePtr& msg) {
     return;
   }
 
-  auto& storeConfig = store->getStoreConfigWrapper();
+  auto& storeConfig = store->getStoreConfig();
 
   shared_ptr<Message> key = storeConfig->newKey();
   if (!msg->parseAttachment(STORE_ATTACH_KEY, key.get())) {
@@ -796,11 +807,11 @@ void StoreServiceActor::handleLocalDelete(const ActorMessagePtr& msg) {
   calcStorePartition<pb::DeleteRequest>(request, key, storeConfig.get());
 
   // handle update
-  idgs::store::PartitionInfo ps;
+  idgs::store::StoreOption ps;
   ps.partitionId = request->partition_id();
   shared_ptr<Message> value;
   StoreValue<Message> storeValue(value);
-  ResultCode status = store->removeData(key, storeValue, &ps);
+  ResultCode status = store->remove(key, storeValue, &ps);
   if (status != RC_SUCCESS) {
     LOG(ERROR)<< "Delete data from store " << schemaName << "." << storeName << " by key " << key->DebugString() << " failed, " << getErrorDescription(status);
     shared_ptr<DeleteResponse> response = make_shared<DeleteResponse>();
@@ -860,7 +871,7 @@ void StoreServiceActor::handleCountStore(const idgs::actor::ActorMessagePtr& msg
     return;
   }
 
-  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  auto& storeConfigWrapper = store->getStoreConfig();
 
   // partition table store.
   if (storeConfigWrapper->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
@@ -908,7 +919,7 @@ void StoreServiceActor::handleLocalCount(const ActorMessagePtr& msg) {
     return;
   }
 
-  size_t size = store->dataSize();
+  size_t size = store->size();
 
   response->set_partition(request->partition());
   response->set_result_code(SRC_SUCCESS);
@@ -1022,16 +1033,16 @@ void StoreServiceActor::handleLocalTruncate(const idgs::actor::ActorMessagePtr& 
     return;
   }
 
-  store->clearData();
+  store->removeAll();
 
   response->set_result_code(SRC_SUCCESS);
   sendResponse(msg, OP_TRUNCATE_RESPONSE, response);
 }
 
 void StoreServiceActor::addToRedoLog(StorePtr& store, const int32_t& partition, const string& opName, const PbMessagePtr& key, const PbMessagePtr& value) {
-  auto type = store->getStoreConfigWrapper()->getStoreConfig().partition_type();
+  auto type = store->getStoreConfig()->getStoreConfig().partition_type();
   if (type == PARTITION_TABLE) {
-    auto pstore = dynamic_cast<PartitionStore*>(store.get());
+    auto pstore = dynamic_cast<PartitionedStore*>(store.get());
     auto actors = pstore->getMigrationActors();
     auto it = actors.begin() ;
     for (; it != actors.end(); ++ it) {

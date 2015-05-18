@@ -26,6 +26,9 @@ import idgs.pb.PbExpr.Expr;
 import idgs.pb.PbRpcMessage.MemberIdConst;
 import idgs.pb.PbRpcMessage.PayloadSerdes;
 import idgs.pb.PbRpcMessage.TransportChannel;
+import idgs.rdd.pb.PbRddCommon.RddResultCode;
+import idgs.rdd.pb.PbRddInternal.RddResponse;
+import idgs.rdd.pb.PbRddService.DestroyRddRequest;
 import idgs.rdd.pb.PbRddService.FieldNamePair;
 import idgs.util.ServerConst;
 
@@ -112,6 +115,28 @@ public abstract class IdgsOperator implements Cloneable {
     }
     
     return responseMsg;
+  }
+  
+  public void destroy() throws IdgsException {
+    DestroyRddRequest.Builder builder = DestroyRddRequest.newBuilder();
+    builder.setRddName(rddName);
+
+    DestroyRddRequest request = builder.build();
+    ClientActorMessage requestMsg = buildRddRequestMessage(ServerConst.RDD_DESTROY, request);
+    
+    ClientActorMessage responseMsg = sendRecv(requestMsg);
+    
+    RddResponse.Builder responseBuilder = RddResponse.newBuilder();
+    if (!responseMsg.parsePayload(responseBuilder)) {
+      String err = "cannot parse payload of response for destroy of RDD " + getRddName();
+      throw new IdgsException(err);
+    }
+    
+    RddResponse response = responseBuilder.build();
+    if (response.getResultCode() != RddResultCode.RRC_SUCCESS) {
+      String err = "execute destory RDD " + getRddName() + " error, caused by " + response.getResultCode().toString();
+      throw new IdgsException(err);
+    }
   }
   
   public void addChildOperator(IdgsOperator operator) {

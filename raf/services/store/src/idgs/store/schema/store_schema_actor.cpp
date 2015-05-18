@@ -9,6 +9,7 @@
 #include "store_schema_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/data_store.h"
 
 namespace idgs {
 namespace store {
@@ -23,7 +24,7 @@ StoreSchemaActor::~StoreSchemaActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreSchemaActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {OP_SHOWSTORES,              static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleShowStores)},
       {OP_CREATE_SCHEMA,           static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleGlobalRequest)},
       {OP_LOCAL_CREATE_SCHEMA,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaActor::handleLocalCreateSchema)},
@@ -176,7 +177,7 @@ void StoreSchemaActor::handleShowStores(const idgs::actor::ActorMessagePtr& msg)
     if (code == RC_SUCCESS) {
       auto it = stores.begin();
       for (; it != stores.end(); ++ it) {
-        response->add_store_name((* it)->getStoreConfigWrapper()->getStoreConfig().name());
+        response->add_store_name((* it)->getStoreConfig()->getStoreConfig().name());
       }
     } else {
       LOG(ERROR) << "Show stores error, caused by " << getErrorDescription(code);
@@ -328,7 +329,7 @@ StoreSchemaAggrActor::~StoreSchemaAggrActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreSchemaAggrActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {OP_CREATE_SCHEMA,              static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchema)},
       {OP_CREATE_SCHEMA_RESPONSE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleCreateSchemaResponse)},
       {OP_DROP_SCHEMA,                static_cast<idgs::actor::ActorMessageHandler>(&StoreSchemaAggrActor::handleDropSchema)},

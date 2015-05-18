@@ -7,21 +7,21 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package integration.expr;
 
+import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
 public class CastExprIT extends TestCase {
 
   public void testCastExpr() {
-    SimpleDateFormat fmtTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    SimpleDateFormat fmtTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S");
     Date curDate = new Date();
     String date = fmtTime.format(curDate);
-    long timestamp = curDate.getTime() / 1000;
     
     StringBuffer sql = new StringBuffer();
     sql.append("  select c_custkey, \n")
@@ -35,10 +35,10 @@ public class CastExprIT extends TestCase {
        .append("         cast(c_acctbal as float) tofloat, \n")
        .append("         cast(c_custkey as double) todouble, \n")
        .append("         cast(c_custkey as boolean) tobool, \n")
-       .append("         cast(c_name as binary) tobinary1, \n")
+       .append("         cast(c_name as binary) tobinary, \n")
        .append("         cast(c_acctbal as decimal) todecimal, \n")
        .append("         cast('" + date + "' as timestamp) totimestamp \n")
-       .append("  from customer \n")
+       .append("  from tpch.customer \n")
        .append("  limit 10");
     try {
       System.out.println("test sql : ");
@@ -48,7 +48,7 @@ public class CastExprIT extends TestCase {
       
       assertEquals(10, resultSet.getRowCount());
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         Long custkey = (Long) data.getFieldValue("c_custkey");
         Double acctbal = (Double) data.getFieldValue("c_acctbal");
         String name = (String) data.getFieldValue("c_name");
@@ -59,9 +59,9 @@ public class CastExprIT extends TestCase {
         Integer tobyte = (Integer) data.getFieldValue("tobyte");
         Float tofloat = (Float) data.getFieldValue("tofloat");
         Double todouble = (Double) data.getFieldValue("todouble");
-        String tobinary1 = (String) data.getFieldValue("tobinary1");
+        String tobinary = (String) data.getFieldValue("tobinary");
         Double todecimal = (Double) data.getFieldValue("todecimal");
-        Long totimestamp = (Long) data.getFieldValue("totimestamp");
+        String totimestamp = (String) data.getFieldValue("totimestamp");
         
         // test cast as string
         assertEquals(acctbal.toString(), tostring);
@@ -78,11 +78,12 @@ public class CastExprIT extends TestCase {
         // test cast as double
         assertEquals(custkey.doubleValue(), todouble.doubleValue());
         // test cast as binary
-        assertEquals(name, tobinary1);
+        assertEquals(name, tobinary);
         // test cast as decimal
         assertEquals(acctbal, todecimal);
         // test cast as timestamp
-        assertEquals(timestamp, totimestamp.longValue());
+        Timestamp ts = Timestamp.valueOf(totimestamp);
+        assertEquals(curDate.getTime() / 1000, ts.getTime() / 1000);
       }
     } catch (Exception e) {
       e.printStackTrace();

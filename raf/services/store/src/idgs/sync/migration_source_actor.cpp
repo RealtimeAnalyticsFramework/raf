@@ -9,6 +9,10 @@
 #include "migration_source_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
+#include "idgs/sync/migration_source_actor.h"
+#include "idgs/sync/store_migration_source_actor.h"
 
 
 namespace idgs {
@@ -24,7 +28,7 @@ MigrationSourceActor::~MigrationSourceActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& MigrationSourceActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {MIGRATION_REQUEST,                static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleMigrationRequest)},
       {PARTITION_MIGRATION_COMPLETE,     static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handlePartitionMigrationComplete)},
       {CANCEL_MIGRATION,                 static_cast<idgs::actor::ActorMessageHandler>(&MigrationSourceActor::handleCancelMigration)}
@@ -71,7 +75,7 @@ idgs::actor::ActorDescriptorPtr MigrationSourceActor::generateActorDescriptor() 
 
   // out operation of PARTITION_MIGRATION_COMPLETE
   idgs::actor::ActorOperationDescriporWrapper stateChanged;
-  stateChanged.setName(idgs::cluster::PARTITION_STATE_CHANGED);
+  stateChanged.setName(idgs::cluster::OID_PARTITION_STATE_CHANGED);
   stateChanged.setDescription("handle partition state changed.");
   stateChanged.setPayloadType("idgs.pb.PartitionStatusChangeEvent");
   descriptor->setOutOperation(stateChanged.getName(), stateChanged);
@@ -110,7 +114,7 @@ void MigrationSourceActor::multicastPartitionStateChangeEvent(const int32_t& par
   payload->set_state(state);
 
   auto reqMsg = std::make_shared<idgs::actor::ActorMessage>();
-  reqMsg->setOperationName(idgs::cluster::PARTITION_STATE_CHANGED);
+  reqMsg->setOperationName(idgs::cluster::OID_PARTITION_STATE_CHANGED);
   reqMsg->setSourceActorId(MIGRATION_TARGET_ACTOR);
   reqMsg->setSourceMemberId(localMemberId);
   reqMsg->setDestMemberId(idgs::pb::ALL_MEMBERS);
@@ -154,7 +158,7 @@ void MigrationSourceActor::handleMigrationRequest(const idgs::actor::ActorMessag
     return;
   }
 
-  auto pstore = dynamic_cast<PartitionStore*>(store.get());
+  auto pstore = dynamic_cast<PartitionedStore*>(store.get());
   if (pstore->dataSize(partId) == 0) {
     DVLOG(2) << "partition " << partId << " of store " << schemaName << "." << storeName << " has no data.";
     auto payload = std::make_shared<pb::StoreMigrationComplete>();
@@ -207,7 +211,7 @@ void MigrationSourceActor::handlePartitionMigrationComplete(const idgs::actor::A
 void MigrationSourceActor::handleCancelMigration(const idgs::actor::ActorMessagePtr& msg) {
   auto request = dynamic_cast<pb::CancelMigration*>(msg->getPayload().get());
   auto store = idgs_store_module()->getDataStore()->getStore(request->schema_name(), request->store_name());
-  auto pstore = dynamic_cast<PartitionStore*>(store.get());
+  auto pstore = dynamic_cast<PartitionedStore*>(store.get());
   auto actors = pstore->getMigrationActors();
   auto it = actors.begin();
   for (; it != actors.end(); ++ it) {
@@ -221,16 +225,14 @@ void MigrationSourceActor::handleCancelMigration(const idgs::actor::ActorMessage
 void MigrationSourceActor::onDestroy() {
   std::vector<StorePtr> stores;
   idgs_store_module()->getDataStore()->getStores(stores);
-  auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   auto it = stores.begin();
   for (; it != stores.end(); ++ it) {
     auto& store = * it;
-    if (store->getStoreConfigWrapper()->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
-      auto pstore = dynamic_cast<PartitionStore*>(store.get());
-      auto actorIds = pstore->getMigrationActorIds();
-      auto idit = actorIds.begin();
-      for (; idit != actorIds.end(); ++ idit) {
-        terminate(* idit, localMemberId);
+    if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::PARTITION_TABLE) {
+      auto pstore = dynamic_cast<PartitionedStore*>(store.get());
+      auto actors = pstore->getMigrationActors();
+      for (auto actor: actors) {
+        actor->terminate();
       }
     }
   }
@@ -238,5 +240,5 @@ void MigrationSourceActor::onDestroy() {
   StatelessActor::onDestroy();
 }
 
-} /* namespace store */
-} /* namespace idgs */
+} // namespace store
+} // namespace idgs

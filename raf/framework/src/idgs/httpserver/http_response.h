@@ -17,6 +17,8 @@ namespace httpserver {
 /// A reply to be sent to a client.
 class HttpResponse {
 public:
+  HttpResponse() {};
+
   /// The status of the reply.
   enum StatusType {
     ok = 200,

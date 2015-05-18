@@ -11,10 +11,10 @@
 #include <fstream>
 #include <mutex>
 
-#include "idgs/store/store_config_wrapper.h"
 #include "loader_setting.h"
-#include "idgs/store/parsed_store_descriptor.h"
+
 #include "idgs/store/data_store.h"
+#include "idgs/store/parsed_store_descriptor.h"
 
 namespace idgs {
 namespace client {

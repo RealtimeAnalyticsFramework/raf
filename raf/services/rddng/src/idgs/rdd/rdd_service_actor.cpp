@@ -30,7 +30,7 @@ RddServiceActor::~RddServiceActor() {
 }
 
 const ActorMessageHandlerMap& RddServiceActor::getMessageHandlerMap() const {
-  static std::map<std::string, ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {CREATE_STORE_DELEGATE_RDD, static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
       {CREATE_RDD,                static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},
       {RDD_ACTION_REQUEST,        static_cast<ActorMessageHandler>(&RddServiceActor::handleToInternalService)},

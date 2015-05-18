@@ -7,97 +7,93 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package idgs.jdbc;
 
+import idgs.IdgsConfVars;
 import idgs.client.pb.PbClientConfig.ClientConfig;
 import idgs.client.pb.PbClientConfig.Endpoint.Builder;
 
-import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.util.Properties;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.jdbc.HiveConnection;
-import org.apache.hadoop.hive.service.HiveInterface;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hive.jdbc.HiveConnection;
+import org.apache.hive.jdbc.Utils;
+import org.apache.hive.jdbc.Utils.JdbcConnectionParams;
+import org.apache.hive.service.cli.thrift.TCLIService;
+import org.apache.hive.service.cli.thrift.TCLIService.Iface;
+import org.apache.hive.service.cli.thrift.TCloseSessionReq;
+import org.apache.hive.service.cli.thrift.TSessionHandle;
 
 public class IdgsConnection extends HiveConnection {
 
   private static Log LOG = LogFactory.getLog(IdgsConnection.class);
   
-  private static final String URI_PREFIX = "jdbc:idgs://";
-  
-  private Field clientField;
-  
-  public IdgsConnection(HiveConf hiveconf) throws SQLException {
-    super(hiveconf);
+  public IdgsConnection(String url, Properties info) throws SQLException {
+    super(Utils.URL_PREFIX, info);
+    
+    JdbcConnectionParams connParams = null;
     try {
-      clientField = HiveConnection.class.getDeclaredField("client");
-      clientField.setAccessible(true);
+      connParams = (JdbcConnectionParams) ReflectUtils.getFieldValue(HiveConnection.class, "connParams", this);
     } catch (Exception e) {
       e.printStackTrace();
     }
-  }
-  
-  public IdgsConnection(String url, Properties info) throws SQLException {
-    this(new HiveConf());
-    LOG.info("JDBC URL: " + url + ", Properties: " + info.toString());
-
-    HiveInterface client = null;
-    setClient(client);
     
-    if (url != null && !url.isEmpty()) {
-      // invalid url
-      if (!url.startsWith(URI_PREFIX)) {
-        throw new SQLException("Invalid URL: " + url, "08S01");
-      }
-
-      // remove prefix
-      url = url.substring(URI_PREFIX.length());
+    TCLIService.Iface client = null;
+    
+    HiveConf conf = new HiveConf();
+    HiveConf.setBoolVar(conf, ConfVars.HIVEMAPSIDEAGGREGATE, false);
+    
+    String storeCfgFilePath = info.getProperty(IdgsJdbcDriver.STORE_CONFIG_FILE_PATH);
+    if (storeCfgFilePath == null) {
+      storeCfgFilePath = IdgsConfVars.getVar(conf, IdgsConfVars.STORE_CONFIG_FILE);
+    } else {
+      IdgsConfVars.setVar(conf, IdgsConfVars.STORE_CONFIG_FILE, storeCfgFilePath);
     }
-
-    // If url is not specified, use default.
-    String storeCfgPath = info.getProperty(IdgsJdbcDriver.STORE_CONFIG_FILE_PATH);
-    if (url == null || url.isEmpty()) {
-      String cfgFile = info.getProperty(IdgsJdbcDriver.CLIENT_CONFIG_FILE_PATH);
-      try {
-        LOG.info("client config file: " + cfgFile + ", store config: " + storeCfgPath);
-        client = new IdgsClient(cfgFile, storeCfgPath);
-      } catch (Exception ex) {
-        throw new SQLException(ex);
+    
+    if (connParams.getHost() == null) {
+      String clientCfgFilePath = info.getProperty(IdgsJdbcDriver.CLIENT_CONFIG_FILE_PATH);
+      if (clientCfgFilePath == null) {
+        clientCfgFilePath = IdgsConfVars.getVar(conf, IdgsConfVars.CLIENT_CONFIG_FILE);
+      } else {
+        IdgsConfVars.setVar(conf, IdgsConfVars.CLIENT_CONFIG_FILE, clientCfgFilePath);
       }
     } else {
-      String[] parts = url.split("/");
-      String[] hostport = parts[0].split(":");
-      Integer port = 10000;
-      String host = hostport[0];
-      try {
-        port = Integer.parseInt(hostport[1]);
-      } catch (Exception e) {
-      }
-      
+      String host = connParams.getHost();
+      int port = connParams.getPort();
       LOG.info("Use " + host + ":" + port + " to connect.");
       ClientConfig.Builder cfgBuilder = ClientConfig.newBuilder();
       Builder addrBuilder = cfgBuilder.addServerAddressesBuilder();
       addrBuilder.setAddress(host);
-      addrBuilder.setPort(port.toString());
+      addrBuilder.setPort(String.valueOf(port));
       cfgBuilder.setPoolSize(50);
-
-      try {
-        client = new IdgsClient(cfgBuilder.build(), storeCfgPath);
-      } catch (Exception ex) {
-        throw new SQLException(ex);
-      }
     }
+
+    IdgsClient embeddedClient = new IdgsClient();
+    embeddedClient.init(conf);
+    embeddedClient.initConnection(conf);
+    embeddedClient.initMetaStore(conf);
+    client = embeddedClient;
     
-    setClient(client);
-  }
-  
-  private void setClient(HiveInterface client) {
     try {
-      clientField.set(this, client);
+      TCLIService.Iface hiveClient = (Iface) ReflectUtils.getFieldValue(HiveConnection.class, "client", this);
+      TSessionHandle sessHandle = (TSessionHandle) ReflectUtils.getFieldValue(HiveConnection.class, "sessHandle", this);
+      if (hiveClient != null) {
+        hiveClient.CloseSession(new TCloseSessionReq(sessHandle));
+        ReflectUtils.setFieldValue(HiveConnection.class, "client", this, null);
+      }
+      
+      ReflectUtils.setFieldValue(HiveConnection.class, "client", this, client);
+      ReflectUtils.methodInvoke(HiveConnection.class, "openSession", null, this, null);
     } catch (Exception e) {
       e.printStackTrace();
     }
+  }
+  
+  @Override
+  public void commit() throws SQLException {
+    LOG.warn("not supported commit");
   }
   
 }

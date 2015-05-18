@@ -156,7 +156,7 @@ ExprMapOperator::~ExprMapOperator(){
 }
 
 bool ExprMapOperator::parse(const pb::InRddInfo& inRddInfo, const pb::OutRddInfo& outRddInfo,
-    RddLocal* inRddLocal, RddLocal* outRddLocal) {
+    std::shared_ptr<RddLocal>& inRddLocal, std::shared_ptr<RddLocal>& outRddLocal) {
   auto& keyTemplate = inRddLocal->getKeyTemplate();
   auto& valueTemplate = inRddLocal->getValueTemplate();
   if (inRddInfo.has_filter_expr()) {

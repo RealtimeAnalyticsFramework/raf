@@ -32,8 +32,8 @@ public:
   class Iterator {
   public:
     virtual ~Iterator() {}
-    virtual StoreKey<google::protobuf::Message> key() = 0;
-    virtual StoreValue<google::protobuf::Message> value() = 0;
+    virtual const StoreKey<google::protobuf::Message>& key() = 0;
+    virtual const StoreValue<google::protobuf::Message>& value() = 0;
     virtual void next() = 0;
     virtual bool hasNext() = 0;
   };
@@ -71,6 +71,8 @@ public:
 
   virtual void foreach(StoreEntryFunc fn) = 0;
 
+  virtual std::shared_ptr<StoreMap> snapshot() = 0;
+
   virtual std::shared_ptr<Iterator> iterator() = 0;
 
 protected:
@@ -93,11 +95,11 @@ private:
     virtual ~BasicIterator() {
     }
 
-    virtual StoreKey<google::protobuf::Message> key() override {
+    virtual const StoreKey<google::protobuf::Message>& key() override {
       return it->first;
     }
 
-    virtual StoreValue<google::protobuf::Message> value() override {
+    virtual const StoreValue<google::protobuf::Message>& value() override {
       return it->second;
     }
 
@@ -175,6 +177,14 @@ public:
       fn(it->first, it->second);
     }
   }
+
+  virtual std::shared_ptr<StoreMap> snapshot() override {
+    tbb::spin_rw_mutex::scoped_lock lock(mutex, false);
+    std::shared_ptr<BasicDataMap<M>> result = std::make_shared<BasicDataMap<M> >();
+    result->map = this->map;
+    return result;
+  }
+
 
   virtual std::shared_ptr<Iterator> iterator() {
     tbb::spin_rw_mutex::scoped_lock lock(mutex, false);

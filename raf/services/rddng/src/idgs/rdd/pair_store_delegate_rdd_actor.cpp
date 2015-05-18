@@ -29,7 +29,7 @@ PairStoreDelegateRddActor::~PairStoreDelegateRddActor() {
 }
 
 const ActorMessageHandlerMap& PairStoreDelegateRddActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {CREATE_STORE_DELEGATE_RDD,      static_cast<idgs::actor::ActorMessageHandler>(&PairStoreDelegateRddActor::handleRddCreate)},
       {CREATE_RDD_PARTITION_RESPONSE,  static_cast<idgs::actor::ActorMessageHandler>(&PairStoreDelegateRddActor::handleCreateRddPartitionResponse)},
       {RDD_PARTITION_PREPARED,         static_cast<idgs::actor::ActorMessageHandler>(&PairStoreDelegateRddActor::handleRddPartitionPrepared)},

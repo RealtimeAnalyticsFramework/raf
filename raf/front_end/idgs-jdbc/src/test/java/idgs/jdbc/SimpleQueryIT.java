@@ -14,19 +14,14 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import junit.framework.TestCase;
+public class SimpleQueryIT extends BaseCase {
 
-public class SimpleQueryIT extends TestCase {
-
-  public void testDriver() {
-    String driver = "idgs.jdbc.IdgsJdbcDriver";
-    
+  public void testSimpleQuery() {
     Connection conn = null;
     try {
-      Class.forName(driver);
       conn = DriverManager.getConnection("");
       Statement stmt = conn.createStatement();
-      ResultSet rs = stmt.executeQuery("select * from orders where o_orderstatus = 'F'");
+      ResultSet rs = stmt.executeQuery("select * from tpch.orders where o_orderstatus = 'F'");
       ResultSetMetaData metadata = rs.getMetaData();
       int colCount = metadata.getColumnCount();
       assertEquals(9, colCount);

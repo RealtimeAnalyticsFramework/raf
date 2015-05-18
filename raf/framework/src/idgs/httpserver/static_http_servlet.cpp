@@ -10,6 +10,7 @@
 
 #include <fstream>
 
+#include "idgs/idgslogging.h"
 #include "http_mime.h"
 
 namespace idgs {

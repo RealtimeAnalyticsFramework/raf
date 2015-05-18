@@ -8,6 +8,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #pragma once
 
+#include "byte_buffer.h"
+
 namespace idgs {
 namespace net {
 #define IDGS_COOKIE (*((uint32_t*)("INTC")))
@@ -38,8 +40,7 @@ struct ClientLogin {
 class RpcBuffer {
 public:
 
-  RpcBuffer() :
-      body(NULL), bodyCapacity(0){
+  RpcBuffer() {
   }
 
   ~RpcBuffer() {
@@ -47,27 +48,7 @@ public:
   }
 
   void freeBuffer() {
-    if (body) {
-      delete[] body;
-      body = NULL;
-    }
-    bodyCapacity = 0;
-  }
-
-  void reserveBuffer() {
-    bodyCapacity = header.size;
-    try {
-      body = new char[bodyCapacity];
-      if (!body) {
-        LOG(ERROR) << "Can't alloc memory";
-      }
-    } catch (std::bad_alloc& e) {
-      LOG(ERROR) << "Can't alloc memory: " << e.what();
-    }
-  }
-
-  char* getBody() {
-    return body;
+    byteBuffer_.reset();
   }
 
   size_t getBodyLength() const {
@@ -78,26 +59,16 @@ public:
     header.size = length;
   }
 
-  /// decode header and alloc memory for body.
-  bool decodeHeader() {
-    reserveBuffer();
-    return true;
-  }
-
-  void encodeHeader() {
-    reserveBuffer();
-  }
-
   TcpHeader* getHeader() {
     return &header;
   }
 
+  std::shared_ptr<ByteBuffer>& byteBuffer() {
+    return byteBuffer_;
+  }
 private:
   TcpHeader header;
-
-  // body buffer
-  char* body;
-  uint32_t bodyCapacity;
+  std::shared_ptr<ByteBuffer> byteBuffer_;
 
   // attachments
 };

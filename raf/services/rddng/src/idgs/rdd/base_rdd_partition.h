@@ -73,9 +73,9 @@ public:
   const std::string& getRddName() const;
   const std::string& getPartitionName() const;
 
-  void setRddLocal(RddLocal* rddlocal);
+  void setRddLocal(const std::shared_ptr<RddLocal>& rddlocal);
 
-  RddLocal* getRddLocal();
+  const std::shared_ptr<RddLocal>& getRddLocal() const;
 
   const idgs::actor::PbMessagePtr& getKeyTemplate() const;
 
@@ -97,7 +97,7 @@ protected:
   std::string partitionName;
 
   // information of RDD
-  RddLocal* rddLocal;
+  std::shared_ptr<RddLocal> rddLocal;
 
   // context from downstream RDD, include message and operator
   std::vector<transform::TransformerContext> transformerContexts;

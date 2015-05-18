@@ -30,7 +30,7 @@ private:
   static ::idgs::actor::ActorDescriptorPtr generateActorDescriptor();
   idgs::ResultCode sendRequest();
   void handleInsertResponse(const idgs::actor::ActorMessagePtr& msg);
-  const static std::string ACOTR_ID;
+  const static char ACOTR_ID[];
   std::atomic_int activeRequest;
   std::atomic_int doneRecords;
   idgs::cancelable_timer* cancelTimer = NULL;

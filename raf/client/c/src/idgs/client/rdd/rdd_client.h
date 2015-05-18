@@ -44,7 +44,7 @@ public:
 
   idgs::ResultCode init(const std::string& clientConfig = "");
 
-  const idgs::store::StoreConfigWrapperPtr& getStoreConfigWrapper(const std::string& storeName) const;
+  const idgs::store::StoreConfigWrapperPtr& getStoreConfig(const std::string& storeName) const;
 };
 }
 }

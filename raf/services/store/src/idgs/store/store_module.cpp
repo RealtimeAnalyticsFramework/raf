@@ -12,6 +12,21 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/store/store_module.h"
 
+#include "idgs/store/listener/listener_manager.h"
+#include "idgs/store/storage/data_store_actor.h"
+#include "idgs/store/schema/store_schema_actor.h"
+#include "idgs/store/listener/backup_store_listener.h"
+
+#include "idgs/sync/migration_target_actor.h"
+#include "idgs/sync/migration_source_actor.h"
+#include "idgs/sync/store_migration_target_actor.h"
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/sync_target_actor.h"
+#include "idgs/sync/sync_source_actor.h"
+#include "idgs/sync/store_sync_target_actor.h"
+#include "idgs/sync/store_sync_source_actor.h"
+#include "idgs/sync/data_sync_listener.h"
+
 
 namespace idgs {
 namespace store {

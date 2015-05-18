@@ -13,6 +13,8 @@ if test ! -d "$BUILD_DIR"  ; then
   mkdir $BUILD_DIR
 fi
 
+chmod 777 $WORKSPACE/idgs
+
 cd $BUILD_DIR
 /bin/bash $WORKSPACE/idgs/build/build.sh || exit $?
 

@@ -47,7 +47,7 @@ TEST(lookup_action_test, lookup_action) {
   action_request->set_param(key_type);
   /// lo_orderkey=5952 and lo_linenumber=3
 
-  auto& storeConfigWrapper = client.getStoreConfigWrapper(store_name);
+  auto& storeConfigWrapper = client.getStoreConfig(store_name);
 
   auto key = storeConfigWrapper->newKey();
   key->GetReflection()->SetUInt64(key.get(), key->GetDescriptor()->FindFieldByName("lo_orderkey"), 5952);

@@ -7,6 +7,8 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package idgs.parse;
 
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,34 +19,58 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBetween;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCeil;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFConcat;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFConcatWS;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateAdd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateDiff;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFDateSub;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFFloor;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIf;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIn;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInstr;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLTrim;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLocate;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLower;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLpad;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFNvl;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPDivide;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrGreaterThan;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrLessThan;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPGreaterThan;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPLessThan;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPMinus;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPMod;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPMultiply;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNegative;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNot;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotNull;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNull;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPPlus;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPPositive;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFPosMod;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFPower;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFRTrim;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFRound;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFRpad;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFTimestamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToBinary;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDecimal;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToUnixTimeStamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToUtcTimestamp;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFTrim;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUnixTimeStamp;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUpper;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFWhen;
 
 import idgs.exception.IdgsParseException;
@@ -59,10 +85,14 @@ public class ExprFactory {
   public static final String FIELD = "FIELD";
   public static final String CONST = "CONST";
   
+  private static final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.S");
+  
   private static Map<Class<?>, String> internalUdfType;
   
   static {
     internalUdfType = new HashMap<Class<?>, String>();
+    
+    // compare
     internalUdfType.put(GenericUDFOPAnd.class, "AND");
     internalUdfType.put(GenericUDFOPOr.class, "OR");
     internalUdfType.put(GenericUDFOPEqual.class, "EQ");
@@ -76,21 +106,57 @@ public class ExprFactory {
     internalUdfType.put(GenericUDFOPNotNull.class, "ISNOTNULL");
     internalUdfType.put(GenericUDFBetween.class, "BETWEEN");
     internalUdfType.put(GenericUDFIn.class, "IN");
+    
+    // arithmetic
+    internalUdfType.put(GenericUDFOPPlus.class, "ADD");
+    internalUdfType.put(GenericUDFOPMinus.class, "SUBTRACT");
+    internalUdfType.put(GenericUDFOPMultiply.class, "MULTIPLY");
+    internalUdfType.put(GenericUDFOPDivide.class, "DIVIDE");
+    internalUdfType.put(GenericUDFOPMod.class, "MODULUS");
     internalUdfType.put(GenericUDFHash.class, "HASH");
+    internalUdfType.put(GenericUDFPower.class, "POWER");
+    internalUdfType.put(GenericUDFPosMod.class, "PMOD");
+    internalUdfType.put(GenericUDFAbs.class, "ABS");
+    internalUdfType.put(GenericUDFOPPositive.class, "POSITIVE");
+    internalUdfType.put(GenericUDFOPNegative.class, "NEGATIVE");
+    
+    // branch
     internalUdfType.put(GenericUDFIf.class, "IF");
-    internalUdfType.put(GenericUDFConcatWS.class, "CONCAT_WS");
     internalUdfType.put(GenericUDFCase.class, "CASE");
     internalUdfType.put(GenericUDFWhen.class, "WHEN");
     internalUdfType.put(GenericUDFNvl.class, "NVL");
     internalUdfType.put(GenericUDFCoalesce.class, "COALESCE");
-    internalUdfType.put(GenericUDFLocate.class, "LOCATE");
-    internalUdfType.put(GenericUDFInstr.class, "INSTR");
+    
+    // cast
     internalUdfType.put(GenericUDFToBinary.class, "UDFTOBINARY");
     internalUdfType.put(GenericUDFToDecimal.class, "UDFTODECIMAL");
+    
+    // date
+    internalUdfType.put(GenericUDFDateAdd.class, "DATE_ADD");
+    internalUdfType.put(GenericUDFDateSub.class, "DATE_SUB");
+    internalUdfType.put(GenericUDFDateDiff.class, "DATE_DIFF");
     internalUdfType.put(GenericUDFToUnixTimeStamp.class, "UNIX_TIMESTAMP");
     internalUdfType.put(GenericUDFToUtcTimestamp.class, "UNIX_TIMESTAMP");
     internalUdfType.put(GenericUDFTimestamp.class, "TIMESTAMP");
     internalUdfType.put(GenericUDFUnixTimeStamp.class, "UNIX_TIMESTAMP");
+    
+    // math
+    internalUdfType.put(GenericUDFRound.class, "ROUND");
+    internalUdfType.put(GenericUDFFloor.class, "FLOOR");
+    internalUdfType.put(GenericUDFCeil.class, "CEIL");
+    
+    // string
+    internalUdfType.put(GenericUDFConcat.class, "CONCAT");
+    internalUdfType.put(GenericUDFConcatWS.class, "CONCAT_WS");
+    internalUdfType.put(GenericUDFUpper.class, "UPPER");
+    internalUdfType.put(GenericUDFLower.class, "LOWER");
+    internalUdfType.put(GenericUDFTrim.class, "TRIM");
+    internalUdfType.put(GenericUDFLTrim.class, "LTRIM");
+    internalUdfType.put(GenericUDFRTrim.class, "RTRIM");
+    internalUdfType.put(GenericUDFLpad.class, "LPAD");
+    internalUdfType.put(GenericUDFRpad.class, "RPAD");
+    internalUdfType.put(GenericUDFLocate.class, "LOCATE");
+    internalUdfType.put(GenericUDFInstr.class, "INSTR");
   }
   
   public static Expr buildExpression(ExprNodeDesc node, final Map<String, String> fieldSchemas) throws IdgsParseException {
@@ -106,15 +172,28 @@ public class ExprFactory {
     } else if (node instanceof ExprNodeConstantDesc) {
       ExprNodeConstantDesc constNode = (ExprNodeConstantDesc) node;
       exprBuilder.setName(CONST);
-      exprBuilder.setConstType(TypeUtils.hiveToDataType(constNode.getTypeInfo().getTypeName()));
-      exprBuilder.setValue(constNode.getValue().toString());
+      String type = constNode.getTypeInfo().getTypeName();
+      DataType dataType = TypeUtils.hiveToDataType(type);
+      if (dataType == null) {
+        throw new IdgsParseException("data type " + type + " of " + node + " is not supported.");
+      }
+      
+      String svalue = null;
+      Object value = constNode.getValue();
+      if (value instanceof Timestamp) {
+        svalue = timeFormat.format((Timestamp) value);
+      } else {
+        svalue = value.toString();
+      }
+      exprBuilder.setConstType(dataType);
+      exprBuilder.setValue(svalue);
     } else if (node instanceof ExprNodeGenericFuncDesc) {
       ExprNodeGenericFuncDesc exprNode = (ExprNodeGenericFuncDesc) node;
       GenericUDF udf = exprNode.getGenericUDF();
       if (udf instanceof GenericUDFBridge) {
         GenericUDFBridge bridge = (GenericUDFBridge) udf;
         String udfName = bridge.getUdfName().toUpperCase();
-        if (udfName.equals("-") && exprNode.getChildExprs().size() == 1) {
+        if (udfName.equals("-") && exprNode.getChildren().size() == 1) {
           udfName = "NEGATIVE";
         }
         exprBuilder.setName(udfName);
@@ -128,14 +207,13 @@ public class ExprFactory {
         }
       }
       
-      for (ExprNodeDesc childExpr : exprNode.getChildExprs()) {
+      for (ExprNodeDesc childExpr : exprNode.getChildren()) {
         Expr exp = buildExpression(childExpr, fieldSchemas);
         if (exp != null) {
           exprBuilder.addExpression(exp);
         }
       }
     } else {
-      log.error("node type " + node.getClass().getSimpleName() + " is not supported yet.");
       throw new IdgsParseException("node type " + node.getClass().getSimpleName() + " is not supported yet.");
     }
     

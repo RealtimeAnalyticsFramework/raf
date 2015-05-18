@@ -120,9 +120,10 @@ void CorosyncClusterAdapter::realMulticastMessage() {
   }
   try {
     while (queue.try_pop(msg)) {
-
+      DVLOG(5) << "real multicase message buffer, length: " << msg->getRpcBuffer()->getBodyLength()
+          << ", buffer: " << dumpBinaryBuffer2(msg->getRpcBuffer()->byteBuffer()->data(), msg->getRpcBuffer()->getBodyLength());
       struct iovec iov;
-      iov.iov_base = (void*) msg->getRpcBuffer()->getBody();
+      iov.iov_base = (void*) msg->getRpcBuffer()->byteBuffer()->data();
       iov.iov_len = msg->getRpcBuffer()->getBodyLength();
 
       static ::idgs::net::NetworkStatistics* stats = idgs_application()->getRpcFramework()->getNetwork()->getNetworkStatistics();
@@ -146,10 +147,15 @@ ResultCode CorosyncClusterAdapter::multicastMessage(const std::shared_ptr<idgs::
   idgs::ResultCode code = RC_SUCCESS;
   if (!msg->getRpcBuffer()) {
     code = msg->toRpcBuffer();
-  }
-  if (code != RC_SUCCESS) {
-    LOG(ERROR)<< "send message error with code " << code;
-    return code;
+    DVLOG(5) << "multicase message buffer, length: " << msg->getRpcBuffer()->byteBuffer()->capacity()
+        << ", buffer: " << dumpBinaryBuffer2(msg->getRpcBuffer()->byteBuffer()->data(), msg->getRpcBuffer()->getBodyLength());
+    if (code != RC_SUCCESS) {
+      LOG(ERROR)<< "send message error with code " << code;
+      return code;
+    }
+  } else {
+    DVLOG(5) << "multicase message buffer, length: " << msg->getRpcBuffer()->byteBuffer()->capacity()
+        << ", buffer: " << dumpBinaryBuffer2(msg->getRpcBuffer()->byteBuffer()->data(), msg->getRpcBuffer()->getBodyLength());
   }
   queue.push(msg);
   realMulticastMessage();
@@ -172,7 +178,8 @@ void CorosyncClusterAdapter::deliver(cpg_handle_t handle, const struct cpg_name*
 #else
 #define SIZE_BEFORE_ACTORID 32 // PB_JSON or PB_TEXT
 #endif
-    const static size_t PREFIX_SIZE = std::min((size_t)64, (std::max(AID_MEMBER.length(), AID_PARTITION.length()) + (size_t)SIZE_BEFORE_ACTORID));
+//    const static size_t PREFIX_SIZE = std::min((size_t)64, (std::max(AID_MEMBER.length(), AID_PARTITION.length()) + (size_t)SIZE_BEFORE_ACTORID));
+    const static size_t PREFIX_SIZE = std::min((size_t)64, (std::max(AID_MEMBER_LENGTH, AID_PARTITION_LENGTH) + (size_t)SIZE_BEFORE_ACTORID));
     std::string prefix((const char*)msg, std::min((size_t)msg_len, PREFIX_SIZE));
     if (prefix.find(AID_MEMBER) != std::string::npos || prefix.find(AID_PARTITION) != std::string::npos) {
 //      LOG(INFO) << "multicast message prefix: " << dumpBinaryBuffer(prefix);
@@ -195,8 +202,10 @@ void CorosyncClusterAdapter::deliver(cpg_handle_t handle, const struct cpg_name*
     } else {
       std::shared_ptr<idgs::net::RpcBuffer> readBuffer = std::make_shared<idgs::net::RpcBuffer>();
       readBuffer->setBodyLength(msg_len);
-      readBuffer->decodeHeader();
-      memcpy(readBuffer->getBody(), msg, msg_len);
+      auto& byteBuffer = readBuffer->byteBuffer();
+      auto b = idgs::net::ByteBuffer::allocate(msg_len);
+      byteBuffer.swap(b);
+      memcpy(byteBuffer->data(), msg, msg_len);
 
       std::shared_ptr<idgs::actor::ActorMessage> actorMsg = std::make_shared<idgs::actor::ActorMessage>();
       actorMsg->setRpcBuffer(readBuffer);
@@ -222,7 +231,7 @@ void CorosyncClusterAdapter::configChange(cpg_handle_t handle, const struct cpg_
   actor::ActorMessagePtr msg = std::make_shared<actor::ActorMessage>();
   msg->getRpcMessage();
 
-  std::shared_ptr<google::protobuf::Message> ev = std::make_shared<idgs::pb::CpgConfigChangeEvent>();
+  std::shared_ptr<google::protobuf::Message> ev = std::make_shared<idgs::pb::ClusterChangeEvent>();
   msg->setPayload(ev);
   msg->setOperationName(OID_CPG_CONFIG_CHANGE);
   msg->setSourceActorId(AID_MEMBER);
@@ -230,7 +239,7 @@ void CorosyncClusterAdapter::configChange(cpg_handle_t handle, const struct cpg_
   msg->setSourceMemberId(idgs::pb::ANY_MEMBER);
   msg->setDestMemberId(idgs::pb::ANY_MEMBER);
 
-  idgs::pb::CpgConfigChangeEvent* event = dynamic_cast<idgs::pb::CpgConfigChangeEvent*>(ev.get());
+  idgs::pb::ClusterChangeEvent* event = dynamic_cast<idgs::pb::ClusterChangeEvent*>(ev.get());
   for (int i = 0; i < member_list_entries; ++i) {
     auto m = event->add_member_list();
     m->set_nodeid(member_list[i].nodeid);
@@ -252,8 +261,7 @@ void CorosyncClusterAdapter::configChange(cpg_handle_t handle, const struct cpg_
     m->set_reason(joined_list[i].reason);
   }
 
-  auto memberManager = idgs_application()->getMemberManager();
-  memberManager->handleCpgConfigChange(msg);
+  idgs::actor::sendMessage(msg);
   return;
 }
 
@@ -264,6 +272,7 @@ void CorosyncClusterAdapter::dispatch() {
   fd_set readfds;
   struct timeval timeout;
   while (corosync->dispatching) {
+    DVLOG(2) << "corosync loop";
     int cpgfd = corosync->getCpg().getFd();
     if (cpgfd < 0) {
       break;
@@ -273,6 +282,7 @@ void CorosyncClusterAdapter::dispatch() {
     timeout.tv_sec = 5;
     timeout.tv_usec = 0;
     if((select(cpgfd + 1, &readfds, NULL, NULL, &timeout)) > 0) {
+      DVLOG(2) << "corosync io event";
       try {
         if (FD_ISSET(cpgfd, &readfds)) {
           DVLOG(2) << "enter corosync select";

@@ -21,6 +21,17 @@ rm -f ltmain.sh 2>/dev/null
 rm -rf dist/include
 
 #
+# gitstats
+#
+run_gitstats() {
+  echo "#############################  gitstats  ###################################"
+  cd $WORKSPACE/idgs
+  gitstats .git gitstats
+}
+run_gitstats
+
+
+#
 # sloc count
 #
 echo "#############################  sloccount  ###################################"

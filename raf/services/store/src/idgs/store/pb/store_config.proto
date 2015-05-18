@@ -44,6 +44,7 @@ message StoreConfig {
   optional idgs.pb.Expr partitioner        =  7;                // partitioner, calculate hashcode based on part of key.
   
   repeated ListenerConfig listener_configs =  8;                // All registered listeners, including indexes, backing stores and others;
+  
   optional int32 migration_batch_size      = 10 [default = 100];  // batch size when migration
   optional string field_seperator          = 11;                // seperator of each field in file 
 }

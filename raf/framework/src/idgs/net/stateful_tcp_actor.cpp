@@ -96,9 +96,11 @@ void StatefulTcpActor::startReceiveHeader() {
 
 
 void StatefulTcpActor::handle_read_header(const asio::error_code& error, std::shared_ptr<RpcBuffer> readBuffer) {
-  if (!error && readBuffer->decodeHeader()) {
+  if (!error) {
     DVLOG(3) << "Recv header size: " << sizeof(TcpHeader);
-    asio::async_read(socket(), asio::buffer(readBuffer->getBody(), readBuffer->getBodyLength()),
+    auto b = ByteBuffer::allocate(readBuffer->getBodyLength());
+    readBuffer->byteBuffer().swap(b);
+    asio::async_read(socket(), asio::buffer(readBuffer->byteBuffer()->data(), readBuffer->getBodyLength()),
         asio::transfer_all(),
         [this, readBuffer] (const asio::error_code& error, const std::size_t& ) {
       this->handle_read_body(error, readBuffer);
@@ -116,7 +118,7 @@ void StatefulTcpActor::handle_read_body(const asio::error_code& error, std::shar
   if (!error) {
     /// start to recv next header
     startReceiveHeader();
-    DVLOG(3) << "Recv body size: " << readBuffer->getBodyLength() <<  ", content: " << dumpBinaryBuffer2(readBuffer->getBody(), readBuffer->getBodyLength());
+    DVLOG(3) << "Recv body size: " << readBuffer->getBodyLength() <<  ", content: " << dumpBinaryBuffer2(readBuffer->byteBuffer()->data(), readBuffer->getBodyLength());
     std::shared_ptr<ActorMessage> actorMsg = std::make_shared<ActorMessage>();
     actorMsg->setRpcBuffer(readBuffer);
     actorMsg->setMessageOrietation(ActorMessage::OUTER_TCP);
@@ -172,9 +174,10 @@ void StatefulTcpActor::realSend() {
   try {
     std::vector<asio::const_buffer> outBuffers = {
         asio::buffer(reinterpret_cast<void*>(message->getRpcBuffer()->getHeader()), sizeof(idgs::net::TcpHeader)),
-        asio::buffer(message->getRpcBuffer()->getBody(), message->getRpcBuffer()->getBodyLength())
+        asio::buffer(message->getRpcBuffer()->byteBuffer()->data(), message->getRpcBuffer()->getBodyLength())
     };
-    DVLOG(3) << "send body byte size: " << message->getRpcBuffer()->getBodyLength() <<  ", content: " << dumpBinaryBuffer2(message->getRpcBuffer()->getBody(), message->getRpcBuffer()->getBodyLength());
+    DVLOG(3) << "send body byte size: " << message->getRpcBuffer()->getBodyLength() <<  ", content: "
+        << dumpBinaryBuffer2(message->getRpcBuffer()->byteBuffer()->data(), message->getRpcBuffer()->getBodyLength());
 
     asio::async_write(socket(), outBuffers, asio::transfer_all(),
         [message, this] (const asio::error_code& error, const std::size_t& bytes_transferred) {

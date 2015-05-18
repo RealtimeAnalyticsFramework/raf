@@ -79,7 +79,7 @@ private:
       return;
     }
 
-    std::shared_ptr<StoreConfigWrapper> config = store->getStoreConfigWrapper();
+    std::shared_ptr<StoreConfig> config = store->getStoreConfig();
     idgs::actor::PbMessagePtr key, value, rawValue;
     auto src = parseKeyValue(msg, config, key, value, rawValue);
     if (src != pb::SRC_SUCCESS) {
@@ -99,7 +99,7 @@ private:
     if (request->has_partition_id() && request->partition_id() != -1) {
       ctx.setPartitionId(request->partition_id());
     } else {
-      PartitionInfo ps;
+      StoreOption ps;
       config->calculatePartitionInfo(* ctx.getKey(), &ps);
       ctx.setPartitionId(ps.partitionId);
     }

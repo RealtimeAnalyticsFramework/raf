@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration.expr;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -50,7 +50,7 @@ public class MathExprIT extends TestCase {
        .append("         sign(c_acctbal) sign, \n")
        .append("         e() e, \n")
        .append("         pi() pi \n")
-       .append("  from customer \n")
+       .append("  from tpch.customer \n")
        .append("  limit 10");
     try {
       System.out.println("test sql : ");
@@ -60,7 +60,7 @@ public class MathExprIT extends TestCase {
       
       assertEquals(10, resultSet.getRowCount());
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         Long custkey = (Long) data.getFieldValue("c_custkey");
         Double acctbal = (Double) data.getFieldValue("c_acctbal");
         String name = (String) data.getFieldValue("c_name");
@@ -96,6 +96,10 @@ public class MathExprIT extends TestCase {
         Double e = (Double) data.getFieldValue("e");
         Double pi = (Double) data.getFieldValue("pi");
         
+        System.out.println("acctbal: " + Double.toString(acctbal));
+        if (acctbal <= 0) {
+          continue;
+        } 
         // test round
         assertEquals(Math.round(acctbal), round1, 0.0000001);
         assertEquals(Math.round(acctbal * 10) / 10.0, round2, 0.0000001);
@@ -132,7 +136,7 @@ public class MathExprIT extends TestCase {
         // test unhex
         assertEquals(name, unhex);
         // test conv
-        assertEquals(Integer.toHexString(custkey.intValue()), conv);
+        assertEquals(Integer.toHexString(custkey.intValue()).toUpperCase(), conv);
         // test abs
         assertEquals(Math.abs(acctbal), abs, 0.0000001);
         // test pmod

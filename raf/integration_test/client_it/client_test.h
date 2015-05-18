@@ -74,7 +74,7 @@ void sendMessage(ResultCode& code, string test_server_id, ClientActorMessagePtr&
   auto client = getTcpClientPool().getTcpClient(code);
   ASSERT_EQ(code, RC_SUCCESS);
 
-  std::string env_port = getenv(ENV_VAR_PORT);
+  std::string env_port = getenv(ENV_VAR_PUBLIC_PORT);
 
   ASSERT_EQ(env_port, client->getServerEndpoint().port());
 

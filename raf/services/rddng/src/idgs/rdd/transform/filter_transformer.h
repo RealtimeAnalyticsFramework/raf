@@ -21,7 +21,8 @@ public:
   virtual ~FilterTransformer();
 
   virtual const std::string& getName() override {
-    return FILTER_TRANSFORMER;
+    static std::string name(FILTER_TRANSFORMER);
+    return name;
   }
 
   FilterTransformer(const FilterTransformer& other) = delete;

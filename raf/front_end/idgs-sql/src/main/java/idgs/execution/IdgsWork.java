@@ -23,13 +23,4 @@ public class IdgsWork implements Serializable {
     return topOp;
   }
 
-  public ActionOperator getActionOperator() {
-    IdgsOperator op = topOp.getChildrenOperators().get(0);
-    if (op instanceof ActionOperator) {
-      return (ActionOperator) op;
-    }
-    
-    return null;
-  }
-  
 }

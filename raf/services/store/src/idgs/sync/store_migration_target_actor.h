@@ -11,7 +11,7 @@
 #include "idgs/actor/stateful_actor.h"
 
 #include "idgs/store/datastore_const.h"
-#include "idgs/store/store.h"
+#include "idgs/store/partitioned_store.h"
 
 
 namespace idgs {
@@ -33,7 +33,7 @@ public:
 
   static idgs::actor::ActorDescriptorPtr generateActorDescriptor();
 
-  void setStore(const idgs::store::StorePtr& store);
+  void setStore(idgs::store::StorePtr store);
 
 private:
   void handleMigrationData(const idgs::actor::ActorMessagePtr& msg);
@@ -46,7 +46,7 @@ private:
   int32_t sourceMId;
 
   size_t dataSize;
-  PartitionStore* pstore;
+  idgs::store::StorePtr pstore;
 
   static idgs::actor::ActorDescriptorPtr descriptor;
 

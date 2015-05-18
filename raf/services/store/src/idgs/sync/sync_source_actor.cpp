@@ -9,6 +9,11 @@
 #include "sync_source_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
+#include "idgs/sync/sync_source_actor.h"
+#include "idgs/sync/store_sync_source_actor.h"
 
 
 namespace idgs {
@@ -24,7 +29,7 @@ SyncSourceActor::~SyncSourceActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& SyncSourceActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {SYNC_REQUEST,     static_cast<idgs::actor::ActorMessageHandler>(&SyncSourceActor::handleSyncRequest)}
   };
 
@@ -70,7 +75,7 @@ void SyncSourceActor::handleSyncRequest(const idgs::actor::ActorMessagePtr& msg)
     return;
   }
 
-  if (store->dataSize() == 0) {
+  if (store->size() == 0) {
     DVLOG(2) << "store " << schemaName << "." << storeName << " has no data.";
     auto payload = std::make_shared<pb::SyncComplete>();
     payload->set_schema_name(schemaName);
@@ -95,16 +100,14 @@ void SyncSourceActor::handleSyncRequest(const idgs::actor::ActorMessagePtr& msg)
 void SyncSourceActor::onDestroy() {
   std::vector<StorePtr> stores;
   idgs_store_module()->getDataStore()->getStores(stores);
-  auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
   auto it = stores.begin();
   for (; it != stores.end(); ++ it) {
     auto& store = * it;
-    if (store->getStoreConfigWrapper()->getStoreConfig().partition_type() == pb::REPLICATED) {
+    if (store->getStoreConfig()->getStoreConfig().partition_type() == pb::REPLICATED) {
       auto rstore = dynamic_cast<ReplicatedStore*>(store.get());
-      auto actorIds = rstore->getSyncActorIds();
-      auto idit = actorIds.begin();
-      for (; idit != actorIds.end(); ++ idit) {
-        terminate(* idit, localMemberId);
+      auto actors = rstore->getSyncActors();
+      for (auto actor: actors) {
+        actor->terminate();
       }
     }
   }

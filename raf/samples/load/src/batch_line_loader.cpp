@@ -21,9 +21,10 @@ using namespace idgs::tpc::pb;
 
 namespace idgs {
 namespace client {
-static const std::string& OP_CRUD_MAPPER = "linecrud_mapper_operation";
-static const std::string& OP_CRUD_REQUEST = "linecrud_request_operation";
-static const std::string& LINECRUD_ACTOR_ID = "linecrud_actor";
+
+static const char OP_CRUD_MAPPER[] = "linecrud_mapper_operation";
+static const char OP_CRUD_REQUEST[] = "linecrud_request_operation";
+static const char LINECRUD_ACTOR_ID[] = "tpc.linecrud";
 
 void BatchLineLoader::displayResponse(const ClientActorMessagePtr& clientActorMsg) {
   RawlineCrudResponse response;

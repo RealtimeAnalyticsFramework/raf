@@ -8,7 +8,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 package integration.expr;
 
 import idgs.IdgsCliDriver;
-import idgs.execution.ResultData;
+import idgs.execution.RowData;
 import idgs.execution.ResultSet;
 import junit.framework.TestCase;
 
@@ -40,11 +40,10 @@ public class StringExprIT extends TestCase {
        .append("         find_in_set('bc', 'a,bc,def,g') findinset, \n")
        .append("         parse_url('http://www.intel.com', 'HOST') host, \n")
        .append("         parse_url('http://www.intel.com', 'PROTOCOL') protocol, \n")
-       .append("         get_json_object('{\"name\":\"Tom\", \"gender\":\"male\"}', 'R.name') json, \n")
        .append("         regexp('hello foothebar', 'foo(.*?)(bar)') regexp, \n")
        .append("         regexp_replace('hello foothebar', 'foo(.*?)(bar)', 'world') replace, \n")
        .append("         regexp_extract('hello foothebar', 'foo(.*?)(bar)') extract \n")
-       .append("  from customer \n")
+       .append("  from tpch.customer \n")
        .append("  where c_name like '%1' limit 10");
     
     try {
@@ -55,7 +54,7 @@ public class StringExprIT extends TestCase {
       
       assertEquals(10, resultSet.getRowCount());
       for (int i = 0; i < resultSet.getRowCount(); ++ i) {
-        ResultData data = resultSet.getResultData(i);
+        RowData data = resultSet.getResultData(i);
         String name = (String) data.getFieldValue("c_name");
         String substr1 = (String) data.getFieldValue("substr1");
         String substr2 = (String) data.getFieldValue("substr2");
@@ -80,7 +79,6 @@ public class StringExprIT extends TestCase {
         Integer findinset = (Integer) data.getFieldValue("findinset");
         String host = (String) data.getFieldValue("host");
         String protocol = (String) data.getFieldValue("protocol");
-        String json = (String) data.getFieldValue("json");
         Boolean regexp = (Boolean) data.getFieldValue("regexp");
         String replace = (String) data.getFieldValue("replace");
         String extract = (String) data.getFieldValue("extract");
@@ -126,8 +124,6 @@ public class StringExprIT extends TestCase {
         // test parse_url
         assertEquals("www.intel.com", host);
         assertEquals("http", protocol);
-        // test get_json_object
-        assertEquals("Tom", json);
         // test regexp
         assertTrue(regexp);
         // test regexp_replace

@@ -28,7 +28,7 @@ ReduceOperator::~ReduceOperator() {
 }
 
 bool ReduceOperator::parse(const pb::InRddInfo& inRddInfo, const pb::OutRddInfo& outRddInfo,
-      RddLocal* inRddLocal, RddLocal* outRddLocal) {
+    std::shared_ptr<RddLocal>& inRddLocal, std::shared_ptr<RddLocal>& outRddLocal) {
   auto& msg = outRddLocal->getTransformerMsg();
   pb::CreateRddRequest* request = dynamic_cast<pb::CreateRddRequest*>(msg->getPayload().get());
   if (request->in_rdd_size() != 1) {
@@ -83,7 +83,6 @@ bool ReduceOperator::parse(const pb::InRddInfo& inRddInfo, const pb::OutRddInfo&
 bool ReduceOperator::evaluate(idgs::expr::ExpressionContext* ctx) {
   return mapOperator.evaluate(ctx);
 }
-
 
 } /* namespace op */
 } /* namespace rdd */

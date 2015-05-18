@@ -51,7 +51,7 @@ void AggregatorActor::multicast(const ActorMessagePtr& msg, const string& actorI
 ActorDescriptorPtr DataAggregatorActor::descriptor;
 
 const idgs::actor::ActorMessageHandlerMap& DataAggregatorActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {OP_INSERT_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleInsertResponse)},
       {OP_INTERNAL_INSERT,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleGlobalInsert)},
       {OP_UPDATE_RESPONSE,       static_cast<idgs::actor::ActorMessageHandler>(&DataAggregatorActor::handleUpdateResponse)},

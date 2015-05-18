@@ -63,7 +63,7 @@ TpcModule::~TpcModule() {
   }
 }
 
-static const std::string& TPC_MODULE_DESCRIPTOR_NAME = "tpc";
+static const char TPC_MODULE_DESCRIPTOR_NAME[] = "tpc";
 
 int TpcModule::init(const char* config_path, idgs::Application* theApp){
   function_footprint();

@@ -17,7 +17,7 @@ class StoreListenerFactory {
 public:
 
   static void registerStoreListener(StoreListener* listener);
-  static idgs::ResultCode build(const std::string& listenerName, std::shared_ptr<idgs::store::StoreConfigWrapper> config, StoreListener** listener, const std::map<std::string, std::string>& props = std::map<std::string, std::string>());
+  static idgs::ResultCode build(const std::string& listenerName, std::shared_ptr<idgs::store::StoreConfig> config, StoreListener** listener, const std::map<std::string, std::string>& props = std::map<std::string, std::string>());
   static void unregisterStoreListener(const std::string& listenerName);
 
 private:

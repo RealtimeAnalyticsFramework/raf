@@ -23,8 +23,6 @@ public:
   const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override;
   static idgs::actor::ActorDescriptorPtr generateActorDescriptor();
 
-  const RddLocal* getRddLocal(const std::string& rddName);
-
 private:
   void handleCreateStoreDelegate(const idgs::actor::ActorMessagePtr& msg);
   void handleCreateDelegatePartition(const idgs::actor::ActorMessagePtr& msg);
@@ -54,7 +52,7 @@ private:
   virtual void onDestroy() override;
 
 private:
-  std::map<std::string, RddLocal> rddLocalMap;
+  std::map<std::string, std::shared_ptr<RddLocal>> rddLocalMap;
   tbb::spin_rw_mutex mutex;
 };
 } // namespace rdd

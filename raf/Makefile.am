@@ -1,11 +1,6 @@
 # Root Makefile.
 SUBDIRS= . framework services client front_end webroot samples integration_test 
 
-install-exec-hook:
-	cd @srcdir@/webroot; ./gen-makefile.sh; cd - ; 
-
-
-
 bin_SCRIPTS = setenv.sh
 
 conf_DATA = \
@@ -20,4 +15,18 @@ conf_DATA = \
   conf/ssb_file_mapper.conf \
   conf/tpch_file_mapper.conf
 
+docs_DATA = \
+  docs/markdown.css \
+  docs/cluster.md \
+  docs/docker.md  \
+  docs/index.md  \
+  docs/startup.md
+
+
+install-exec-hook:
+	cd @srcdir@/webroot; ./gen-makefile.sh; cd - ; 
+
+install-data-hook:
+	for MD in `ls @top_srcdir@/docs/*.md`; do @top_srcdir@/build/markdown.sh $$MD; done
+	cp @top_srcdir@/docs/*.html @docsdir@/
 

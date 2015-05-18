@@ -42,12 +42,12 @@ public:
   /// @return result code of listener
   virtual idgs::store::ListenerResultCode insert(idgs::store::ListenerContext* context) override;
 
-  void setRddLocal(const RddLocal* rddlocal);
+  void setRddLocal(const std::shared_ptr<RddLocal>& rddlocal);
 
-  const RddLocal* getRddLocal() const;
+  const std::shared_ptr<RddLocal>& getRddLocal() const;
 
 private:
-  RddLocal* rddLocal;
+  std::shared_ptr<RddLocal> rddLocal;
 };
 
 } /* namespace rdd */

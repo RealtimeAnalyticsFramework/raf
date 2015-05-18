@@ -23,16 +23,16 @@ case28() {
   
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case28_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=*rdd*=3 dist/bin/idgs -c conf/cluster.conf  1>case28_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -50,10 +50,10 @@ case28() {
 
   rm -f tpch-*.txt  
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 10 -o ssb-udptps.txt 1>it_case28.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m conf/ssb_file_mapper.conf -t 100 -o ssb-udptps.txt 1>it_case28.log 2>&1
 
   echo "run hash join test"  
   dist/bin/idgs-cli -f integration_test/rdd_it/hash_join_data 1>it_case28.log 2>&1
@@ -63,7 +63,7 @@ case28() {
     exit $RC
   fi
 
-  dist/itest/it_hash_join_transformer_test 1>>it_case28.log 2>&1
+  $BUILD_DIR/target/itest/it_hash_join_transformer_test 1>>it_case28.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case28.log.";
@@ -71,7 +71,7 @@ case28() {
   fi
   
   echo "run SSB Q1.1 test"
-  dist/itest/ssb_q1_1_join_transformer 1>ut_result.log 2>>it_case28.log
+  $BUILD_DIR/target/itest/ssb_q1_1_join_transformer 1>ut_result.log 2>>it_case28.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case28.log.";
@@ -102,16 +102,16 @@ case29() {
   export GLOG_v=0
   
   echo "start server 1"
-  export idgs_member_service_local_store=true
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case29_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case29_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
@@ -125,15 +125,15 @@ case29() {
   build/ssb-gen.sh
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case29.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 100 1>it_case29.log 2>&1
 
   sleep 5
   
   echo "run case... details refer to it_case29.log."
-  dist/itest/it_lookup_action_test 1>>it_case29.log 2>&1
+  $BUILD_DIR/target/itest/it_lookup_action_test 1>>it_case29.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";
@@ -153,16 +153,16 @@ case30() {
   export GLOG_v=0
   
   echo "start server 1"
-  export idgs_member_service_local_store=true
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case30_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case30_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
@@ -177,15 +177,15 @@ case30() {
 
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case30.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 100 1>it_case30.log 2>&1
 
   sleep 5
   
   echo "run case... details refer to it_case30.log."
-  dist/itest/it_collect_action_test 1>>it_case30.log 2>&1
+  $BUILD_DIR/target/itest/it_collect_action_test 1>>it_case30.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";
@@ -205,16 +205,16 @@ case31() {
   export GLOG_v=0
   
   echo "start server 1"
-  export idgs_member_service_local_store=true
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs -c conf/cluster.conf  1>case31_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_vmodule=stateful_tcp_actor=5 dist/bin/idgs -c conf/cluster.conf  1>case31_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
@@ -229,15 +229,15 @@ case31() {
 
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case31.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 100 1>it_case31.log 2>&1
   
   sleep 5
   
   echo "run case... details refer to it_case31.log."
-  dist/itest/it_collect_action_test_big_data 1>>it_case31.log 2>&1
+  $BUILD_DIR/target/itest/it_collect_action_test_big_data 1>>it_case31.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";
@@ -257,16 +257,16 @@ case32() {
   export GLOG_v=0
   
   echo "start server 1"
-  export idgs_member_service_local_store=true
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
+  export idgs_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
   dist/bin/idgs -c conf/cluster.conf  1>case32_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case32_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
@@ -280,15 +280,15 @@ case32() {
   build/ssb-gen.sh
 
   echo "load ssb data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 10 1>it_case32.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $SSB_HOME/ssb-dbgen-master -c conf/cluster.conf -m integration_test/rdd_it/lineorder_mapper.conf -t 100 1>it_case32.log 2>&1
 
   sleep 5
   
   echo "run case... details refer to it_case32.log."
-  dist/itest/it_sum_action_test 1>>it_case32.log 2>&1
+  $BUILD_DIR/target/itest/it_sum_action_test 1>>it_case32.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC).";

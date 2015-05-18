@@ -48,7 +48,7 @@ public:
   std::string toString();
 
   uint32_t getTcpBatchSize() const {
-    return cfg == NULL? 0 : cfg->tcp_batch();
+    return cfg == NULL? 0 : cfg->batch_message();
   }
 
   void connect(int peerId);

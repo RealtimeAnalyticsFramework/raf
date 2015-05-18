@@ -16,25 +16,25 @@ case12() {
   find . -name "core" -exec rm -f {} \; 2>/dev/null
 
   echo "start 1 server"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case12_server1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start 1 client to insert data to server."
-  run_test dist/itest/it_replicated_store_test_insert 
+  run_test $BUILD_DIR/target/itest/it_replicated_store_test_insert 
 
   echo "start 2 server"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case12_server2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
   echo "start 2 client to get data from server."
-  run_test dist/itest/it_replicated_store_test_get 
+  run_test $BUILD_DIR/target/itest/it_replicated_store_test_get 
 
   echo "kill servers."
   safekill $SRV_PID1
@@ -59,19 +59,19 @@ case13() {
   find . -name "core.*" -exec rm -f {} \; 2>/dev/null
   
   echo "start 1 server"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
-  dist/itest/it_rpc_schedule_test_server 1>case13_server.log 2>&1 &
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
+  $BUILD_DIR/target/itest/it_rpc_schedule_test_server 1>case13_server.log 2>&1 &
   SRV_PID1=$!
   sleep 2
   echo "start 1 client"
-  run_test dist/itest/it_rpc_schedule_test_client 
+  run_test $BUILD_DIR/target/itest/it_rpc_schedule_test_client 
   
   echo "kill servers."
   safekill $SRV_PID1 
   
-  check_core_dump dist/itest/it_rpc_schedule_test_server
+  check_core_dump $BUILD_DIR/target/itest/it_rpc_schedule_test_server
   #echo "########################"
 }
 

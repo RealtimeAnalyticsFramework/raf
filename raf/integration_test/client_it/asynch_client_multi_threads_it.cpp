@@ -13,7 +13,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "client_test.h"
 
 
-const std::string mtest_server_id = "MultiThreadsClientStatelessActor";
+const char mtest_server_id[] = "MultiThreadsClientStatelessActor";
 
 class MultiThreadsClientStatelessActor: public StatelessActor {
   public:
@@ -26,12 +26,6 @@ class MultiThreadsClientStatelessActor: public StatelessActor {
       LOG(WARNING)<<"MultiThreadsClientStatelessActor is call with count " << count.load();
       //ASSERT_EQ(count.load(), 3000);
     }
-
-    const idgs::actor::ActorMessageHandlerMap& getMessageHandlerMap() const override {
-      static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap;
-      return handlerMap;
-    }
-
 
     void process(const ActorMessagePtr& msg) override {
       DVLOG(2) << "MultiThreadsClientStatelessActor is called";

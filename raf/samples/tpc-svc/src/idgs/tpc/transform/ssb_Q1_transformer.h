@@ -20,7 +20,8 @@ public:
   virtual ~SsbQ1_1Transformer();
 
   virtual const std::string& getName() override {
-    return SSB_Q1_1_TRANSFORMER;
+    static std::string name(SSB_Q1_1_TRANSFORMER);
+    return name;
   }
 
   SsbQ1_1Transformer(const SsbQ1_1Transformer& other) = delete;

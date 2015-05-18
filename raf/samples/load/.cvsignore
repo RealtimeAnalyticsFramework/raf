@@ -1,9 +1,0 @@
-Makefile
-Makefile.in
-.deps
-.libs
-loadtpch
-ut_loadtpch
-load
-newload
-ut_load

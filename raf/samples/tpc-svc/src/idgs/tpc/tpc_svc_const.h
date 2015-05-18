@@ -9,34 +9,18 @@
 namespace idgs {
 namespace tpc {
 
-/// TPCH Store Name
-//static const std::string& TPCH_STORE_STORE_LINEITEM = "LineItem";
-//static const std::string& TPCH_STORE_CUSTOMER = "Customer";
-//static const std::string& TPCH_STORE_SUPPLIER = "Supplier";
-//static const std::string& TPCH_STORE_PART = "Part";
-//static const std::string& TPCH_STORE_NATION = "Nation";
-//static const std::string& TPCH_STORE_PARTSUPP = "PartSupp";
-//static const std::string& TPCH_STORE_REGION = "Region";
-//static const std::string& TPCH_STORORDERS = "Orders";
-
-/// SSB Store Name
-//static const std::string& SSB_STORE_LINEORDER = "ssb_lineorder";
-//static const std::string& SSB_STORE_CUSTOMER = "ssb_customer";
-//static const std::string& SSB_STORE_SUPPLIER = "ssb_supplier";
-//static const std::string& SSB_STORE_PART = "ssb_part";
-//static const std::string& SSB_STORE_DATE = "ssb_date";
 
 // RDD samples
-static const std::string& TPCH_Q6_TRANSFORMER = "TPCH_Q6_TRANSFORMER";
-static const std::string& TPCH_Q6_ACTION = "TPCH_Q6_ACTION";
+static const char TPCH_Q6_TRANSFORMER[] = "TPCH_Q6_TRANSFORMER";
+static const char TPCH_Q6_ACTION[] = "TPCH_Q6_ACTION";
 
-static const std::string& SSB_Q1_1_TRANSFORMER = "SSB_Q1_1_TRANSFORMER";
-static const std::string& SSB_Q1_1_ACTION = "SSB_Q1_1_ACTION";
+static const char SSB_Q1_1_TRANSFORMER[] = "SSB_Q1_1_TRANSFORMER";
+static const char SSB_Q1_1_ACTION[] = "SSB_Q1_1_ACTION";
 
-static const std::string& SSB_Q1_1_ORDER_PARAM = "SSB_Q1_1_ORDER_PARAM";
-static const std::string& SSB_Q1_1_DATE_PARAM = "SSB_Q1_1_DATE_PARAM";
+static const char SSB_Q1_1_ORDER_PARAM[] = "SSB_Q1_1_ORDER_PARAM";
+static const char SSB_Q1_1_DATE_PARAM[] = "SSB_Q1_1_DATE_PARAM";
 
-static const std::string& PARTITION_COUNT_ACTION = "PARTITION_COUNT_ACTION";
+static const char PARTITION_COUNT_ACTION[] = "PARTITION_COUNT_ACTION";
 }
 }
 

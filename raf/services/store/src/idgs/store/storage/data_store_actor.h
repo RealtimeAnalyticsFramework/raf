@@ -13,6 +13,7 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "idgs/store/datastore_const.h"
 #include "idgs/store/store.h"
 
+
 namespace idgs {
 namespace store {
 
@@ -63,17 +64,19 @@ private:
 
   void sendStoreListener(const idgs::actor::ActorMessagePtr& msg, pb::StoreResultCode code = pb::SRC_SUCCESS);
 
-  template<typename Request>
-  ResultCode calcStorePartition(Request* request, const idgs::actor::PbMessagePtr& key, StoreConfigWrapper* storeConfig) {
+  template<typename RT>
+  ResultCode calcStorePartition(RT* request, const idgs::actor::PbMessagePtr& key, StoreConfig* storeConfig) {
     if (request->has_partition_id() && request->partition_id() != -1) {
       return RC_SUCCESS;
     } else {
-      PartitionInfo ps;
+      StoreOption ps;
       ResultCode rc = storeConfig->calculatePartitionInfo(key, &ps);
       request->set_partition_id(ps.partitionId);
       return rc;
     }
   }
+
+  void realInsert(const idgs::actor::ActorMessagePtr& msg, StorePtr& store, std::shared_ptr<google::protobuf::Message>& key, std::shared_ptr<google::protobuf::Message>& value);
 };
 
 } // namespace store

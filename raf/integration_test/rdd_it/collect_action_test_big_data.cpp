@@ -48,7 +48,7 @@ TEST(collect_action_test_big_data, collect_action) {
   CollectActionResult* result = dynamic_cast<CollectActionResult*>(action_result.get());
   assert(result);
 
-  auto& storeConfigWrapper = client.getStoreConfigWrapper(store_name);
+  auto& storeConfigWrapper = client.getStoreConfig(store_name);
   auto key = storeConfigWrapper->newKey();
   auto value = storeConfigWrapper->newValue();
   int32_t limit = 20;

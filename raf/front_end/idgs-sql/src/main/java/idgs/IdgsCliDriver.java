@@ -10,7 +10,6 @@ package idgs;
 import idgs.client.TcpClientPool;
 import idgs.exception.IdgsException;
 import idgs.execution.ResultSet;
-import idgs.metadata.LocalStoreLoader;
 import idgs.metadata.StoreLoader;
 import idgs.metadata.StoreMetadata;
 import idgs.util.LOGUtils;
@@ -24,15 +23,17 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.sql.Date;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import jline.ConsoleReader;
 import jline.History;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -40,17 +41,14 @@ import org.apache.hadoop.hive.cli.CliDriver;
 import org.apache.hadoop.hive.cli.CliSessionState;
 import org.apache.hadoop.hive.cli.OptionsProcessor;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.CommandNeedRetryException;
 import org.apache.hadoop.hive.ql.Driver;
-import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.parse.VariableSubstitution;
 import org.apache.hadoop.hive.ql.processors.CommandProcessor;
 import org.apache.hadoop.hive.ql.processors.CommandProcessorFactory;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.ql.session.SessionState.LogHelper;
-import org.apache.hadoop.hive.shims.ShimLoader;
 
 public class IdgsCliDriver extends CliDriver {
 
@@ -81,17 +79,17 @@ public class IdgsCliDriver extends CliDriver {
     }
   }
   
-  private IdgsCliDriver() throws Exception {
+  public IdgsCliDriver() throws Exception {
     SessionState ss = SessionState.get();
     conf = (ss != null) ? ss.getConf() : new Configuration();
   }
   
   public static void main(String[] args) throws Exception {
-    int ret = run(args);
+    int ret = new IdgsCliDriver().run(args);
     System.exit(ret);
   }
   
-  public static int run(String[] args) throws Exception {
+  public int run(String[] args) throws Exception {
     OptionsProcessor optionsProcessor = new OptionsProcessor();
     if (!optionsProcessor.process_stage1(args)) {
       return 1;
@@ -110,6 +108,7 @@ public class IdgsCliDriver extends CliDriver {
     sessionState.in = System.in;
     try {
       sessionState.out = new PrintStream(System.out, true, "UTF-8");
+      sessionState.info = new PrintStream(System.err, true, "UTF-8");
       sessionState.err = new PrintStream(System.err, true, "UTF-8");
     } catch (UnsupportedEncodingException e) {
       return 3;
@@ -139,36 +138,9 @@ public class IdgsCliDriver extends CliDriver {
 
     SessionState.start(sessionState);
 
-    // connect to Hive Server
-    if (sessionState.getHost() != null) {
-      sessionState.connect();
-      if (sessionState.isRemoteMode()) {
-        prompt = "[" + sessionState.getHost() + ':' + sessionState.getPort() + "] " + prompt;
-        char[] spaces = new char[prompt.length()];
-        Arrays.fill(spaces, ' ');
-        prompt2 = new String(spaces);
-      }
-    }
-
-    // CLI remote mode is a thin client: only load auxJars in local mode
-    if (!sessionState.isRemoteMode() && !ShimLoader.getHadoopShims().usesJobShell()) {
-      // hadoop-20 and above - we need to augment classpath using hiveconf
-      // components
-      // see also: code in ExecDriver.java
-      ClassLoader hiveConfLoader = hiveConf.getClassLoader();
-      String hiveAuxJars = HiveConf.getVar(hiveConf, HiveConf.ConfVars.HIVEAUXJARS);
-      if (StringUtils.isNotBlank(hiveAuxJars)) {
-        hiveConfLoader = Utilities.addToClassPath(hiveConfLoader, StringUtils.split(hiveAuxJars, ","));
-      }
-      hiveConf.setClassLoader(hiveConfLoader);
-      Thread.currentThread().setContextClassLoader(hiveConfLoader);
-    }
-
     // ###### diff from hive use IdgsCliDriver.
     IdgsCliDriver cliDriver = new IdgsCliDriver();
     
-    HiveConf.setBoolVar(hiveConf, ConfVars.HIVEMAPSIDEAGGREGATE, false);
-
     // ###### init client connection
     cliDriver.initConnection(hiveConf);
 
@@ -263,7 +235,6 @@ public class IdgsCliDriver extends CliDriver {
     IdgsCliDriver cliDriver = new IdgsCliDriver();
     
     HiveConf hiveConf = (HiveConf) sessionState.getConf();
-    HiveConf.setBoolVar(hiveConf, ConfVars.HIVEMAPSIDEAGGREGATE, false);
     
     // ###### init client connection
     cliDriver.initConnection(hiveConf);
@@ -290,13 +261,14 @@ public class IdgsCliDriver extends CliDriver {
     if (cmd_trimmed.toLowerCase().equals("quit")
         || cmd_trimmed.toLowerCase().equals("exit")
         || tokens[0].equalsIgnoreCase("source") || cmd_trimmed.startsWith("!")
-        || tokens[0].toLowerCase().equals("list") || ss.isRemoteMode()) {
+        || tokens[0].toLowerCase().equals("list")) {
       super.processCmd(cmd);
     } else {
       HiveConf hconf = (HiveConf) conf;
-      CommandProcessor proc = CommandProcessorFactory.get(tokens[0], hconf);
 
       try {
+        CommandProcessor proc = CommandProcessorFactory.get(tokens, hconf);
+        
         if (proc != null) {
 
           // Spark expects the ClassLoader to be an URLClassLoader.
@@ -335,7 +307,7 @@ public class IdgsCliDriver extends CliDriver {
             }
             
             boolean isPrint = IdgsConfVars.getBoolVar(conf, IdgsConfVars.PRINT_RESULT);
-            ArrayList<String> res = new ArrayList<String>();
+            List<Object[]> res = new ArrayList<Object[]>();
             
             if (isPrint) {
               if (HiveConf.getBoolVar(conf, HiveConf.ConfVars.HIVE_CLI_PRINT_HEADER)) {
@@ -352,15 +324,32 @@ public class IdgsCliDriver extends CliDriver {
               
             long printTime = 0;
             int counter = 0;
+            
+            SimpleDateFormat timestampFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 
             try {
               long s = System.currentTimeMillis();
-              String seperator = IdgsConfVars.getVar(conf, IdgsConfVars.COLUMN_SEPERATOR);
               while (qp.getResults(res)) {
-                for (String r : res) {
+                for (Object[] row : res) {
                   if (isPrint) {
-                    String row = r.replaceAll(seperator, "\t");
-                    out.println(row);
+                    for (Object v : row) {
+                      if (v != null) {
+                        if (v instanceof byte[]) {
+                          out.print(new String((byte[]) v));
+                        } else if (v instanceof Timestamp) {
+                          out.print(timestampFormat.format((Timestamp) v));
+                        } else if (v instanceof Date) {
+                          out.print(dateFormat.format((Date) v));
+                        } else {
+                          out.print(v);
+                        }
+                      } else {
+                        out.print(v);
+                      }
+                      out.print("\t");
+                    }
+                    out.println();
                   }
                 }
                 
@@ -416,7 +405,7 @@ public class IdgsCliDriver extends CliDriver {
     return ret;
   }
   
-  public ResultSet processSqlCmd(String cmd) throws CommandNeedRetryException {
+  public ResultSet processSqlCmd(String cmd) throws CommandNeedRetryException, SQLException {
     String cmd_trimmed = cmd.trim();
     String[] tokens = cmd_trimmed.split("\\s+");
     int ret = 0;
@@ -430,7 +419,7 @@ public class IdgsCliDriver extends CliDriver {
     } else {
       long start = System.currentTimeMillis();
       HiveConf hconf = (HiveConf) conf;
-      CommandProcessor proc = CommandProcessorFactory.get(tokens[0], hconf);
+      CommandProcessor proc = CommandProcessorFactory.get(tokens, hconf);
       if (proc == null || !(proc instanceof Driver)) {
         throw new CommandNeedRetryException(cmd + " is not a vaild sql");
       }
@@ -484,10 +473,21 @@ public class IdgsCliDriver extends CliDriver {
   private void initStoreMetadata(HiveConf conf) throws IdgsException {
     LOG.info("start loader store metastore");
     
-    String storeCfgFile = IdgsConfVars.getVar(conf, IdgsConfVars.STORE_CONFIG_FILE);
+    String storeLoaderClass = IdgsConfVars.getVar(conf, IdgsConfVars.STORE_LOADER_CLASS);
     
-    StoreLoader loader = new LocalStoreLoader(storeCfgFile);
-    StoreMetadata.getInstance().initMetadata(conf, loader.loadDataStoreConf());
+    try {
+      Class<?> _class = Class.forName(storeLoaderClass);
+      Object inst = _class.newInstance();
+      if (inst instanceof StoreLoader) {
+        StoreLoader loader = (StoreLoader) inst;
+        loader.init(conf);
+        StoreMetadata.getInstance().initMetadata(conf, loader.loadDataStoreConf());
+      } else {
+        throw new SQLException("class " + storeLoaderClass + " is not StoreLoader");
+      }
+    } catch (Exception e) {
+      throw new IdgsException(e);
+    }
   }
 
   @Override

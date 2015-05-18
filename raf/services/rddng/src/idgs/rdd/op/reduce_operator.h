@@ -31,7 +31,7 @@ public:
   }
 
   virtual bool parse(const pb::InRddInfo& inRddInfo, const pb::OutRddInfo& outRddInfo,
-        RddLocal* inRddLocal, RddLocal* outRddLocal) override;
+      std::shared_ptr<RddLocal>& inRddLocal, std::shared_ptr<RddLocal>& outRddLocal) override;
 
   virtual bool evaluate(idgs::expr::ExpressionContext* ctx) override;
 

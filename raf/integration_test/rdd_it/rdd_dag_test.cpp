@@ -27,13 +27,13 @@ namespace idgs {
 namespace rdd {
 namespace test {
 
-const std::string& LINEITEM_RDD = "LINE_ITEM_RDD";
-const std::string& ORDERS_RDD = "ORDERS_RDD";
-const std::string& REDUCE_LINEITEM_RDD = "REDUCE_LINEITEM_RDD";
-const std::string& GROUP_LINEITEM_RDD = "GROUP_LINEITEM_RDD";
-const std::string& REDUCE_BY_KEY_LINEITEM_RDD = "REDUCE_BY_KEY_LINEITEM_RDD";
-const std::string& JOIN_ORDERS_LINEITEM_RDD = "JOIN_ORDERS_LINEITEM_RDD";
-const std::string& UNION_ORDERS_RDD = "UNION_ORDERS_RDD";
+const char LINEITEM_RDD[] = "LINE_ITEM_RDD";
+const char ORDERS_RDD[] = "ORDERS_RDD";
+const char REDUCE_LINEITEM_RDD[] = "REDUCE_LINEITEM_RDD";
+const char GROUP_LINEITEM_RDD[] = "GROUP_LINEITEM_RDD";
+const char REDUCE_BY_KEY_LINEITEM_RDD[] = "REDUCE_BY_KEY_LINEITEM_RDD";
+const char JOIN_ORDERS_LINEITEM_RDD[] = "JOIN_ORDERS_LINEITEM_RDD";
+const char UNION_ORDERS_RDD[] = "UNION_ORDERS_RDD";
 
 RddClient client;
 MessageHelper helper;

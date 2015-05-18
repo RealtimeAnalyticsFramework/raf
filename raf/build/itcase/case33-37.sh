@@ -18,16 +18,16 @@ case33() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case33_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case33_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -46,15 +46,15 @@ case33() {
 
   rm -f tpch-*.txt
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case33.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 -o tpch-udptps.txt 1>it_case33.log 2>&1
 
   sleep 1
 
   echo "run top N action test"
-  dist/itest/it_top_n_action_test 1>ut_result.log 2>>it_case33.log
+  $BUILD_DIR/target/itest/it_top_n_action_test 1>ut_result.log 2>>it_case33.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case33.log.";
@@ -92,16 +92,16 @@ case34() {
   
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case34_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case34_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -119,15 +119,15 @@ case34() {
 
   rm -f tpch-*.txt
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 -o tpch-udptps.txt 1>it_case34.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 -o tpch-udptps.txt 1>it_case34.log 2>&1
 
   sleep 1
 
   echo "run If expression test"
-  dist/itest/it_if_expression_test 1>ut_result.log 2>>it_case34.log
+  $BUILD_DIR/target/itest/it_if_expression_test 1>ut_result.log 2>>it_case34.log
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC), refer to it_case19.log.";
@@ -154,17 +154,17 @@ case36() {
   if ! which mvn; then echo "skip"; return; fi
   
   echo "start server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case36_1.log 2>&1 &
   SRV_PID1=$!
   sleep 3   
   
   echo "start server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
-  export idgs_member_service_local_store=true
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
+  export idgs_local_store=true
   GLOG_v=1 dist/bin/idgs -c conf/cluster.conf  1>case36_2.log 2>&1 &
   SRV_PID2=$!
   sleep 3 
@@ -197,16 +197,16 @@ case37() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case37_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case37_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -220,10 +220,10 @@ case37() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>case37_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>case37_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";

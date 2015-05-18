@@ -10,7 +10,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include <queue>
 
-
 #include "idgs/rdd/rdd_local.h"
 
 #include "idgs/rdd/action/rdd_action.h"
@@ -28,7 +27,7 @@ public:
 
   const std::string& getRddName() const;
 
-  void setRddLocal(RddLocal* rddlocal);
+  void setRddLocal(const std::shared_ptr<RddLocal>& rddlocal);
 
   void onDestroy() override;
 
@@ -39,7 +38,7 @@ protected:
   std::queue<action::RddActionPtr> actionQueue;
   std::map<std::string, action::RddActionPtr> rddActions;
 
-  RddLocal* rddLocal = NULL;
+  std::shared_ptr<RddLocal> rddLocal;
   bool active = true;
 
   std::string rddName;

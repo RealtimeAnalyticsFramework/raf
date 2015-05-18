@@ -13,23 +13,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import junit.framework.TestCase;
-
-public class TpchQ6IT extends TestCase {
+public class TpchQ6IT extends BaseCase {
 
   public void testTpchQ6() {
-    String driver = "idgs.jdbc.IdgsJdbcDriver";
     StringBuffer sql = new StringBuffer();
     sql.append("  SELECT sum(l_extendedprice * l_discount) price\n")
-       .append("  FROM   lineitem\n")
+       .append("  FROM   tpch.lineitem\n")
        .append("  WHERE  l_shipdate >= '1994-01-01'\n")
        .append("         AND l_shipdate < '1995-01-01'\n")
        .append("         AND l_discount between 0.05 AND 0.07\n")
        .append("         AND l_quantity < 24\n");
     
+    System.out.println(sql.toString());
     Connection conn = null;
     try {
-      Class.forName(driver);
       conn = DriverManager.getConnection("");
       Statement stmt = conn.createStatement();
       ResultSet rs = stmt.executeQuery(sql.toString());
@@ -37,6 +34,7 @@ public class TpchQ6IT extends TestCase {
       rs.next();
       Double price = rs.getDouble("price");
       assertEquals(77949.918600, price, 0.00000001);
+      System.out.printf("| 10.4f |", price);
       
       rs.close();
       stmt.close();

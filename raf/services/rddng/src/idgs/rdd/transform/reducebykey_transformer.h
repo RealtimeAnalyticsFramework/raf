@@ -20,7 +20,8 @@ public:
   ~ReduceByKeyTransformer();
 
   virtual const std::string& getName() override {
-    return REDUCE_BY_KEY_TRANSFORMER;
+    static std::string name(REDUCE_BY_KEY_TRANSFORMER);
+    return name;
   }
 
   virtual pb::RddResultCode transform(TransformerContext* ctx, const BaseRddPartition* input, PairRddPartition* output) override;

@@ -35,7 +35,8 @@ public class TypeUtils {
     hiveToDataType.put("float", DataType.FLOAT);
     hiveToDataType.put("bigint", DataType.INT64);
     hiveToDataType.put("binary", DataType.STRING);
-    hiveToDataType.put("timestamp", DataType.UINT64);
+    hiveToDataType.put("timestamp", DataType.STRING);
+    hiveToDataType.put("date", DataType.STRING);
     hiveToDataType.put("decimal", DataType.DOUBLE);
     
     javaToHiveType = new HashMap<JavaType, String>();
@@ -72,10 +73,9 @@ public class TypeUtils {
   }
   
   public static DataType hiveToDataType(String hiveType) {
-    if (!hiveToDataType.containsKey(hiveType)) {
-      System.out.println(hiveType + " is not supported.");
-    }
-    return hiveToDataType.get(hiveType);
+    int pos = hiveType.indexOf("(");
+    String type = (pos == -1) ? hiveType : hiveType.substring(0, pos);
+    return hiveToDataType.get(type);
   }
   
   public static String javaTypeToHive(JavaType javaType) {

@@ -84,25 +84,6 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
     config.set_max_idle_thread(max_idle_thread);
   } /// end check io_thread_count
 
-  /// repartition batch
-  {
-    uint32_t repartition_batch = config.repartition_batch();
-    if ((temp = getenv(ENV_VAR_REPARTITION_BATCH))) {
-      try {
-        repartition_batch = atoi(temp);
-      } catch (std::exception& ex) {
-        LOG(ERROR)<< ex.what();
-        LOG(ERROR) << ENV_VAR_REPARTITION_BATCH << " should be an integer number";
-        return RC_CLUSTER_ERR_CFG;
-      }
-    }
-    if (repartition_batch <= 0) {
-      LOG(ERROR)<< "cluster config error, io_thread_count can not less than 0";
-      return RC_CLUSTER_ERR_CFG;
-    }
-    config.set_repartition_batch(repartition_batch);
-  } /// end check io_thread_count
-
   {
     /// mtu
     uint32_t mtu = config.mtu();
@@ -123,30 +104,41 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
   } /// end check mtu
 
   {
-    /// group name
-    if ((temp = getenv(ENV_VAR_GROUP_NAME))) {
-      config.set_group_name(temp);
-    }
-  } /// end check mtu
-
-  {
-    /// tcp batch
-    uint32_t tcp_batch = config.tcp_batch();
-    if ((temp = getenv(ENV_VAR_TCP_BATCH))) {
+    /// batch message
+    uint32_t tcp_batch = config.batch_message();
+    if ((temp = getenv(ENV_VAR_BATCH_MESSAGE))) {
       try {
         tcp_batch = atoi(temp);
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
-        LOG(ERROR) << ENV_VAR_TCP_BATCH << " should be an integer number";
+        LOG(ERROR) << ENV_VAR_BATCH_MESSAGE << " should be an integer number";
         return RC_CLUSTER_ERR_CFG;
       }
     }
     if (tcp_batch <= 0) {
-      LOG(ERROR)<< "cluster config error, " << ENV_VAR_TCP_BATCH << " can not less than 0";
+      LOG(ERROR)<< "cluster config error, " << ENV_VAR_BATCH_MESSAGE << " can not less than 0";
       return RC_CLUSTER_ERR_CFG;
     }
-    config.set_tcp_batch(tcp_batch);
+    config.set_batch_message(tcp_batch);
   } /// end check tcp_batch
+  {
+    /// batch buffer
+    uint32_t batch = config.mtu();
+    if ((temp = getenv(ENV_VAR_MTU))) {
+      try {
+        batch = atoi(temp);
+      } catch (std::exception& ex) {
+        LOG(ERROR)<< ex.what();
+        LOG(ERROR) << ENV_VAR_MTU << " should be an integer number";
+        return RC_CLUSTER_ERR_CFG;
+      }
+    }
+//    if (batch < 0) {
+//      LOG(ERROR)<< "cluster config error, mtu can not less than 0";
+//      return RC_CLUSTER_ERR_CFG;
+//    }
+    config.set_batch_buffer(batch);
+  }
 
   {
     if (config.reserved_member_size() <= 0) {
@@ -192,8 +184,8 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
 
   {
     std::string ip = config.member().public_address().host();
-    if (getenv(ENV_VAR_IP)) {
-      ip = getenv(ENV_VAR_IP);
+    if (getenv(ENV_VAR_PUBLIC_HOST)) {
+      ip = getenv(ENV_VAR_PUBLIC_HOST);
       ip = str::trim(ip);
     }
     if (str::trim(ip).length() <= 0 || str::trim(ip).compare("0.0.0.0")/* default */ == 0) {
@@ -202,12 +194,12 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
       ip = interface_addrs.at(0);
     }
     uint32_t port = config.member().public_address().port();
-    if (getenv(ENV_VAR_PORT)) {
+    if (getenv(ENV_VAR_PUBLIC_PORT)) {
       try {
-        port = atoi(getenv(ENV_VAR_PORT));
+        port = atoi(getenv(ENV_VAR_PUBLIC_PORT));
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
-        LOG(ERROR) << ENV_VAR_PORT << " should be an integer number";
+        LOG(ERROR) << ENV_VAR_PUBLIC_PORT << " should be an integer number";
         return RC_CLUSTER_ERR_CFG;
       }
     }
@@ -220,8 +212,8 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
       return RC_CLUSTER_ERR_CFG;
     }
     std::string innerIp = config.member().inner_address().host();
-    if (getenv(ENV_VAR_INNERIP)) {
-      innerIp = getenv(ENV_VAR_INNERIP);
+    if (getenv(ENV_VAR_INNER_HOST)) {
+      innerIp = getenv(ENV_VAR_INNER_HOST);
     }
     if (str::trim(innerIp).length() <= 0 || str::trim(innerIp).compare("0.0.0.0")/* default */ == 0) {
       std::vector<std::string> interface_addrs;
@@ -229,12 +221,12 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
       innerIp = interface_addrs.at(0);
     }
     uint32_t innerPort = config.member().inner_address().port();
-    if (getenv(ENV_VAR_INNERPORT)) {
+    if (getenv(ENV_VAR_INNER_PORT)) {
       try {
-        innerPort = atoi(getenv(ENV_VAR_INNERPORT));
+        innerPort = atoi(getenv(ENV_VAR_INNER_PORT));
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
-        LOG(ERROR) << ENV_VAR_INNERPORT << " should be an integer number";
+        LOG(ERROR) << ENV_VAR_INNER_PORT << " should be an integer number";
         return RC_CLUSTER_ERR_CFG;
       }
     }
@@ -256,12 +248,12 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
   } /// end check ip, port, innerIp, innerPort
   {
     uint32_t weight = config.member().weight();
-    if (getenv(ENV_VAR_LOAD_FACTOR)) {
+    if (getenv(ENV_VAR_WEIGHT)) {
       try {
-        weight = atoi(getenv(ENV_VAR_LOAD_FACTOR));
+        weight = atoi(getenv(ENV_VAR_WEIGHT));
       } catch (std::exception& ex) {
         LOG(ERROR)<< ex.what();
-        LOG(ERROR) << ENV_VAR_LOAD_FACTOR << " should be an integer number";
+        LOG(ERROR) << ENV_VAR_WEIGHT << " should be an integer number";
         return RC_CLUSTER_ERR_CFG;
       }
     }
@@ -273,37 +265,12 @@ static ResultCode checkConfig(idgs::pb::ClusterConfig& config) {
   } /// end check weight
   {
     bool local_store = config.member().service().local_store();
-    const char* str_local_store = getenv(ENV_VAR_IS_LOCAL_STORE);
+    const char* str_local_store = getenv(ENV_VAR_LOCAL_STORE);
     if (str_local_store && str::trim(str_local_store).length() > 0) {
       local_store = (strcmp(str_local_store, "true") == 0 || strcmp(str_local_store, "TRUE") == 0) ? true : false;
     }
     config.mutable_member()->mutable_service()->set_local_store(local_store);
   } /// end check local_store
-  {
-    bool dist_computing = config.member().service().dist_computing();
-    const char* str_dist_computing = getenv(ENV_VAR_IS_DIST_COMPUTING);
-    if (str_dist_computing && str::trim(str_dist_computing).length() > 0) {
-      dist_computing =
-          (strcmp(str_dist_computing, "true") == 0 || strcmp(str_dist_computing, "TRUE") == 0) ? true : false;
-    }
-    config.mutable_member()->mutable_service()->set_dist_computing(dist_computing);
-  } /// end check dist_computing
-  {
-    bool client_agent = config.member().service().client_agent();
-    const char* str_client_agent = getenv(ENV_VAR_IS_CLIENT_AGENT);
-    if (str_client_agent && str::trim(str_client_agent).length() > 0) {
-      client_agent = (strcmp(str_client_agent, "true") == 0 || strcmp(str_client_agent, "TRUE") == 0) ? true : false;
-    }
-    config.mutable_member()->mutable_service()->set_client_agent(client_agent);
-  } /// end check client_agent
-  {
-    bool admin_console = config.member().service().client_agent();
-    const char* str_admin_console = getenv(ENV_VAR_IS_ADMIN_CONSOLE);
-    if (str_admin_console && str::trim(str_admin_console).length() > 0) {
-      admin_console = (strcmp(str_admin_console, "true") == 0 || strcmp(str_admin_console, "TRUE") == 0) ? true : false;
-    }
-    config.mutable_member()->mutable_service()->set_admin_console(admin_console);
-  } /// end check admin_console
   {
     for (int i = 0; i < config.modules_size(); ++i) {
       std::string env_var_name = ENV_VAR_MODULE_PREFIX + config.modules(i).name();

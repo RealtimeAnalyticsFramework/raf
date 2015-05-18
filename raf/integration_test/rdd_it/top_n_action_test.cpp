@@ -72,7 +72,7 @@ TEST(top_n_action, asc) {
   EXPECT_EQ(actionResponse->result_code(), RRC_SUCCESS);
   TopNActionResult* result = dynamic_cast<TopNActionResult*>(actionResult.get());
 
-  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfigWrapper("LineItem");
+  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfig("LineItem");
 
   EXPECT_EQ(result->pair_size(), 10);
   LOG(INFO) << "======= l_extendedprice ======= ";
@@ -126,7 +126,7 @@ TEST(top_n_action, desc) {
   EXPECT_EQ(actionResponse->result_code(), RRC_SUCCESS);
   TopNActionResult* result = dynamic_cast<TopNActionResult*>(actionResult.get());
 
-  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfigWrapper("LineItem");
+  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfig("LineItem");
 
   EXPECT_EQ(result->pair_size(), 10);
   LOG(INFO) << "======= l_extendedprice ======= ";
@@ -185,7 +185,7 @@ TEST(top_n_action, expression) {
   EXPECT_EQ(actionResponse->result_code(), RRC_SUCCESS);
   TopNActionResult* result = dynamic_cast<TopNActionResult*>(actionResult.get());
 
-  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfigWrapper("LineItem");
+  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfig("LineItem");
 
   EXPECT_EQ(result->pair_size(), 10);
   LOG(INFO) << "======= l_extendedprice * l_discount =======";
@@ -241,7 +241,7 @@ TEST(top_n_action, limit) {
   EXPECT_EQ(actionResponse->result_code(), RRC_SUCCESS);
   TopNActionResult* result = dynamic_cast<TopNActionResult*>(actionResult.get());
 
-  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfigWrapper("LineItem");
+  auto& storeConfigWrapper = idgs::rdd::top_n_test::client.getStoreConfig("LineItem");
 
   EXPECT_EQ(result->pair_size(), 5);
 

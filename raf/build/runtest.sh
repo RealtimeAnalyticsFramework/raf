@@ -15,6 +15,10 @@ if [ "$BUILD_DIR" = "" ]; then
   BUILD_DIR=$WORKSPACE/idgs
   export BUILD_DIR
 fi
+if [ "$IDGS_HOME" = "" ]; then
+  IDGS_HOME=$WORKSPACE/idgs/dist
+  export IDGS_HOME
+fi
 echo "====== WORKSPACE: $WORKSPACE ======="
 
 # killall idgs 2>/dev/null
@@ -57,19 +61,22 @@ ensure_corosync
 
 cd $WORKSPACE/idgs
 
-rm ./dist/utest/cluster_cfg_parser_env_test  
 
 # register EXIT trap
 . build/archive_test_log.sh
 
 # run all unit cases.
-UT_CASES=`dir ./dist/utest`
+UT_DIR="$BUILD_DIR/target/utest"
+rm $UT_DIR/cluster_cfg_parser_env_test  
+
+
+UT_CASES=`ls $UT_DIR`
 for UT in $UT_CASES; do
   rm *.log 2>/dev/null
   IT_CASE_NAME=$UT
   export IT_CASE_NAME
 
-  run_test ./dist/utest/$UT
+  run_test $UT_DIR/$UT
 done
 rm *.log 2>/dev/null
 

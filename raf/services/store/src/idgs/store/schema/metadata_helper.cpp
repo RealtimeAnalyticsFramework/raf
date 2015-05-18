@@ -10,6 +10,10 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 #include "idgs/store/store_module.h"
 
+
+#include "idgs/store/data_store.h"
+
+
 using namespace google::protobuf;
 
 namespace idgs {
@@ -44,7 +48,7 @@ ResultCode MetadataHelper::loadStoreMetadata(const string& storeName, FileDescri
     return RC_STORE_NOT_FOUND;
   }
 
-  auto& storeConfigWrapper = store->getStoreConfigWrapper();
+  auto& storeConfigWrapper = store->getStoreConfig();
   auto key = storeConfigWrapper->newKey();
   auto code = messageToMetadata(key.get(), keyMetadata);
   if (code != RC_SUCCESS) {

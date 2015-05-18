@@ -21,16 +21,16 @@ case_tpchQ6() {
   export GLOG_v=0
 
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>caseQ6_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>caseQ6_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -44,10 +44,10 @@ case_tpchQ6() {
   build/tpch-gen.sh
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>caseQ6_load.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>caseQ6_load.log 2>&1
   RC=$?
   if [ $RC -ne 0 ] ; then
     echo "Abnormal exit (RC=$RC)";
@@ -57,7 +57,7 @@ case_tpchQ6() {
   sleep 1
 
   CURR_DIR=`pwd`
-  cd $WORKSPACE/idgs/front_end/sql_engine
+  cd $WORKSPACE/idgs/front_end/idgs-sql
   echo "run tpch Q6 test"
   mvn test -Dtest=integration/tpch/TpchQ6IT.java
   RC=$?

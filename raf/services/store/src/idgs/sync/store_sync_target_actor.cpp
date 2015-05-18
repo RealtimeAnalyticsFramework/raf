@@ -24,7 +24,7 @@ StoreSyncTargetActor::~StoreSyncTargetActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& StoreSyncTargetActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
       {SYNC_DATA,               static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncData)},
       {SYNC_COMPLETE,           static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSyncComplete)},
       {SOURCE_MEMBER_LEAVE,     static_cast<idgs::actor::ActorMessageHandler>(&StoreSyncTargetActor::handleSourceMemberLeave)}
@@ -84,13 +84,13 @@ void StoreSyncTargetActor::handleSyncData(const idgs::actor::ActorMessagePtr& ms
   auto mode = static_cast<protobuf::SerdesMode>(msg->getSerdesType());
 
   for (int32_t i = 0; i < data->data_size(); ++ i) {
-    idgs::actor::PbMessagePtr key = rstore->getStoreConfigWrapper()->newKey();
+    idgs::actor::PbMessagePtr key = rstore->getStoreConfig()->newKey();
     if (!protobuf::ProtoSerdesHelper::deserialize(mode, data->data(i).key(), key.get())) {
       LOG(ERROR) << "parse key of sync data error.";
       continue;
     }
 
-    idgs::actor::PbMessagePtr value = rstore->getStoreConfigWrapper()->newValue();
+    idgs::actor::PbMessagePtr value = rstore->getStoreConfig()->newValue();
     if (!protobuf::ProtoSerdesHelper::deserialize(mode, data->data(i).value(), value.get())) {
       LOG(ERROR) << "parse value of sync data error.";
       continue;
@@ -102,11 +102,11 @@ void StoreSyncTargetActor::handleSyncData(const idgs::actor::ActorMessagePtr& ms
     if (opName == OP_INTERNAL_INSERT || opName == OP_INTERNAL_UPDATE) {
       StoreKey<google::protobuf::Message> storeKey(key);
       StoreValue<google::protobuf::Message> storeValue(value);
-      code = rstore->setData(storeKey, storeValue);
+      code = rstore->put(storeKey, storeValue);
     } else if (opName == OP_INTERNAL_DELETE) {
       StoreKey<google::protobuf::Message> storeKey(key);
       StoreValue<google::protobuf::Message> storeValue(value);
-      code = rstore->removeData(storeKey, storeValue);
+      code = rstore->remove(storeKey, storeValue);
     } else {
       code = RC_NOT_SUPPORT;
     }
@@ -119,7 +119,7 @@ void StoreSyncTargetActor::handleSyncData(const idgs::actor::ActorMessagePtr& ms
     ++ dataSize;
   }
 
-  auto& configWrapper = rstore->getStoreConfigWrapper();
+  auto& configWrapper = rstore->getStoreConfig();
   auto& schemaName = configWrapper->getSchema();
   auto& storeName = configWrapper->getStoreConfig().name();
 
@@ -146,7 +146,7 @@ void StoreSyncTargetActor::handleSyncComplete(const idgs::actor::ActorMessagePtr
 }
 
 void StoreSyncTargetActor::handleSourceMemberLeave(const idgs::actor::ActorMessagePtr& msg) {
-  rstore->clearData();
+  rstore->removeAll();
   terminate();
 }
 

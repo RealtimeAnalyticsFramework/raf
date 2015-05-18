@@ -18,7 +18,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.Context;
 import org.apache.hadoop.hive.ql.DriverContext;
 import org.apache.hadoop.hive.ql.exec.Task;
 import org.apache.hadoop.hive.ql.plan.api.StageType;
@@ -109,9 +108,4 @@ public class IdgsLoadTask extends Task<IdgsLoad> {
     return StageType.MAPRED;
   }
 
-  @Override
-  protected void localizeMRTmpFilesImpl(Context ctx) {
-    super.localizeMRTmpFiles(ctx);
-  }
-  
 }

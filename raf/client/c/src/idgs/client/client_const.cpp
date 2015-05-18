@@ -10,7 +10,7 @@
 namespace idgs {
 namespace client {
 
-const std::string CLIENT_ACTOR_ID = "client_actor_id";
+const char CLIENT_ACTOR_ID[] = "client_actor_id";
 
 }
 }

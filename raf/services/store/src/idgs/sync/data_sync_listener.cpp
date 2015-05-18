@@ -14,9 +14,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 
 
 #include "idgs/cluster/balancer/balancer_util.h"
-
-
 #include "idgs/store/store_module.h"
+
+#include "idgs/sync/migration_target_actor.h"
+#include "idgs/sync/migration_source_actor.h"
+#include "idgs/sync/sync_target_actor.h"
+#include "idgs/sync/data_sync_listener.h"
 
 namespace idgs {
 namespace store {

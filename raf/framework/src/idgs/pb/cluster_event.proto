@@ -5,10 +5,9 @@ option java_outer_classname = "PbClusterEvent";
 
 //======================================================================================
 //
-//  Event Definition for cluster
+//  Partition Definition
 //
 //======================================================================================
-
 enum PartitionState {
   PS_INIT        = 0;      // initialize state
   PS_MIGRATING   = 1;      // target member, transfor data to other member, and remove raw data
@@ -32,7 +31,14 @@ message PartitionTable{
   repeated Partition partition = 1;
 }
 
-message CpgAddress {
+//======================================================================================
+//
+//  Event Definition for cluster
+//
+//======================================================================================
+
+
+message MemberAddress {
   required uint32 nodeid = 1;
   required uint32 pid    = 2;
   required uint32 reason = 3;
@@ -40,10 +46,10 @@ message CpgAddress {
 
 // CPG config change event.
 // CPG ==> all member.
-message CpgConfigChangeEvent {
-  repeated CpgAddress member_list = 1;
-  repeated CpgAddress left_list   = 2;
-  repeated CpgAddress joined_list = 3;
+message ClusterChangeEvent {
+  repeated MemberAddress member_list = 1;
+  repeated MemberAddress left_list   = 2;
+  repeated MemberAddress joined_list = 3;
 }
 
 // member status event
@@ -51,6 +57,13 @@ message MemberStatusEvent {
   required uint32 member_id    = 1;
   required MemberState state   = 2;
 }
+
+// member status event
+message MemberFlagsEvent {
+  required uint32 member_id    = 1;
+  required uint64 flags        = 2;
+}
+
 
 // leader ==> members
 message DeltaMemberEvent{

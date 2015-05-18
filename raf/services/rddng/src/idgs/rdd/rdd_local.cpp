@@ -8,7 +8,12 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 #include "rdd_local.h"
 
 #include "idgs/application.h"
+
 #include "idgs/rdd/base_rdd_actor.h"
+#include "idgs/rdd/pair_rdd_partition.h"
+#include "idgs/rdd/transform/transformer.h"
+
+#include "idgs/store/listener/store_listener.h"
 
 using namespace idgs::pb;
 using namespace idgs::actor;
@@ -35,36 +40,6 @@ RddLocal::RddLocal() : state(pb::INIT), persistType(NONE), transformer(NULL), rd
 }
 
 RddLocal::~RddLocal() {
-  onDestroy();
-
-  partitionActors.clear();
-  partitionStates.clear();
-
-  localPartitionMap.clear();
-
-  upstreamRddLocal.clear();
-  downstreamRddLocal.clear();
-
-  if (rddOperator) {
-    if (!rddOperator->paramOperators.empty()) {
-      auto itOp = rddOperator->paramOperators.begin();
-      for (; itOp != rddOperator->paramOperators.end(); ++ itOp) {
-        if ((* itOp)) {
-          delete (* itOp);
-          * itOp = NULL;
-        }
-      }
-      rddOperator->paramOperators.clear();
-    }
-
-    delete rddOperator;
-    rddOperator = NULL;
-  }
-
-  if (rddStoreListener) {
-    delete rddStoreListener;
-    rddStoreListener = NULL;
-  }
 }
 
 void RddLocal::setRddInfo(const string& rddname, const int32_t& memberId, const string& actorId, const RddState& rddState) {
@@ -301,20 +276,44 @@ idgs::store::StoreListener* RddLocal::getRddStoreListener() {
   return rddStoreListener;
 }
 
-void RddLocal::addUpstreamRddLocal(RddLocal* rddLocal) {
+void RddLocal::addUpstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal) {
   upstreamRddLocal.push_back(rddLocal);
 }
 
-const std::vector<RddLocal*>& RddLocal::getUpstreamRddLocal() const {
+const std::vector<std::shared_ptr<RddLocal>>& RddLocal::getUpstreamRddLocal() const {
   return upstreamRddLocal;
 }
 
-void RddLocal::addDownstreamRddLocal(RddLocal* rddLocal) {
+void RddLocal::addDownstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal) {
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
   downstreamRddLocal.push_back(rddLocal);
 }
 
-const std::vector<RddLocal*>& RddLocal::getDownstreamRddLocal() const {
+const std::vector<std::shared_ptr<RddLocal>>& RddLocal::getDownstreamRddLocal() const {
   return downstreamRddLocal;
+}
+
+void RddLocal::removeDownstreamRddLocal(const std::shared_ptr<RddLocal>& rddLocal) {
+  auto& v = downstreamRddLocal;
+  tbb::spin_rw_mutex::scoped_lock lock(mutex, true);
+
+  for (auto it = v.begin(); it != v.end(); ++it) {
+    if ((* it) == rddLocal) {
+      v.erase(it);
+      break;
+    }
+  }
+
+  if (v.empty()) {
+    auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
+    if (rddId.member_id() == localMemberId) {
+      BaseRddActor* actor = dynamic_cast<BaseRddActor*>(idgs_application()->getActorframework()->getActor(rddId.actor_id()));
+      if (actor) {
+        actor->onDownstreamRemoved();
+      }
+    }
+  }
+
 }
 
 void RddLocal::onDestroy() {
@@ -322,28 +321,40 @@ void RddLocal::onDestroy() {
   for (auto& p: localPartitionMap) {
     p.second->terminate();
   }
+
+  // remove refcount in upstream rdd
+  for (auto up : upstreamRddLocal) {
+    up->removeDownstreamRddLocal(shared_from_this());
+  }
+
+  partitionActors.clear();
+  partitionStates.clear();
+
   localPartitionMap.clear();
   localPartitions.clear();
 
-  // remove refcount in upstream rdd
-  auto localMemberId = idgs_application()->getMemberManager()->getLocalMemberId();
-  for (auto up : upstreamRddLocal) {
-    auto& v = up->downstreamRddLocal;
+  upstreamRddLocal.clear();
+  downstreamRddLocal.clear();
 
-    for (auto it = v.begin(); it != v.end(); ++it) {
-      if ((*it) == this) {
-        v.erase(it);
-        break;
-      }
-    }
-    if (v.empty()) {
-      if (up->rddId.member_id() == localMemberId) {
-        BaseRddActor* actor = dynamic_cast<BaseRddActor*>(idgs_application()->getActorframework()->getActor(up->rddId.actor_id()));
-        if (actor) {
-          actor->onDownstreamRemoved();
+  if (rddOperator) {
+    if (!rddOperator->paramOperators.empty()) {
+      auto itOp = rddOperator->paramOperators.begin();
+      for (; itOp != rddOperator->paramOperators.end(); ++ itOp) {
+        if ((* itOp)) {
+          delete (* itOp);
+          * itOp = NULL;
         }
       }
+      rddOperator->paramOperators.clear();
     }
+
+    delete rddOperator;
+    rddOperator = NULL;
+  }
+
+  if (rddStoreListener) {
+    delete rddStoreListener;
+    rddStoreListener = NULL;
   }
 }
 

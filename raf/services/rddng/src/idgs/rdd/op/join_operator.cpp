@@ -7,7 +7,6 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 #include "join_operator.h"
 
-
 namespace idgs {
 namespace rdd {
 namespace op {
@@ -19,7 +18,7 @@ JoinOperator::~JoinOperator() {
 }
 
 bool JoinOperator::parse(const pb::InRddInfo& inRddInfo, const pb::OutRddInfo& outRddInfo,
-    RddLocal* inRddLocal, RddLocal* outRddLocal) {
+    std::shared_ptr<RddLocal>& inRddLocal, std::shared_ptr<RddLocal>& outRddLocal) {
   auto& msg = outRddLocal->getTransformerMsg();
   pb::CreateRddRequest* request = dynamic_cast<pb::CreateRddRequest*>(msg->getPayload().get());
   if (request->in_rdd_size() <= 1) {

@@ -13,28 +13,15 @@ enum MemberState {
 }
 
 message MemberService {
-  //role: leading, populated by the platform, should not be configured.
-  optional bool leading        = 1 [ default = false ];
-  
   //role: for local store
-  optional bool local_store    = 2 [ default = true ];
-  
-  //role: support distribute computing
-  optional bool dist_computing = 3 [ default = true ];
-  
-  //role: client agent
-  optional bool client_agent   = 4 [ default = true ];
-  
-  //role: admin console
-  optional bool admin_console  = 5 [ default = true ];
+  optional bool local_store    = 1 [ default = true ];
 }
 
 message EndPoint {
   enum AddressFamily {
     PAF_INET  = 1; // IP v4
     PAF_INET6 = 2; // IP v6
-    PAF_UNIX  = 3; // unix domain socket
-    PAF_IB    = 4; // infiniband
+    PAF_RDMA  = 3; // @todo infiniband, RDMA
   }
 
   optional AddressFamily af = 1 [default = PAF_INET];
@@ -42,23 +29,41 @@ message EndPoint {
   required uint32 port      = 3 [default = 4682]; // INTC
 }
 
+enum MemberFlag {
+  MF_LEADING                = 1;   // leading
+  MF_REPLICATED_STORE_OK    = 2;   // replicated stores are ready
+  MF_PARTITIONED_STORE_OK   = 4;   // partitioned stores are ready
+}
+
+
 // Member Information
 message Member {
+  // -----------------------------------------------------------------------------
+  // following attributes are from config file or environment variables.
+  // -----------------------------------------------------------------------------
+  optional EndPoint public_address = 1;
+  optional EndPoint inner_address  = 2;
+  
+  required MemberService service   = 3;
+  optional float weight            = 4 [ default = 100 ];
+  
+  // -----------------------------------------------------------------------------
+  // following attributes are provisioned when starting up, then never be changed.
+  // -----------------------------------------------------------------------------
+    
   // identifier when member joins, leading will find a position to put the joined member
-  optional int32 id                = 1 [ default = -1 ]; 
-  optional uint32 node_id          = 2 [ default = 0 ];
-  optional uint32 pid              = 3 [ default = 0 ];
-  
-  optional EndPoint public_address = 4;
-  optional EndPoint inner_address  = 5;
-  
-  required MemberService service   = 6;
-  
+  optional int32 id                = 5 [ default = -1 ]; 
+  optional uint32 node_id          = 6 [ default = 0 ];
+  optional uint32 pid              = 7 [ default = 0 ];
+
+  // -----------------------------------------------------------------------------
+  // following attributes will be provisioned and changed in run time.
+  // -----------------------------------------------------------------------------
+
   // when member leaves, member will be marked as INACTIVE
-  optional MemberState state       = 7;// [default = MS_INACTIVE];
-  
-  optional float weight            = 8 [ default = 100 ];
-  optional uint32 zone             = 9 [ default = 0];
+  optional MemberState state       = 8; // [default = MS_INACTIVE];
+  // @see MemberFlag
+  optional uint64 flags            = 9; // [default = 0];           
 }
 
 message ModuleConfig {
@@ -92,17 +97,17 @@ message ClusterConfig {
   optional uint32 thread_count          = 1 [default = 3];         // worker thread pool size
   optional uint32 io_thread_count       = 2 [default = 3];         // io thread pool size
   optional uint32 max_idle_thread       = 3 [default = 1];         // max idle thread to save energy
-  optional uint32 repartition_batch     = 4 [default = 200 ];      // batch put messages when repartition 
 
-  optional uint32 socket_buffer_size    = 5 [default = 2097152 ];  // 1024 * 1024 * 2
-  optional uint32 mtu                   = 6 [default = 0];         // ethernet UDP MTU = 1500 - 20(IP) - 8(UDP)
-  optional uint32 tcp_batch             = 7 [default = 200];       // batch send/recv messages
+  optional uint32 socket_buffer_size    = 4 [default = 2097152 ];  // 1024 * 1024 * 2
+  optional uint32 mtu                   = 5 [default = 0];         // ethernet UDP MTU = 1500 - 20(IP) - 8(UDP)
+  optional uint32 batch_message         = 6 [default = 200];       // batch send/recv messages
+  optional uint32 batch_buffer          = 7 [default = 40960];     // batch send/recv buffer
   optional bool port_auto_adjust        = 8 [default = true];      // auto adjust inter/outer port if not available.
   
   // max reserved member size
   optional uint32 reserved_member_size  = 9 [default = 100];
   // group name
-  optional string group_name            = 10 [ default = "idgs" ];
+  optional string group_name            = 10 [default = "idgs" ];
   
   // partition count, should be a primary number.
   required uint32 partition_count       = 11 [default = 1021];

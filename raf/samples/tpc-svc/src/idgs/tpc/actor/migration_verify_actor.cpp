@@ -9,6 +9,9 @@
 #include "migration_verify_actor.h"
 
 #include "idgs/store/store_module.h"
+#include "idgs/store/listener/listener_manager.h"
+
+#include "idgs/sync/store_migration_source_actor.h"
 
 namespace idgs {
 namespace tpc {
@@ -25,10 +28,19 @@ MigrationVerifyActor::~MigrationVerifyActor() {
 }
 
 const idgs::actor::ActorMessageHandlerMap& MigrationVerifyActor::getMessageHandlerMap() const {
-  static std::map<std::string, idgs::actor::ActorMessageHandler> handlerMap = {
-      {"VERIFY_REQUEST",           static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleVerifyRequest)},
-      {"LOCAL_VERIFY_REQUEST",     static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleLocalVerifyRequest)},
-      {"VERIFY_RESPONSE",          static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleVerifyResponse)}
+  static idgs::actor::ActorMessageHandlerMap handlerMap = {
+      {"VERIFY_REQUEST",   {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleVerifyRequest),
+          &idgs::tpc::pb::MigrationVerifyRequest::default_instance()
+      }},
+      {"LOCAL_VERIFY_REQUEST",  {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleLocalVerifyRequest),
+          &idgs::tpc::pb::MigrationVerifyRequest::default_instance()
+      }},
+      {"VERIFY_RESPONSE",  {
+          static_cast<idgs::actor::ActorMessageHandler>(&MigrationVerifyActor::handleVerifyResponse),
+          &idgs::tpc::pb::MigrationVerifyResponse::default_instance()
+      }}
   };
 
   return handlerMap;
@@ -103,7 +115,7 @@ void MigrationVerifyActor::handleVerifyRequest(const idgs::actor::ActorMessagePt
       return;
     }
 
-    if (store->getStoreConfigWrapper()->getStoreConfig().partition_type() != idgs::store::pb::PARTITION_TABLE) {
+    if (store->getStoreConfig()->getStoreConfig().partition_type() != idgs::store::pb::PARTITION_TABLE) {
       LOG(ERROR) << "store " << request->schema_name() << "." << request->store_name() << " is not a partition store.";
       auto payload = std::make_shared<pb::MigrationVerifyResponse>();
       payload->set_result_code(static_cast<int32_t>(RC_STORE_NOT_FOUND));
@@ -161,12 +173,12 @@ void MigrationVerifyActor::handleLocalVerifyRequest(const idgs::actor::ActorMess
 
   for (int32_t i = 0; i < stores.size(); ++ i) {
     auto& store = stores.at(i);
-    auto& storeConfigWrapper = store->getStoreConfigWrapper();
+    auto& storeConfigWrapper = store->getStoreConfig();
     if (storeConfigWrapper->getStoreConfig().partition_type() == idgs::store::pb::PARTITION_TABLE) {
-      auto pstore = dynamic_cast<idgs::store::PartitionStore*>(store.get());
+      auto pstore = dynamic_cast<idgs::store::PartitionedStore*>(store.get());
 
-      auto& schemaName = store->getStoreConfigWrapper()->getSchema();
-      auto& storeName = store->getStoreConfigWrapper()->getStoreConfig().name();
+      auto& schemaName = store->getStoreConfig()->getSchema();
+      auto& storeName = store->getStoreConfig()->getStoreConfig().name();
       auto storeData = memberData->add_store_data();
       storeData->set_schema_name(schemaName);
       storeData->set_store_name(storeName);
@@ -186,7 +198,7 @@ void MigrationVerifyActor::handleLocalVerifyRequest(const idgs::actor::ActorMess
             pstore->snapshotStore(p, map);
             auto it = map->iterator();
             while (it->hasNext()) {
-              idgs::store::PartitionInfo ps;
+              idgs::store::StoreOption ps;
               storeConfigWrapper->calculatePartitionInfo(it->key(), &ps);
               ps.memberId = partitionMgr->getPartition(ps.partitionId)->getMemberId(pos);
 

@@ -17,38 +17,38 @@ case20() {
   find . -name "core" -exec rm -f {} \; 2>/dev/null
 
   echo "start 1 server"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case20_server1.log 2>&1 &
   SRV_PID1=$!
   sleep 3
 
   echo "start 2 server"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case20_server2.log 2>&1 &
   SRV_PID2=$!
   sleep 3
 
   echo "insert data with partition store to server."
-  run_test dist/itest/it_partition_store_insert_test 
+  run_test $BUILD_DIR/target/itest/it_partition_store_insert_test 
   mv ut.log case20_step1.log
 
   echo "insert data with replicated store to server."
-  run_test dist/itest/it_replicated_store_test_insert 
+  run_test $BUILD_DIR/target/itest/it_replicated_store_test_insert 
   mv ut.log case20_step2.log
   
   sleep 1
 
   echo "truncate data."
-  run_test dist/itest/it_truncate_store_test
+  run_test $BUILD_DIR/target/itest/it_truncate_store_test
   mv ut.log case20_step3.log
   
   sleep 1
 
   echo "verify whether data is clear."
-  run_test dist/itest/it_store_data_not_found_test 
+  run_test $BUILD_DIR/target/itest/it_store_data_not_found_test 
   mv ut.log case20_step4.log
 
   echo "kill servers."
@@ -68,9 +68,9 @@ case21() {
   echo "########################"
   cd $WORKSPACE/idgs/
   echo "start test asynch tcp client timeout"
-  export idgs_member_port=7702
-  export idgs_member_innerPort=8700
-  run_test dist/itest/it_asynch_client_timeout_test 
+  export idgs_public_port=7702
+  export idgs_inner_port=8700
+  run_test $BUILD_DIR/target/itest/it_asynch_client_timeout_test 
   
   check_core_dump dist/bin/idgs
   #echo "########################"
@@ -83,9 +83,9 @@ case22() {
   cd $WORKSPACE/idgs/
   echo "start test asynch tcp client with 3 threads"
   export GLOG_v=0
-  export idgs_member_port=7701
-  export idgs_member_innerPort=8700
-  run_test dist/itest/it_asynch_client_multi_threads_test 
+  export idgs_public_port=7701
+  export idgs_inner_port=8700
+  run_test $BUILD_DIR/target/itest/it_asynch_client_multi_threads_test 
   
   check_core_dump dist/bin/idgs
   #echo "########################"
@@ -102,16 +102,16 @@ case23() {
   export GLOG_v=0
   
   echo "starting server 1"
-  export idgs_member_port=7700
-  export idgs_member_innerPort=7701
-  export idgs_member_service_local_store=true
+  export idgs_public_port=7700
+  export idgs_inner_port=7701
+  export idgs_local_store=true
   dist/bin/idgs -c conf/cluster.conf  1>case23_1.log 2>&1 &
   SRV_PID1=$!
   sleep 2
 
   echo "starting server 2"
-  export idgs_member_port=8800
-  export idgs_member_innerPort=8801
+  export idgs_public_port=8800
+  export idgs_inner_port=8801
   dist/bin/idgs -c conf/cluster.conf  1>case23_2.log 2>&1 &
   SRV_PID2=$!
   sleep 2
@@ -126,15 +126,15 @@ case23() {
   
 
   echo "load tpch data"
-  export idgs_member_port=9900
-  export idgs_member_innerPort=9901
-  export idgs_member_service_local_store=false
-  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 10 1>it_case23.log 2>&1
+  export idgs_public_port=9900
+  export idgs_inner_port=9901
+  export idgs_local_store=false
+  dist/bin/idgs-load -s 1 -p $TPCH_HOME/dbgen -c conf/cluster.conf -m conf/tpch_file_mapper.conf -t 100 1>it_case23.log 2>&1
   
   sleep 1
 
   echo "run export action test"
-  dist/itest/it_export_action_test
+  $BUILD_DIR/target/itest/it_export_action_test
   
   echo ""
   echo "============ RESULT ============"

@@ -7,6 +7,9 @@ Unless otherwise agreed by Intel in writing, you may not remove or alter this no
 */
 package idgs;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 
@@ -25,10 +28,12 @@ class ConfVar {
   public Float defaultFloatVal;
 
   public Boolean defaultBoolVal;
+  
+  public Object defaultObject;
 
   public ConfVar(String varname, Class<?> valClass, String defaultVal,
       Integer defaultIntVal, Long defaultLongVal, Float defaultFloatVal,
-      Boolean defaultBoolVal) {
+      Boolean defaultBoolVal, Object defaultObject) {
     this.varname = varname;
     this.valClass = valClass;
     this.defaultVal = defaultVal;
@@ -36,31 +41,38 @@ class ConfVar {
     this.defaultLongVal = defaultLongVal;
     this.defaultFloatVal = defaultFloatVal;
     this.defaultBoolVal = defaultBoolVal;
+    this.defaultObject = defaultObject;
   }
 
   public ConfVar(String varname, String defaultVal) {
-    this(varname, String.class, defaultVal, 0, 0L, 0F, false);
+    this(varname, String.class, defaultVal, 0, 0L, 0F, false, null);
   }
 
   public ConfVar(String varname, Integer defaultVal) {
-    this(varname, Integer.class, null, defaultVal, 0L, 0F, false);
+    this(varname, Integer.class, null, defaultVal, 0L, 0F, false, null);
   }
 
   public ConfVar(String varname, Long defaultVal) {
-    this(varname, Long.class, null, 0, defaultVal, 0F, false);
+    this(varname, Long.class, null, 0, defaultVal, 0F, false, null);
   }
 
   public ConfVar(String varname, Float defaultVal) {
-    this(varname, Float.class, null, 0, 0L, defaultVal, false);
+    this(varname, Float.class, null, 0, 0L, defaultVal, false, null);
   }
 
   public ConfVar(String varname, Boolean defaultVal) {
-    this(varname, Boolean.class, null, 0, 0L, 0F, defaultVal);
+    this(varname, Boolean.class, null, 0, 0L, 0F, defaultVal, null);
+  }
+  
+  public ConfVar(String varname, Object defaultVal) {
+    this(varname, Object.class, null, 0, 0L, 0F, null, defaultVal);
   }
 
 }
 
 public class IdgsConfVars {
+  
+  private static Map<ConfVar, Object> confVar = new HashMap<ConfVar, Object>();
 
   public static ConfVar CLIPROMPT = new ConfVar("idgs.cli.prompt", "idgs");
   
@@ -69,6 +81,8 @@ public class IdgsConfVars {
   public static ConfVar IDGS_LOG4J = new ConfVar("idgs.log4j.file", "idgs-log4j.properties");
   
   public static ConfVar CLIENT_CONFIG_FILE = new ConfVar("idgs.client.config", "conf/client.conf");
+  
+  public static ConfVar CLIENT_PB_CONFIG = new ConfVar("idgs.client.pb.config", (Object) null);
   
   public static ConfVar STORE_CONFIG_FILE = new ConfVar("idgs.store.config", "conf/data_store.conf");
   
@@ -79,6 +93,8 @@ public class IdgsConfVars {
   public static ConfVar LOAD_THREAD_COUNT = new ConfVar("idgs.load.threadcount", new Integer(10));
   
   public static ConfVar EXEC_MODE = new ConfVar("idgs.exec.mode", "idgs");
+  
+  public static ConfVar STORE_LOADER_CLASS = new ConfVar("idgs.store.loader.class", "idgs.metadata.LocalStoreLoader");
 
   // This is created for testing. Hive's test script assumes a certain output
   // format. To pass the test scripts, we need to use Hive's EXPLAIN.
@@ -168,7 +184,22 @@ public class IdgsConfVars {
     require(variable.valClass == String.class);
     return conf.get(variable.varname, variable.defaultVal);
   }
-
+  
+  public static Object getObjectVar(Configuration conf, ConfVar variable) {
+    String className = conf.get(variable.varname);
+    if (className != null) {
+      require(variable.valClass.getName() == className);
+    } else {
+      return null;
+    }
+    
+    if (confVar.containsKey(variable)) {
+      return confVar.get(variable);
+    } else {
+      return variable.defaultObject;
+    }
+  }
+  
   public static void setVar(Configuration conf, ConfVar variable, String value) {
     require(variable.valClass == String.class);
     conf.set(variable.varname, value);
@@ -177,6 +208,11 @@ public class IdgsConfVars {
   public static void setBoolVar(Configuration conf, ConfVar variable, Boolean value) {
     require(variable.valClass == Boolean.class);
     conf.setBoolean(variable.varname, value);
+  }
+  
+  public static void setObjectVar(Configuration conf, ConfVar variable, Object value) {
+    conf.set(variable.varname, value.getClass().getName());
+    confVar.put(variable, value);
   }
 
   public static Integer getIntVar(Configuration conf, HiveConf.ConfVars variable) {

@@ -19,27 +19,27 @@ echo "CPU cores: " $CPUS
 # TCMALLOC_MEMFS_MALLOC_PATH    default: ""      If set, specify a path where hugetlbfs or tmpfs is mounted. This may allow for speedier allocations.
 
 # public address
-if IS_NOT_SET $idgs_member_ip
-  then export idgs_member_ip=$HOST 
-  else echo idgs_member_ip=$idgs_member_ip  
+if IS_NOT_SET $idgs_public_host
+  then export idgs_public_host=$HOST 
+  else echo idgs_public_host=$idgs_public_host  
 fi
 
 # public port
-if IS_NOT_SET $idgs_member_port
-  then export idgs_member_port=7700
-  else echo idgs_member_port=$idgs_member_port
+if IS_NOT_SET $idgs_public_port
+  then export idgs_public_port=7700
+  else echo idgs_public_port=$idgs_public_port
 fi
 
 # inner address
-if IS_NOT_SET $idgs_member_innerIp
-  then export idgs_member_innerIp=$idgs_member_ip
-  else echo idgs_member_innerIp=$idgs_member_innerIp
+if IS_NOT_SET $idgs_inner_host
+  then export idgs_inner_host=$idgs_public_host
+  else echo idgs_inner_host=$idgs_inner_host
 fi
 
 # inner port
-if IS_NOT_SET $idgs_member_innerPort
-  then export idgs_member_innerPort=8800
-  else echo idgs_member_innerPort=$idgs_member_innerPort 
+if IS_NOT_SET $idgs_inner_port
+  then export idgs_inner_port=8800
+  else echo idgs_inner_port=$idgs_inner_port 
 fi
 
 # worker thread pool
@@ -79,9 +79,9 @@ if IS_NOT_SET $idgs_partition_count
 fi
 
 # whether local member store data.
-if IS_NOT_SET $idgs_member_service_local_store
-  then export idgs_member_service_local_store=true
-  else echo idgs_member_service_local_store=$idgs_member_service_local_store  
+if IS_NOT_SET $idgs_local_store
+  then export idgs_local_store=true
+  else echo idgs_local_store=$idgs_local_store  
 fi
 
 # GLOG related

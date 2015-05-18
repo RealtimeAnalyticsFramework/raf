@@ -20,7 +20,7 @@ void StoreListenerFactory::registerStoreListener(StoreListener* listener) {
   listeners.put(listener->getName(), listener);
 }
 
-idgs::ResultCode StoreListenerFactory::build(const std::string& listenerName, std::shared_ptr<idgs::store::StoreConfigWrapper> config, StoreListener** listener, const std::map<std::string, std::string>& props) {
+idgs::ResultCode StoreListenerFactory::build(const std::string& listenerName, std::shared_ptr<idgs::store::StoreConfig> config, StoreListener** listener, const std::map<std::string, std::string>& props) {
   if (* listener != NULL) {
     return RC_INVALID_STORE_LISTENER;
   }
@@ -41,5 +41,5 @@ void StoreListenerFactory::unregisterStoreListener(const std::string& listenerNa
   listeners.remove(listenerName);
 }
 
-} /* namespace store */
-} /* namespace idgs */
+} // namespace store
+} // namespace idgs

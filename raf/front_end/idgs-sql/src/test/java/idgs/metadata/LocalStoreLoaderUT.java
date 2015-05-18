@@ -14,16 +14,26 @@ import junit.framework.TestCase;
 public class LocalStoreLoaderUT extends TestCase {
 
   public void testLoadDataStoreConf() {
-    String cfgFilePath = this.getClass().getResource("/data_store.conf").getPath();
-    LocalStoreLoader loader = new LocalStoreLoader(cfgFilePath);
+    String cfgFilePath = null;
+    
+    String home = System.getenv("IDGS_HOME");
+    if (home == null) {
+      cfgFilePath = this.getClass().getResource("/data_store.conf").getPath();
+    } else {
+      cfgFilePath = home + "/conf/data_store.conf";
+    }
+    
+    LocalStoreLoader loader = new LocalStoreLoader();
+    loader.setCfgFilePath(cfgFilePath);
+    
     try {
       DataStoreConfig storeconf = loader.loadDataStoreConf();
-      assertEquals(1, storeconf.getSchemasCount());
+      assertEquals(2, storeconf.getSchemasCount());
 
       StoreSchema schema = storeconf.getSchemasList().get(0);
-      assertEquals("tpch_test", schema.getSchemaName());
+      assertEquals("tpch", schema.getSchemaName());
 
-      assertEquals(3, schema.getStoreConfigCount());
+      assertEquals(8, schema.getStoreConfigCount());
     } catch (Exception e) {
       e.printStackTrace();
       fail(e.getMessage());

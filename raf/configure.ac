@@ -162,10 +162,8 @@ AC_ARG_WITH(udt,
 
 
 # todo change to BUILD_DIR
-#itestdir=$BUILD_DIR/target/itest
-#utestdir=$BUILD_DIR/target/utest
-itestdir='${exec_prefix}/itest'
-utestdir='${exec_prefix}/utest'
+itestdir=$BUILD_DIR/target/itest
+utestdir=$BUILD_DIR/target/utest
 AC_SUBST(itestdir)
 AC_SUBST(utestdir)
 
@@ -174,10 +172,17 @@ if test "x$prefix" != xNONE; then
 else
   confdir=${ac_default_prefix}/conf
 fi
-echo $confdir
+# echo $confdir
+if test "x$prefix" != xNONE; then
+  docsdir=${prefix}/docs
+else
+  docsdir=${ac_default_prefix}/docs
+fi
+# echo $docsdir
 webrootdir='${prefix}/webroot'
 javalibdir='${prefix}/javalib'
 AC_SUBST(confdir)
+AC_SUBST(docsdir)
 AC_SUBST(javalibdir)
 AC_SUBST(webrootdir)
 AC_SUBST(IDGS_CXXFLAGS)
