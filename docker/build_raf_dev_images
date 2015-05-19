@@ -1,0 +1,4 @@
+cd docker_dev
+docker build -t raf_dev .
+cd ..
+

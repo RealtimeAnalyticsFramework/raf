@@ -1,4 +1,0 @@
-cd docker_it
-docker build -t raf_it .
-cd ..
-

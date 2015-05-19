@@ -1,0 +1,5 @@
+sed -i "s/proxy:912/hd-cloud.intel.com:911/g" ./docker_base/Dockerfile
+sed -i "s/proxy.com/hd-cloud.intel.com/g" ./docker_compile/settings.xml
+sed -i "s/proxy:911/hd-cloud.intel.com:911/g" ./docker_compile/Dockerfile
+sed -i "s/proxy:911/hd-cloud.intel.com:911/g" ./docker_it/Dockerfile
+

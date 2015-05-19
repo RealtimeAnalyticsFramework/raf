@@ -41,6 +41,9 @@ has been built, you can use `docker images` command to see the `raf_compiled` im
    change the proxy name in the settings.xml file or you must remove the proxy if you don't use proxy server. Also
    `docker_compile/Dockerfile` contains proxy setting, you must do the same action for this file.
 
-
+##Run RAF standalone instance
+After the raf_compiled image is created, you can start the images `docker run -i -t raf_compiled /bin/bash`. After the image
+is tarted, you must run `corosync` cmd to start the corosync service, and then you can start one RAF instance by cmd: 
+`dist/bin/start-idgs.sh` in the directory /home/project/idgs. 
 
 

@@ -8,6 +8,17 @@ WORKDIR /home/project
 
 ENV HTTP_PROXY hd-cloud.intel.com:911
 ENV HTTPS_PROXY hd-cloud.intel.com:911
+
+
+RUN curl --proxy hd-cloud.intel.com:911 -L -o 'yajl-2.1.0.tar.gz' http://github.com/lloyd/yajl/tarball/2.1.0
+ #install lloyd-yajl-2.1.0-0-ga0ecdde.tar.gz
+ WORKDIR /home/project/
+ RUN tar -xvf yajl-2.1.0.tar.gz
+ WORKDIR /home/project/lloyd-yajl-66cb08c/
+ RUN ./configure && make && make install
+ WORKDIR /home/project/
+ RUN rm -rf lloyd-yajl-66cb08c
+
 RUN git clone https://github.com/RealtimeAnalyticsFramework/raf.git
 RUN mkdir idgs
 RUN cp -rf raf/raf/* idgs/
