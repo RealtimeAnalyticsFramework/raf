@@ -57,8 +57,7 @@ After running a RAF standalone instance, you can access the shell of the running
  * idgs-sql: this shell gives you the right to query data by Hive like SQL. 
     * start idgs-sql: `dist/bin/idgs-sql-cli.sh`
     * you can query the store LineItem by:
-    `store.service get {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"1"};`
-   
+    `select * from tpch.LineItem;` 
 
 
 
