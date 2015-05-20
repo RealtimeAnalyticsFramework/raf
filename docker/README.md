@@ -25,9 +25,6 @@ To build the RAF base images, please run `./build_raf_base_images`
   * You must remove the proxy in the `docker_base/Dockerfile` if you don't use the proxy server or you must change the
    proxy server name in the docker_base/Dockerfile if you use another proxy.
 
-
-
-
 After the base images is built, you can use `docker images` command to see the `raf_base` image. Now you can run a container
 from `raf_base` images. In this container you can use any source version controll software to download the RAF code or you can
 use next step to download and build RAF
@@ -45,5 +42,32 @@ has been built, you can use `docker images` command to see the `raf_compiled` im
 After the raf_compiled image is created, you can start the images `docker run -i -t raf_compiled /bin/bash`. After the image
 is tarted, you must run `corosync` cmd to start the corosync service, and then you can start one RAF instance by cmd: 
 `dist/bin/start-idgs.sh` in the directory /home/project/idgs. 
+
+##Running Exmaple
+After running a RAF standalone instance, you can access the shell of the running docker container by `docker exec -i -t 665b4a1e17b6 bash
+` cmd, the 665b4a1e17b6  is an example container id, you must change it to your running container in which the RAF instance is running
+
+ * idgs-cli: you do CRUD operation on a specific store by this command shell
+   * start idgs-cli: `dist/bin/idgs-cli`
+   * insert an data into store LineItem: 
+     ```javascript 
+    store.service insert {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"1"} value={"l_partkey":"1","l_suppkey":"1","l_extendedprice":"203.55","l_discount":"0.01"};
+    ```
+   * get a data from store LineItem:
+    ```javascript
+    store.service get {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"1"};
+    ```
+ * idgs-sql: this shell gives you the right to query data by Hive like SQL. 
+    * start idgs-sql: `dist/bin/idgs-sql-cli.sh`
+    * you can query the store LineItem by:
+    ```javascript
+    store.service get {"store_name":"LineItem"} key={"l_orderkey":"100000","l_linenumber":"1"};
+    ```
+   
+
+
+
+
+
 
 
